@@ -29,6 +29,23 @@ export function isInsideRing(x, z, outerRadius) {
   return Math.hypot(x, z) + outerRadius < CONFIG.WALL_RADIUS;
 }
 
+/** Max center radius so the visible disc stays inside the navy wall ring. */
+export function playableCenterRadius(outerR, mode = 'collision') {
+  switch (mode) {
+    case 'ability':
+      return CONFIG.WALL_RADIUS - outerR - 0.04;
+    case 'collision':
+    default:
+      return CONFIG.WALL_RADIUS - CONFIG.WALL_SEGMENT_THICKNESS - outerR - 0.02;
+  }
+}
+
+export function wallClampRadius(body) {
+  const colliderR = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const visualR = body.userData.visualOuterRadius ?? colliderR / CONFIG.COLLIDER_INSET;
+  return playableCenterRadius(visualR, 'collision');
+}
+
 function addWallSegment(world, wallMaterial, angle, radius) {
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius;

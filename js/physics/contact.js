@@ -8,7 +8,7 @@ import {
   isBodyInSpecialMove,
 } from '../game/abilities.js';
 import { createCollisionSparkEmitter, isSpecialClash } from './collisionSparks.js';
-import { isAtPocketAngle } from './arena.js';
+import { isAtPocketAngle, wallClampRadius } from './arena.js';
 import { clamp01 } from '../utils/math.js';
 
 const _impulse = new CANNON.Vec3();
@@ -237,7 +237,7 @@ export function setupContactHandlers(world, getState, spawnImpact) {
       const z = body.position.z;
       const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
       const dist = Math.hypot(x, z);
-      const maxR = CONFIG.WALL_RADIUS - r;
+      const maxR = wallClampRadius(body);
       if (dist <= 0.001) continue;
       if (isAtPocketAngle(Math.atan2(z, x), 1.5)) continue;
 

@@ -57,7 +57,7 @@ const STAR_BOUNCE_KNOCKBACK = 3.4;   // XZ push on each ground tap
 const STAR_BOUNCE_KB_SCALE = 0.16;   // scales knockback with impact speed
 const STAR_BOUNCE_OPP_MULT = 1.2;    // extra push on the foe when discs overlap
 const STAR_BLAST_HIT_KNOCKBACK = 5.2; // slam connect on the opponent
-const LDRAGO_LIGHTNING_HIT_KNOCKBACK = STAR_BLAST_HIT_KNOCKBACK * 0.85;
+const LDRAGO_LIGHTNING_HIT_KNOCKBACK = STAR_BLAST_HIT_KNOCKBACK;
 const STAR_BLAST_IMPULSE_MULT = 4.8;  // bey-vs-bey radial pop on Star Blast hit
 const STAR_KB_DAMP = 10;             // decay rate; v0 = distance * damp → ~distance travel
 const STAR_PHYSICS_KB_SCALE = 7;     // opponent knockback via velocity only (no position snap)

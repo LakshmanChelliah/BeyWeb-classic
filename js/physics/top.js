@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { staMult } from '../game/stats.js';
-import { isAtPocketAngle } from './arena.js';
+import { isAtPocketAngle, wallClampRadius } from './arena.js';
 import { clamp01 } from '../utils/math.js';
 
 const _spinQuatA = new THREE.Quaternion();
@@ -415,6 +415,7 @@ export function fitColliderToModel(body, modelHolder) {
   }
 
   body.addShape(new CANNON.Sphere(outerRadius));
+  body.userData.visualOuterRadius = Math.max(size.x, size.z) * 0.5;
   body.userData.outerRadius = outerRadius;
   // Shift visual down so its bottom sits at floor level while XZ matches the sphere.
   body.userData.visualYOffset = size.y * 0.5 - outerRadius;
@@ -449,6 +450,7 @@ export function createTopPhysicsBody(world, topMaterial, x, z, collisionGroup, p
     isTop: true,
     playerId,
     outerRadius: r,
+    visualOuterRadius: r / CONFIG.COLLIDER_INSET,
     // Default offset before the model loads: visual bottom flush with floor.
     visualYOffset: CONFIG.TOP_HEIGHT * 0.5 - r,
   };
@@ -541,9 +543,8 @@ export function resolveWallClipping(bodyA, bodyB, emitWallImpact) {
     if (!body || body.userData.collisionsDisabled || body.userData.ringOut || body.userData.launching) continue;
     const x = body.position.x;
     const z = body.position.z;
-    const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
     const dist = Math.hypot(x, z);
-    const maxR = CONFIG.WALL_RADIUS - r;
+    const maxR = wallClampRadius(body);
     if (dist > maxR && dist > 0.001) {
       if (!isAtPocketAngle(Math.atan2(z, x), 1.5)) {
         const scale = maxR / dist;
