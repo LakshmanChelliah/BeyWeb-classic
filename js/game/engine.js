@@ -61,7 +61,7 @@ import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
  */
 export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   const state = createGameState();
-  const { renderer, scene, camera } = createScene(canvas);
+  const { renderer, scene, camera } = createScene(canvas, mode);
   const { world, topMaterial, bowlMaterial, wallMaterial } = createPhysicsWorld();
   const arena = createArenaPhysics(world, bowlMaterial, wallMaterial);
   createArenaMesh(scene);
@@ -91,7 +91,10 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     player: createBullAbilityVfx(scene),
     ai: createBullAbilityVfx(scene),
   };
-  const collisionSparksVfx = createCollisionSparksVfx(scene);
+  const collisionSparksVfx = createCollisionSparksVfx(scene, {
+    poolSize: mode === 'mobile' ? 64 : 128,
+    countScale: mode === 'mobile' ? 0.72 : 1,
+  });
 
   function resetAllAbilityVfx() {
     starBlastVfx.player.reset();
@@ -585,6 +588,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     }
   }
 
+  const maxPhysicsSteps = mode === 'mobile' ? 3 : 5;
+
   function gameLoop() {
     requestAnimationFrame(gameLoop);
     const dt = Math.min(clock.getDelta(), 0.05);
@@ -596,9 +601,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       updateTopCollisions(state);
 
       state.accumulator += dt;
-      while (state.accumulator >= CONFIG.FIXED_DT) {
+      let physicsSteps = 0;
+      while (state.accumulator >= CONFIG.FIXED_DT && physicsSteps < maxPhysicsSteps) {
         stepPhysics();
         state.accumulator -= CONFIG.FIXED_DT;
+        physicsSteps++;
+      }
+      if (physicsSteps >= maxPhysicsSteps) {
+        state.accumulator = Math.min(state.accumulator, CONFIG.FIXED_DT);
       }
 
       const playerSandMult =

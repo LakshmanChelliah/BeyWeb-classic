@@ -1,13 +1,22 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 
+const _camTarget = new THREE.Vector3();
+
 /** Scene, renderer, camera, and lighting */
-export function createScene(canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+export function createScene(canvas, mode = 'pc') {
+  const isMobile = mode === 'mobile';
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: !isMobile,
+    alpha: false,
+    powerPreference: 'high-performance',
+  });
+  const maxDpr = isMobile ? 1.35 : 2;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDpr));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
@@ -34,7 +43,7 @@ export function createScene(canvas) {
   const sun = new THREE.DirectionalLight(0xfff4e2, 1.9);
   sun.position.set(6, 18, 8);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(isMobile ? 512 : 1024, isMobile ? 512 : 1024);
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 80;
   sun.shadow.camera.left = -28;
@@ -52,12 +61,12 @@ export function createScene(canvas) {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDpr));
   }
 
   window.addEventListener('resize', onResize);
 
-  return { renderer, scene, camera, onResize };
+  return { renderer, scene, camera, onResize, isMobile };
 }
 
 /** Tops still on the stadium (not in ring-out slide). */
@@ -113,7 +122,14 @@ export function updateCamera(camera, state, mode, cameraCue = 0) {
   const lift = Math.min(cue.lift ?? 0, 45);
   const stabilized = cue.stabilized ?? false;
   const koCinematic = cue.koCinematic ?? false;
-  const lerp = koCinematic ? 0.025 : stabilized ? 0.04 : lift > 0.5 ? 0.12 : 0.06;
+  const mobile = mode === 'mobile';
+  const lerp = koCinematic
+    ? (mobile ? 0.04 : 0.025)
+    : stabilized
+      ? (mobile ? 0.09 : 0.04)
+      : lift > 0.5
+        ? (mobile ? 0.18 : 0.12)
+        : (mobile ? 0.11 : 0.06);
 
   const camY = cue.camY ?? 24 + lift * 0.5;
   const lookY = cue.lookY ?? lift * 0.38;
@@ -144,14 +160,14 @@ export function updateCamera(camera, state, mode, cameraCue = 0) {
     const aspect = camera.aspect;
     const aspectScale = aspect < 0.62 ? 1.55 : aspect < 0.85 ? 1.25 : 1.0;
     const targetPull = Math.max(0, (span - 7) * 1.15 * aspectScale);
-    _mobileFramePull += (targetPull - _mobileFramePull) * 0.09;
+    _mobileFramePull += (targetPull - _mobileFramePull) * 0.14;
     finalCamY += _mobileFramePull * 0.44;
     finalCamZ += _mobileFramePull;
   } else {
     _mobileFramePull += (0 - _mobileFramePull) * 0.12;
   }
 
-  camera.position.lerp(new THREE.Vector3(midX, finalCamY, midZ + finalCamZ), lerp);
+  camera.position.lerp(_camTarget.set(midX, finalCamY, midZ + finalCamZ), lerp);
 
   if (!_lookReady) {
     _lookX = midX;

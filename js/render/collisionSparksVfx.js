@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { clamp01 } from '../utils/math.js';
 
-const POOL_SIZE = 128;
+const POOL_SIZE_DEFAULT = 128;
 const WHITE_HOT = 0xffffff;
 const ORANGE = 0xffdd55;
 const SPARK_Y = CONFIG.FLOOR_Y + 0.35;
@@ -34,7 +34,7 @@ function normalize2D(nx, nz) {
 }
 
 /** Intensity 1.0 = baseline burst; scales up for harder hits and specials. */
-export function computeSparkBurst(speed, special, sustained = false) {
+export function computeSparkBurst(speed, special, sustained = false, poolSize = POOL_SIZE_DEFAULT) {
   const baseline = CONFIG.COLLISION_SPARK_BASELINE_SPEED;
   const hardSpan = Math.max(1, CONFIG.WALL_IMPACT_HARD - baseline);
   const eff = Math.max(speed, baseline * 0.25);
@@ -54,7 +54,7 @@ export function computeSparkBurst(speed, special, sustained = false) {
 
   const motionT = clamp01(intensity / CONFIG.COLLISION_SPARK_SPECIAL_SCALE);
   return {
-    count: Math.min(POOL_SIZE, count),
+    count: Math.min(poolSize, count),
     motionT,
     life: CONFIG.COLLISION_SPARK_LIFE * (sustained ? 0.75 : 0.85 + motionT * 0.5),
     speed: (3 + motionT * 8.5) * (sustained ? 0.85 : 1),
@@ -89,12 +89,12 @@ function initParticle(p, burst, i, x, z, dir, tint) {
 }
 
 /** Pooled billboard sparks for bey clashes and rim wall impacts. */
-export function createCollisionSparksVfx(scene) {
+export function createCollisionSparksVfx(scene, { poolSize = POOL_SIZE_DEFAULT, countScale = 1 } = {}) {
   const root = new THREE.Group();
   scene.add(root);
 
   const pool = [];
-  for (let i = 0; i < POOL_SIZE; i++) {
+  for (let i = 0; i < poolSize; i++) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.11), makeSparkMat());
     mesh.visible = false;
     mesh.renderOrder = 10;
@@ -131,8 +131,8 @@ export function createCollisionSparksVfx(scene) {
     sustained = false,
     countMult = 1,
   }) {
-    const burst = computeSparkBurst(speed, special, sustained);
-    burst.count = Math.max(3, Math.round(burst.count * countMult));
+    const burst = computeSparkBurst(speed, special, sustained, poolSize);
+    burst.count = Math.max(3, Math.round(burst.count * countMult * countScale));
     const dir = normalize2D(nx, nz);
 
     for (let i = 0; i < burst.count; i++) {
