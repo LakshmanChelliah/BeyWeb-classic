@@ -8,11 +8,18 @@ html, body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #e8ecf4;
   user-select: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html {
+  touch-action: none;
 }
 
 body.mobile {
   touch-action: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Portrait-only — shown when the phone is rotated to landscape */
@@ -233,7 +240,7 @@ kbd {
   border-radius: 50px;
   box-shadow: 0 4px 24px rgba(37, 99, 235, 0.5);
   transition: transform 0.15s, box-shadow 0.15s;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 #btn-start:active {
@@ -304,7 +311,7 @@ kbd {
   color: #e8ecf4;
   border-radius: 50px;
   transition: background 0.15s, transform 0.15s;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 #btn-restart {
@@ -370,7 +377,7 @@ body.mobile #btn-recalibrate:disabled {
   appearance: none;
   border: none;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
   font-weight: 700;
@@ -1006,6 +1013,7 @@ body.vs-cpu #p2-abilities {
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.4s ease;
+  touch-action: none;
 }
 .ability-bar.visible { opacity: 1; }
 .ability-bar-left { left: 16px; }
@@ -1032,7 +1040,8 @@ body.mobile .ability-bar-right { bottom: 80px; }
   color: #e8ecf4;
   box-shadow: 0 0 14px -6px var(--ability-glow);
   transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .ability-btn:active { transform: scale(0.94); }
 .ability-btn.cooling { filter: grayscale(0.5) brightness(0.7); }

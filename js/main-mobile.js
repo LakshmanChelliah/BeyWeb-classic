@@ -2,6 +2,9 @@ import { createGyroInput } from './input/gyro.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
 import { createAppBootstrap } from './app/bootstrap.js';
 import { modeBlurb } from './game/modes.js';
+import { installTouchZoomGuard } from './touchZoomGuard.js';
+
+installTouchZoomGuard();
 
 function lockPortraitOrientation() {
   const lock = screen.orientation?.lock;

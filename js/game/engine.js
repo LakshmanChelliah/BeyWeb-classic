@@ -55,6 +55,7 @@ import { createLdragoAbilityVfx } from '../render/ldragoAbilityVfx.js';
 import { createLibraAbilityVfx } from '../render/libraAbilityVfx.js';
 import { createBullAbilityVfx } from '../render/bullAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
+import { bindTapWithoutZoom } from '../touchZoomGuard.js';
 
 /**
  * Boots the shared game engine for PC (2-player) or mobile (gyro + AI).
@@ -209,7 +210,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         `<span class="ability-icon">${ability.icon || ''}</span>` +
         `<span class="ability-name">${ability.name}</span>` +
         (keyLabel ? `<span class="ability-key">${keyLabel}</span>` : '');
-      btn.addEventListener('click', () => triggerAbility(side, slotName));
+      bindTapWithoutZoom(btn, () => triggerAbility(side, slotName));
       container.appendChild(btn);
       abilityButtons[side].push({ btn, slot, cdEl: btn.querySelector('.ability-cd') });
     }
