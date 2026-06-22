@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { applySteerForce } from '../physics/steer.js';
 
+/** Boost mid-range tilt force without raising the full-tilt cap (avoids twitchy micro-tilts). */
+function mediumTiltCurve(magnitude) {
+  const m = Math.min(1, Math.max(0, magnitude));
+  return m * (1 + 0.2 * (1 - m));
+}
+
 export function createGyroInput(canvas) {
   let calibBeta = 0;
   let calibGamma = 0;
@@ -94,10 +100,16 @@ export function createGyroInput(canvas) {
       tiltZ = THREE.MathUtils.clamp(gyroBeta, -CONFIG.GYRO_CLAMP, CONFIG.GYRO_CLAMP);
     }
 
+    const normX = tiltX / CONFIG.GYRO_CLAMP;
+    const normZ = tiltZ / CONFIG.GYRO_CLAMP;
+    const mag = Math.hypot(normX, normZ);
+    if (mag < 1e-4) return;
+    const scale = mediumTiltCurve(mag) / mag;
+
     applySteerForce(
       body,
-      tiltX / CONFIG.GYRO_CLAMP,
-      tiltZ / CONFIG.GYRO_CLAMP,
+      normX * scale,
+      normZ * scale,
       spin,
       CONFIG.GYRO_FORCE,
       { minSpin: CONFIG.SLEEP_THRESHOLD, normalize: false }

@@ -18,7 +18,7 @@ export function createPhysicsWorld() {
   // Top ↔ floor: moderate friction keeps beys controllable on the flat surface.
   world.addContactMaterial(
     new CANNON.ContactMaterial(topMaterial, bowlMaterial, {
-      friction: 0.55,
+      friction: 0.47,
       restitution: 0.04,
     })
   );

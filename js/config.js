@@ -74,7 +74,7 @@ export const CONFIG = Object.freeze({
   /** Particle count multiplier for sustained-contact sparks vs impact bursts. */
   COLLISION_SPARK_SUSTAIN_SCALE: 0.38,
 
-  LINEAR_DAMPING: 0.20,
+  LINEAR_DAMPING: 0.16,
 
   FIXED_DT: 1 / 60,
   FLOOR_Y: 0,
