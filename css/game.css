@@ -202,6 +202,21 @@ body.mobile {
   margin-bottom: 20px;
 }
 
+.platform-link {
+  margin-top: -8px;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.platform-link a {
+  color: #6b9fff;
+  text-decoration: none;
+}
+
+.platform-link a:hover {
+  text-decoration: underline;
+}
+
 .key-hints {
   display: flex;
   gap: 6px;

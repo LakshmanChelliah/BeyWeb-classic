@@ -10,7 +10,18 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Spin Sumo | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=19" />
+  <link rel="stylesheet" href="css/game.css?v=20" />
+  <script>
+    (function () {
+      var desktop =
+        window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+        window.innerWidth >= 768;
+      if (desktop) {
+        var target = 'pc.html' + location.search + location.hash;
+        location.replace(target);
+      }
+    })();
+  </script>
 </head>
 <body class="mobile">
 
@@ -65,6 +76,7 @@
     <p id="start-blurb">Tournament: best of 3 vs six bladers in rising order — Benkei to Ryuga.</p>
     <button id="btn-start">Calibrate &amp; Start</button>
     <p id="permission-hint">Requires motion sensor access on iOS. Hold phone flat when starting.</p>
+    <p class="platform-link"><a href="pc.html">Desktop keyboard version</a></p>
   </div>
 
   <div id="gameover-overlay">
@@ -80,13 +92,13 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-      "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/",
+      "cannon-es": "./vendor/cannon-es.js"
     }
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=13"></script>
+  <script type="module" src="js/main-mobile.js?v=14"></script>
 </body>
 </html>

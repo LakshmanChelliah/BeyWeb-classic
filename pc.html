@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spin Sumo | PC Edition</title>
-  <link rel="stylesheet" href="css/game.css?v=19" />
+  <link rel="stylesheet" href="css/game.css?v=20" />
 </head>
 <body>
 
@@ -60,6 +60,7 @@
     </div>
     <button id="btn-start">Start Game</button>
     <p id="permission-hint">Press Enter or Space to start</p>
+    <p class="platform-link"><a href="index.html">Mobile / tilt-steer version</a></p>
   </div>
 
   <div id="gameover-overlay">
@@ -74,13 +75,13 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-      "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/",
+      "cannon-es": "./vendor/cannon-es.js"
     }
   }
   </script>
 
-  <script type="module" src="js/main-pc.js"></script>
+  <script type="module" src="js/main-pc.js?v=2"></script>
 </body>
 </html>
