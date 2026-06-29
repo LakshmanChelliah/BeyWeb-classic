@@ -84,18 +84,18 @@ createAppBootstrap({
           keyboard.applyPlayer2Steer(state.aiBody, state.aiSpin);
         }
       },
-      onStartClick(startGame) {
+      async onStartClick(startGame) {
         resetAIController();
-        startGame();
+        await startGame();
         campaignCtrl.updateHud();
       },
       onMatchEnd: (result) => campaignCtrl.handleMatchEnd(result),
-      onRestart(resetGame) {
+      async onRestart(resetGame) {
         if (campaignCtrl.handlesRestart()) {
-          campaignCtrl.handleRestart(resetGame);
+          await campaignCtrl.handleRestart(resetGame);
         } else {
           resetAIController();
-          resetGame();
+          await resetGame();
         }
       },
       onChangeBey: openBeySelect,

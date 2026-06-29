@@ -5,6 +5,8 @@ import { createPlaySetup } from '../ui/playSetup.js';
 import { queryGameUi } from '../ui/domRefs.js';
 import { createCampaignController } from '../game/campaignController.js';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
+import { BEYS, isBeyPlayable } from '../game/beys.js';
+import { preloadTopModel } from '../render/modelCache.js';
 
 /**
  * Shared mobile/PC bootstrap: campaign, play setup, bey selection, and game wiring.
@@ -39,6 +41,7 @@ export function createAppBootstrap({
     onOpponentChange(opp) {
       gameRef.state.aiBey = opp;
       selection?.setRivalPick(opp);
+      if (opp?.model) preloadTopModel(opp.model);
     },
   });
 
@@ -78,7 +81,7 @@ export function createAppBootstrap({
     }
   }
 
-  function handleSelectionComplete(picks) {
+  async function handleSelectionComplete(picks) {
     const { mode, difficulty: diff } = playSetup.getState();
     gameMode = mode;
     difficulty = diff;
@@ -92,6 +95,12 @@ export function createAppBootstrap({
       gameRef.state.aiBey = picks[1];
       campaignCtrl.resetCampaign();
     }
+
+    await Promise.all([
+      preloadTopModel(picks[0].model),
+      preloadTopModel(gameRef.state.aiBey?.model),
+    ]);
+
     beysChosen = true;
     btnStart.disabled = false;
     resetAIController();
@@ -165,6 +174,10 @@ export function createAppBootstrap({
     isVsCpu: () => isVsCpu(gameMode),
     ui: queryGameUi(queryUiOptions),
     input,
+  });
+
+  BEYS.filter(isBeyPlayable).forEach((b) => {
+    if (b.model) preloadTopModel(b.model);
   });
 
   ({ mode: gameMode, difficulty } = playSetup.getState());

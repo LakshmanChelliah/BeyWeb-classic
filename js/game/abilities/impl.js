@@ -171,6 +171,18 @@ export function isBullFlipActive(body) {
 const BULL_UPPERCUT_SLAM_MULT = 1.2;
 const BULL_UPPERCUT_LIFT = 14;
 
+// Ray Striker — Blitz Charge + Lightning Sword Flash (Ray wheel / CS tip rush).
+const STRIKER_GLOW = '#14b8a6';
+const STRIKER_BLITZ_STEER = 1.95;
+export const STRIKER_FLASH_DURATION = 3.4;
+export const STRIKER_FLASH_WINDUP = 0.35;
+const STRIKER_DASH_SPEED = 32;
+const STRIKER_DASH_AIM_TRACK = 0.2;
+const STRIKER_FLASH_KB = 4.4;
+const STRIKER_FLASH_SPIN = 0.17;
+const STRIKER_FLASH_MISS_SELF = 0.035;
+const STRIKER_COAST_ARRIVE = 0.35;
+
 // Earth Eagle — Counter Stance + Diving Crush.
 const EAGLE_GLOW = '#f59e0b';
 const EAGLE_COUNTER_DUR = 3.2;
@@ -346,6 +358,141 @@ function stepBullUppercutDash(state, dt) {
     if (!body || body.userData.bullUpperPhase !== 'dash') continue;
     if (stepBullDash(state, side, body, opp, dt)) {
       body.userData.bullDashDone = true;
+    }
+  }
+}
+
+function initStrikerDashTarget(body, opp) {
+  const fromX = body.userData.strikerChargeFromX ?? body.position.x;
+  const fromZ = body.userData.strikerChargeFromZ ?? body.position.z;
+  let nx = (opp?.position.x ?? body.position.x) - fromX;
+  let nz = (opp?.position.z ?? body.position.z) - fromZ;
+  const d = Math.hypot(nx, nz);
+  if (d < 0.05) {
+    const yaw = Math.atan2(body.position.z, body.position.x);
+    nx = Math.cos(yaw);
+    nz = Math.sin(yaw);
+  } else {
+    nx /= d;
+    nz /= d;
+  }
+  body.userData.strikerCoastNx = nx;
+  body.userData.strikerCoastNz = nz;
+
+  const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const maxR = CONFIG.WALL_RADIUS - r - 0.04;
+  const angle = Math.atan2(nz, nx);
+  body.userData.strikerCoastTargetX = Math.cos(angle) * maxR;
+  body.userData.strikerCoastTargetZ = Math.sin(angle) * maxR;
+}
+
+function advanceStrikerFlashDash(state, side, body, opp, dt) {
+  if (body.userData.strikerCoastTargetX == null) initStrikerDashTarget(body, opp);
+
+  body.userData.strikerFlashPhaseT = (body.userData.strikerFlashPhaseT ?? 0) + dt;
+  if (opp && body.userData.strikerFlashPhaseT < STRIKER_DASH_AIM_TRACK) {
+    initStrikerDashTarget(body, opp);
+  }
+
+  const tx = body.userData.strikerCoastTargetX;
+  const tz = body.userData.strikerCoastTargetZ;
+  const dx = tx - body.position.x;
+  const dz = tz - body.position.z;
+  const remain = Math.hypot(dx, dz);
+
+  body.userData.strikerSlamming = true;
+  body.position.y = groundY(body);
+
+  if (remain < STRIKER_COAST_ARRIVE) {
+    body.position.x = tx;
+    body.position.z = tz;
+    return true;
+  }
+
+  const move = Math.min(STRIKER_DASH_SPEED * dt, remain);
+  body.position.x += (dx / remain) * move;
+  body.position.z += (dz / remain) * move;
+
+  if (opp && strikerFlashOverlap(body, opp) && !body.userData.strikerFlashHit) {
+    applyStrikerFlashHit(state, side, body, opp);
+  }
+
+  return false;
+}
+
+function strikerFlashOverlap(body, opp) {
+  if (!body || !opp) return false;
+  const dx = body.position.x - opp.position.x;
+  const dz = body.position.z - opp.position.z;
+  const rA = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const rB = opp.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const reach = (rA + rB) * 1.08;
+  return dx * dx + dz * dz <= reach * reach;
+}
+
+function applyStrikerFlashHit(state, side, body, opp) {
+  if (!body || !opp || body.userData.strikerFlashHit) return;
+  body.userData.strikerFlashHit = true;
+  let nx = opp.position.x - body.position.x;
+  let nz = opp.position.z - body.position.z;
+  const d = Math.hypot(nx, nz) || 1;
+  nx /= d;
+  nz /= d;
+  applyPhysicsKnockback(opp, nx, nz, STRIKER_FLASH_KB);
+  const victimSpinKey = side === 'player' ? 'aiSpin' : 'playerSpin';
+  state[victimSpinKey] = Math.max(0, state[victimSpinKey] - STRIKER_FLASH_SPIN);
+  body.userData.strikerImpactFlash = true;
+}
+
+function releaseStrikerFlashControl(body) {
+  if (!body) return;
+  body.userData.airborne = false;
+  body.userData.controlLocked = false;
+  body.userData.slamming = false;
+  body.userData.strikerSlamming = false;
+  delete body.userData.strikerFlashPhase;
+  delete body.userData.strikerFlashPhaseT;
+  delete body.userData.strikerCoastTargetX;
+  delete body.userData.strikerCoastTargetZ;
+  delete body.userData.strikerCoastNx;
+  delete body.userData.strikerCoastNz;
+  delete body.userData.strikerChargeFromX;
+  delete body.userData.strikerChargeFromZ;
+  delete body.userData.strikerFlashHit;
+  delete body.userData.strikerImpactFlash;
+  delete body.userData.strikerImpactFlashT;
+  delete body.userData.strikerDashDone;
+  delete body.userData.strikerWindupEndTilt;
+  body.userData.flightLift = 0;
+  body.userData.flightTilt = 0;
+  body.userData.flightRoll = 0;
+  body.userData.flightSquash = 1;
+  setBodyCollisions(body, true);
+  if (body.type === CANNON.Body.KINEMATIC) restoreDynamicBody(body);
+}
+
+function finishStrikerFlash(state, side, slot, body, dt) {
+  if (!body.userData.strikerFlashHit) {
+    const selfSpinKey = spinKey(side);
+    state[selfSpinKey] = Math.max(0, state[selfSpinKey] - STRIKER_FLASH_MISS_SELF);
+  }
+  releaseStrikerFlashControl(body);
+  if (slot.ability.onEnd) slot.ability.onEnd(makeCtx(state, side, dt));
+  slot.active = false;
+  slot.activeRemaining = 0;
+  slot.windupRemaining = 0;
+  slot.windupDuration = 0;
+}
+
+function stepStrikerFlashDash(state, dt) {
+  for (const side of ['player', 'ai']) {
+    const spSlot = state.abilities?.[side]?.special;
+    if (!spSlot?.active || spSlot.ability.id !== 'striker_lightning_flash') continue;
+    const body = side === 'player' ? state.playerBody : state.aiBody;
+    const opp = side === 'player' ? state.aiBody : state.playerBody;
+    if (!body || body.userData.strikerFlashPhase !== 'dash') continue;
+    if (advanceStrikerFlashDash(state, side, body, opp, dt)) {
+      body.userData.strikerDashDone = true;
     }
   }
 }
@@ -1595,6 +1742,64 @@ export const ABILITY_REGISTRY = {
       releaseBullUppercutControl(ctx.body);
     },
   },
+
+  striker_blitz_charge: {
+    id: 'striker_blitz_charge',
+    name: 'Blitz Charge',
+    slot: 'power',
+    icon: '\u00BB',
+    desc: 'CS tip digs in for a sharp burst of speed and steering.',
+    charge: 5,
+    cooldown: 8,
+    duration: 3,
+    windup: 0,
+    glow: STRIKER_GLOW,
+    onActivate(ctx) {
+      const b = ctx.body;
+      b.userData.steerMult = STRIKER_BLITZ_STEER;
+      b.userData.boosting = true;
+      b.userData.boostT = 0;
+      b.userData.prevDamping = b.linearDamping;
+      b.linearDamping = Math.max(0.05, b.linearDamping * 0.48);
+    },
+    onEnd(ctx) {
+      const b = ctx.body;
+      b.userData.steerMult = 1;
+      b.userData.boosting = false;
+      delete b.userData.boostT;
+      if (b.userData.prevDamping != null) b.linearDamping = b.userData.prevDamping;
+    },
+  },
+
+  striker_lightning_flash: {
+    id: 'striker_lightning_flash',
+    name: 'Lightning Sword Flash',
+    slot: 'special',
+    icon: '\u26A1',
+    desc: 'Unicorn horn lines up a piercing dash through the rival; whiffs cost a little spin.',
+    charge: 10,
+    cooldown: 11,
+    duration: STRIKER_FLASH_DURATION,
+    windup: STRIKER_FLASH_WINDUP,
+    glow: STRIKER_GLOW,
+    onActivate(ctx) {
+      const b = ctx.body;
+      b.userData.airborne = true;
+      b.userData.controlLocked = true;
+      b.userData.strikerFlashPhase = 'dash';
+      b.userData.strikerFlashPhaseT = 0;
+      delete b.userData.strikerFlashHit;
+      delete b.userData.strikerDashDone;
+      b.userData.strikerChargeFromX = b.position.x;
+      b.userData.strikerChargeFromZ = b.position.z;
+      initStrikerDashTarget(b, ctx.opponentBody);
+      setAirborneKinematic(b);
+      setBodyCollisions(b, false);
+    },
+    onEnd(ctx) {
+      releaseStrikerFlashControl(ctx.body);
+    },
+  },
 };
 
 // ---- runtime ----------------------------------------------------------------
@@ -1695,6 +1900,10 @@ function applyAbilityWindupSetup(state, side, ability) {
     body.userData.controlLocked = true;
     initBullUppercut(body);
   }
+  if (ability.id === 'striker_lightning_flash') {
+    body.userData.controlLocked = true;
+    body.userData.airborne = true;
+  }
   if (ability.id === 'eagle_diving_crush') {
     body.userData.controlLocked = true;
     body.userData.airborne = true;
@@ -1766,6 +1975,10 @@ function cancelSlotOnSpinStop(state, side, slot, dt) {
     finishBullUppercut(state, side, slot, body, dt);
     return true;
   }
+  if (id === 'striker_lightning_flash') {
+    finishStrikerFlash(state, side, slot, body, dt);
+    return true;
+  }
   if (id === 'eagle_diving_crush') {
     finishEagleDive(state, side, slot, body, dt);
     return true;
@@ -1806,6 +2019,7 @@ export function stepAbilities(state, dt) {
   tickBullFlipDecay(state.playerBody, dt);
   tickBullFlipDecay(state.aiBody, dt);
   stepBullUppercutDash(state, dt);
+  stepStrikerFlashDash(state, dt);
   stepLibraBusterChannel(state, dt);
   for (const side of ['player', 'ai']) {
     const runtime = state.abilities[side];
@@ -2284,6 +2498,79 @@ export function tickBullAbilityVisuals(state, dt) {
   }
 }
 
+/** Per-frame visual animation for Ray Striker's blitz charge and lightning flash. */
+export function tickStrikerAbilityVisuals(state, dt) {
+  if (!state.abilities) return;
+
+  for (const side of ['player', 'ai']) {
+    const body = side === 'player' ? state.playerBody : state.aiBody;
+    const opp = side === 'player' ? state.aiBody : state.playerBody;
+    if (!body) continue;
+    const runtime = state.abilities[side];
+    if (!runtime) continue;
+
+    const pwSlot = runtime.power;
+    if (pwSlot?.active && pwSlot.ability.id === 'striker_blitz_charge') {
+      const t = body.userData.boostT ?? 0;
+      body.userData.boostT = t + dt;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 11);
+      body.userData.flightSquash = 1 - 0.04 * pulse;
+      body.userData.flightTilt = 0.05 * pulse;
+    }
+
+    const spSlot = runtime.special;
+    if (!spSlot || spSlot.ability.id !== 'striker_lightning_flash') continue;
+
+    const inMove =
+      spSlot.windupRemaining > 0 ||
+      spSlot.active ||
+      body.userData.strikerFlashPhase != null;
+    if (!inMove) continue;
+
+    body.position.y = groundY(body);
+    body.velocity.set(0, 0, 0);
+    setBodyCollisions(body, false);
+    if (body.type !== CANNON.Body.KINEMATIC) setAirborneKinematic(body);
+
+    if (body.userData.strikerImpactFlash) {
+      body.userData.strikerImpactFlashT = (body.userData.strikerImpactFlashT ?? 0) + dt;
+      if (body.userData.strikerImpactFlashT > 0.12) {
+        body.userData.strikerImpactFlash = false;
+        delete body.userData.strikerImpactFlashT;
+      }
+    }
+
+    if (spSlot.windupRemaining > 0) {
+      body.userData.strikerFlashPhase = 'windup';
+      const windup = slotWindupTotal(spSlot, STRIKER_FLASH_WINDUP);
+      const t = clamp01(1 - spSlot.windupRemaining / windup);
+      if (t > 0.45 && opp) homingXZ(body, opp, 6 * dt);
+      body.userData.flightLift = 0;
+      body.userData.strikerWindupEndTilt = 0.14 * easeOutCubic(t);
+      body.userData.flightTilt = body.userData.strikerWindupEndTilt;
+      body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.03;
+      body.userData.flightSquash = 1 - 0.12 * easeOutQuad(t);
+      continue;
+    }
+
+    if (!spSlot.active && body.userData.strikerFlashPhase !== 'dash') continue;
+
+    const phaseT = body.userData.strikerFlashPhaseT ?? 0;
+    const lean = 0.32;
+    const fromTilt = body.userData.strikerWindupEndTilt ?? 0.14;
+    const build = easeOutCubic(clamp01(phaseT / 0.22));
+    body.userData.flightTilt = fromTilt + (lean - fromTilt) * build;
+    body.userData.flightSquash = 1 + 0.04 * build;
+    body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.05 * build;
+
+    if (body.userData.strikerDashDone) {
+      delete body.userData.strikerDashDone;
+      body.userData.strikerSlamming = false;
+      finishStrikerFlash(state, side, spSlot, body, dt);
+    }
+  }
+}
+
 // ---- Earth Eagle cinematic visual driver (render rate) -----------------------
 
 function markEagleDiveHit(state, attackerSide, body, opp) {
@@ -2741,6 +3028,18 @@ export function tickAbilityTimers(state, dt) {
             } else if (body && (phase === 'dash' || body.userData.bullDashDone)) {
               releaseBullUppercutControl(body);
               finishBullUppercut(state, side, slot, body, dt);
+            }
+          }
+        } else if (slot.ability.id === 'striker_lightning_flash') {
+          slot.activeRemaining = Math.max(0, slot.activeRemaining - dt);
+          if (slot.activeRemaining === 0 && slot.active) {
+            const body = side === 'player' ? state.playerBody : state.aiBody;
+            const phase = body?.userData.strikerFlashPhase;
+            if (body && phase == null) {
+              finishStrikerFlash(state, side, slot, body, dt);
+            } else if (body && (phase === 'dash' || body.userData.strikerDashDone)) {
+              releaseStrikerFlashControl(body);
+              finishStrikerFlash(state, side, slot, body, dt);
             }
           }
         } else if (slot.ability.id === 'eagle_diving_crush') {

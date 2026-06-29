@@ -8,55 +8,72 @@ export const TOURNAMENT_BLADERS = Object.freeze({
   bull: {
     name: 'Benkei',
     title: 'The Strong Arm',
-    aiTier: 2,
-    defBonus: 10,
-    staBonus: 8,
-  },
-  libra: {
-    name: 'Kenta',
-    title: 'The Balance Blader',
     aiTier: 3,
     defBonus: 12,
-    staBonus: 14,
+    staBonus: 10,
+  },
+  libra: {
+    name: 'Yu',
+    title: 'The Balance Blader',
+    aiTier: 3,
+    defBonus: 14,
+    staBonus: 16,
   },
   eagle: {
     name: 'Tsubasa',
     title: 'The Sky Hunter',
-    aiTier: 3,
-    defBonus: 14,
-    staBonus: 12,
+    aiTier: 4,
+    defBonus: 16,
+    staBonus: 14,
+    moveBonus: 4,
   },
   leone: {
     name: 'Kyoya',
     title: 'The Lion King',
-    aiTier: 4,
-    defBonus: 16,
-    staBonus: 10,
+    aiTier: 5,
+    defBonus: 22,
+    staBonus: 16,
+    atkBonus: 6,
+    moveBonus: 4,
+  },
+  striker: {
+    name: 'Masamune',
+    title: 'The Blitz Striker',
+    aiTier: 5,
+    defBonus: 14,
+    staBonus: 12,
+    atkBonus: 8,
+    moveBonus: 10,
   },
   pegasus: {
     name: 'Gingka',
     title: 'The Storm Blader',
-    aiTier: 5,
-    defBonus: 8,
-    staBonus: 8,
+    aiTier: 6,
+    defBonus: 18,
+    staBonus: 14,
+    atkBonus: 8,
+    moveBonus: 6,
   },
   ldrago: {
     name: 'Ryuga',
     title: 'The Dark Emperor',
     aiTier: BOT_AI_TIER,
-    defBonus: 10,
-    staBonus: 12,
+    defBonus: 24,
+    staBonus: 18,
+    atkBonus: 10,
+    moveBonus: 8,
   },
 });
 
 /** Opponents in rising difficulty (easiest → hardest). */
 export const CAMPAIGN_OPPONENT_IDS = Object.freeze([
   'bull',    // Benkei — Dark Bull
-  'libra',   // Kenta — Flame Libra
+  'libra',   // Yu — Flame Libra
   'eagle',   // Tsubasa — Earth Eagle
   'leone',   // Kyoya — Rock Leone
   'pegasus', // Gingka — Storm Pegasus
   'ldrago',  // Ryuga — Lightning L-Drago
+  'striker', // Masamune — Ray Striker
 ]);
 
 export const CAMPAIGN_STAGE_COUNT = CAMPAIGN_OPPONENT_IDS.length;
@@ -74,6 +91,7 @@ const OPPONENT_AI_TIER = Object.freeze({
   libra: TOURNAMENT_BLADERS.libra.aiTier,
   eagle: TOURNAMENT_BLADERS.eagle.aiTier,
   leone: TOURNAMENT_BLADERS.leone.aiTier,
+  striker: TOURNAMENT_BLADERS.striker.aiTier,
   pegasus: TOURNAMENT_BLADERS.pegasus.aiTier,
   ldrago: TOURNAMENT_BLADERS.ldrago.aiTier,
 });
@@ -101,6 +119,8 @@ export function applyTournamentBladerProfile(bey) {
     tournamentBuffs: {
       defBonus: blader.defBonus,
       staBonus: blader.staBonus,
+      atkBonus: blader.atkBonus ?? 0,
+      moveBonus: blader.moveBonus ?? 0,
     },
   };
 }

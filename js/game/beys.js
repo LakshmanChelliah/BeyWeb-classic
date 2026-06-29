@@ -146,6 +146,28 @@ export const BEYS = Object.freeze([
     available: true,
   },
   {
+    id: 'striker',
+    name: 'RAY STRIKER',
+    type: 'Attack',
+    desc: 'Masamune\'s blitz striker. Ray wheel and CS tip carve sharp angles; Lightning Sword Flash pierces rivals at full speed.',
+    // Ray wheel (ATK ***), Unicorno ring (ATK ****), D125 track, CS Control Sharp tip.
+    // Hasbro BB-99 card: Attack 5 / Defense 1 / Stamina 2.
+    packagingStars: { atk: 5, def: 1, sta: 2 },
+    atk: 81,
+    move: 90,
+    def: 26,
+    sta: 30,
+    color: '#14b8a6',
+    model: 'ray_striker.glb',
+    logo: 'ray_striker_logo.png',
+    gimmicks: {
+      power: 'striker_blitz_charge',
+      special: 'striker_lightning_flash',
+      passive: null,
+    },
+    available: true,
+  },
+  {
     id: 'bull',
     name: 'DARK BULL',
     type: 'Balance',

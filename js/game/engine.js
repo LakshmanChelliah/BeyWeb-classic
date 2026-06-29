@@ -30,6 +30,7 @@ import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
 import { createArenaMesh } from '../render/arena.js';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
+import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';
 import {
   createAbilityRuntime,
@@ -41,6 +42,7 @@ import {
   tickLdragoAbilityVisuals,
   tickLibraAbilityVisuals,
   tickBullAbilityVisuals,
+  tickStrikerAbilityVisuals,
   tickEagleAbilityVisuals,
   getCameraCue,
   resetStarBlastCamera,
@@ -510,8 +512,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     state.playerBody.userData.spinSign = playerBey.leftSpin ? -1 : 1;
     state.aiBody.userData.beyStats = {
       id: aiBey.id,
-      atk: aiBey.atk ?? 50,
-      move: aiBey.move ?? aiBey.atk ?? 50,
+      atk: Math.min(100, (aiBey.atk ?? 50) + (aiBey.tournamentBuffs?.atkBonus ?? 0)),
+      move: Math.min(100, (aiBey.move ?? aiBey.atk ?? 50) + (aiBey.tournamentBuffs?.moveBonus ?? 0)),
       def: Math.min(100, (aiBey.def ?? 50) + (aiBey.tournamentBuffs?.defBonus ?? 0)),
       sta: Math.min(100, (aiBey.sta ?? 50) + (aiBey.tournamentBuffs?.staBonus ?? 0)),
       orbitDrift: aiBey.orbitDrift,
@@ -557,18 +559,20 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     input.clearKeys?.();
   }
 
-  function resetGame() {
+  async function resetGame() {
     state.gameFrozen = false;
     dom.gameoverOverlay.classList.remove('visible');
     input.clearKeys?.();
+    await ensureMatchModelsReady(state.playerBey, state.aiBey);
     spawnTops();
     state.gameRunning = true;
     clock.getDelta();
   }
 
-  function startGame() {
+  async function startGame() {
     if (state.gameRunning) return;
     dom.btnStart.disabled = true;
+    await ensureMatchModelsReady(state.playerBey, state.aiBey);
     spawnTops();
     dom.startOverlay.classList.add('hidden');
     dom.hud.classList.add('visible');
@@ -675,7 +679,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         : decaySpin(
             state.playerSpin,
             dt,
-            state.playerBey.sta ?? 50,
+            state.playerBody.userData.beyStats.sta,
             playerSandMult
           );
       state.aiSpin = state.aiBody?.userData.controlLocked
@@ -683,7 +687,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         : decaySpin(
             state.aiSpin,
             dt,
-            state.aiBey.sta ?? 50,
+            state.aiBody.userData.beyStats.sta,
             aiSandMult
           );
       cancelAbilitiesOnSpinStop(state, dt);
@@ -694,6 +698,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       tickLdragoAbilityVisuals(state, dt);
       tickLibraAbilityVisuals(state, dt);
       tickBullAbilityVisuals(state, dt);
+      tickStrikerAbilityVisuals(state, dt);
       tickEagleAbilityVisuals(state, dt);
       trackSleepers(state);
       updateHud();

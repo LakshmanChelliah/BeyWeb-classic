@@ -41,10 +41,18 @@ export function getDifficultyLabel(tier) {
 
 let _tier = 1;
 let _tournament = false;
+let _stageIndex = 0;
+let _opponentId = null;
 let _steerDecisionT = 0;
 let _abilityDecisionT = 0;
 let _steerMode = 'chase';
 let _orbitDir = 1;
+
+const TOURNAMENT_BOSS_OVERRIDES = {
+  leone: { powerReach: 8.5, outAvoidance: 0.82, interceptBias: true },
+  pegasus: { abilityDiscipline: 0.96, specialReach: 8.0, decisionInterval: 0.08 },
+  ldrago: { abilityDiscipline: 1.0, specialReach: 9.0, decisionInterval: 0.06, mistakeRate: 0.01, outAvoidance: 0.95, forceMult: 1.50 }
+};
 
 function clamp01(v) {
   return Math.max(0, Math.min(1, v));
@@ -56,22 +64,40 @@ function tierConfig() {
 
 /** Tournament opponents think one tier sharper without raw force spike. */
 function decisionTier() {
-  const bonus = _tournament ? 1 : 0;
+  const bonus = (_tournament && _stageIndex <= 3) ? 1 : 0;
   return Math.min(_tier + bonus, AI_TIER_MAX);
 }
 
 function decisionConfig() {
   const base = AI_TIERS[decisionTier()] ?? AI_TIERS[AI_TIER_MAX];
   if (!_tournament) return base;
-  // Tournament rivals play like show bladers — they bail from the rim and use abilities.
-  return {
+  
+  const stageFrac = Math.min(1, Math.max(0, _stageIndex / 5));
+  const outAvoidance = 0.58 + stageFrac * 0.30;
+  const edgeSkill = 0.48 + stageFrac * 0.27;
+  const abilityDiscipline = 0.68 + stageFrac * 0.24;
+  const mistakeMult = 0.45 - stageFrac * 0.30;
+  const leadSkillBonus = 0.08 + stageFrac * 0.10;
+  const decisionMult = 0.95 - stageFrac * 0.20;
+  const forceBoost = stageFrac * 0.12;
+
+  let conf = {
     ...base,
-    outAvoidance: Math.max(base.outAvoidance, 0.52),
-    edgeSkill: Math.max(base.edgeSkill, 0.42),
-    abilityDiscipline: Math.max(base.abilityDiscipline, 0.62),
-    mistakeRate: base.mistakeRate * 0.5,
-    leadSkill: Math.min(1, base.leadSkill + 0.06),
+    outAvoidance: Math.max(base.outAvoidance, outAvoidance),
+    edgeSkill: Math.max(base.edgeSkill, edgeSkill),
+    abilityDiscipline: Math.max(base.abilityDiscipline, abilityDiscipline),
+    mistakeRate: base.mistakeRate * mistakeMult,
+    leadSkill: Math.min(1, base.leadSkill + leadSkillBonus),
+    decisionInterval: base.decisionInterval * decisionMult,
+    forceMult: base.forceMult + forceBoost,
   };
+
+  const override = TOURNAMENT_BOSS_OVERRIDES[_opponentId];
+  if (override) {
+    conf = { ...conf, ...override };
+  }
+
+  return conf;
 }
 
 function edgeFracForBody(body) {
@@ -181,7 +207,7 @@ function pickIdealSteerMode(persona, dist, spin, playerSpin, aiBody) {
     return dist > 5 ? 'center' : 'chase';
   }
 
-  if (persona.caution > 0.55) {
+  if (persona.caution > 0.55 || decisionConfig().interceptBias) {
     if (dist > 6.5) return 'center';
     if (dist < 3.8 && spin > 0.25) return 'chase';
     return skill > 0.50 ? 'intercept' : 'center';

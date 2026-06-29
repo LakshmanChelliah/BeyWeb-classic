@@ -61,16 +61,16 @@ createAppBootstrap({
 
         gyro.startListening();
         await gyro.calibrateOnce();
-        startGame();
+        await startGame();
         campaignCtrl.updateHud();
       },
       onMatchEnd: (result) => campaignCtrl.handleMatchEnd(result),
-      onRestart(resetGame) {
+      async onRestart(resetGame) {
         if (campaignCtrl.handlesRestart()) {
-          campaignCtrl.handleRestart(resetGame);
+          await campaignCtrl.handleRestart(resetGame);
         } else {
           resetAIController();
-          resetGame();
+          await resetGame();
         }
       },
       onChangeBey: openBeySelect,

@@ -17,6 +17,7 @@ import {
   pickTournamentOpponent,
 } from './campaign.js';
 import { createCasualMode } from './casualMode.js';
+import { preloadTopModel } from '../render/modelCache.js';
 
 /**
  * Wires tournament + casual progression to DOM and game callbacks (PC and mobile).
@@ -139,7 +140,11 @@ export function createCampaignController({
   }
 
   function beginOpponent() {
-    setAIContext({ tournament: activeMode !== 'casual' });
+    setAIContext({
+      tournament: activeMode !== 'casual',
+      stageIndex: activeMode === 'tournament' ? tournament.getOpponentIndex() : 0,
+      opponentId: currentMode().getCurrentOpponent()?.id ?? null,
+    });
     setAIDifficulty(getEffectiveAiTier());
     const opp = currentMode().getCurrentOpponent();
     onOpponentChange(opp);
@@ -224,6 +229,8 @@ export function createCampaignController({
     gameoverTitle.textContent = 'SERIES WON!';
     gameoverTitle.className = 'win';
     gameoverMsg.textContent = `${scoreLine}. You beat ${rivalName}! The next blader awaits.`;
+    const nextRaw = pickTournamentOpponent(tournament.getOpponentIndex() + 1, getPlayerBey());
+    if (nextRaw?.model) preloadTopModel(nextRaw.model);
   }
 
   function handleMatchEnd(result) {
@@ -237,14 +244,14 @@ export function createCampaignController({
     handleTournamentMatchEnd(result);
   }
 
-  function handleRestart(resetGame) {
+  async function handleRestart(resetGame) {
     if (activeMode === 'casual') {
       if (restartAction === 'rematch-random') {
         rollAndSetOpponent();
         beginOpponent();
       }
       resetAIController();
-      resetGame();
+      await resetGame();
       return;
     }
 
@@ -253,7 +260,7 @@ export function createCampaignController({
       rollAndSetOpponent();
       beginOpponent();
       resetAIController();
-      resetGame();
+      await resetGame();
       return;
     }
 
@@ -262,12 +269,12 @@ export function createCampaignController({
       rollAndSetOpponent();
       beginOpponent();
       resetAIController();
-      resetGame();
+      await resetGame();
       return;
     }
 
     resetAIController();
-    resetGame();
+    await resetGame();
   }
 
   return {
