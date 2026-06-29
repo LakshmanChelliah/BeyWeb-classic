@@ -96,6 +96,7 @@ export const BEYS = Object.freeze([
     // Flame (ATK ** DEF * STA **), Libra ring, 145 track (STA **), ES tip (STA *****)
     packagingStars: { atk: 2, def: 1, sta: 5 },
     atk: 42,
+    move: 18,
     def: 28,
     sta: 88,
     color: '#84cc16',
@@ -140,7 +141,7 @@ export const BEYS = Object.freeze([
     // Bull / Dark wheel (ATK ***), Bull ring, 145 track, HF hole flat
     packagingStars: { atk: 4, def: 2, sta: 3 },
     atk: 70,
-    move: 18, // steering matches Rock Leone; atk still drives knockback
+    move: 42, // faster steer than Libra; atk still drives knockback
     def: 38,
     sta: 34,
     color: '#dc2626',

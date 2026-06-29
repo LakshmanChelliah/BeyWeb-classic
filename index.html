@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Spin Sumo | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=13" />
+  <link rel="stylesheet" href="css/game.css?v=17" />
 </head>
 <body class="mobile">
 
@@ -23,26 +23,29 @@
 
   <canvas id="game-canvas"></canvas>
 
-  <div id="hud">
-    <div class="hud-panel">
-      <img class="hud-avatar" id="player-avatar" src="updatedLdragoLogo.png" alt="" />
-      <div class="hud-info">
-        <div class="hud-label">You · Spin</div>
-        <div class="hud-value" id="player-spin">100%</div>
-        <div class="hud-bar-wrap"><div class="hud-bar" id="player-bar" style="width:100%"></div></div>
+  <div id="top-chrome" class="top-chrome">
+    <div id="hud">
+      <div class="hud-panel">
+        <img class="hud-avatar" id="player-avatar" src="updatedLdragoLogo.png" alt="" />
+        <div class="hud-info">
+          <div class="hud-label">You · Spin</div>
+          <div class="hud-value" id="player-spin">100%</div>
+          <div class="hud-bar-wrap"><div class="hud-bar" id="player-bar" style="width:100%"></div></div>
+        </div>
       </div>
-    </div>
-    <div class="hud-panel hud-side-ai">
-      <img class="hud-avatar" id="ai-avatar" src="pegasusLogo.png" alt="" />
-      <div class="hud-info">
-        <div class="hud-label">Rival · Spin</div>
-        <div class="hud-value" id="ai-spin">100%</div>
-        <div class="hud-bar-wrap"><div class="hud-bar" id="ai-bar" style="width:100%"></div></div>
+
+      <div id="campaign-hud" class="campaign-hud hidden" aria-live="polite"></div>
+
+      <div class="hud-panel hud-side-ai">
+        <img class="hud-avatar" id="ai-avatar" src="pegasusLogo.png" alt="" />
+        <div class="hud-info">
+          <div class="hud-label" id="ai-hud-label">Rival · Spin</div>
+          <div class="hud-value" id="ai-spin">100%</div>
+          <div class="hud-bar-wrap"><div class="hud-bar" id="ai-bar" style="width:100%"></div></div>
+        </div>
       </div>
     </div>
   </div>
-
-  <div id="campaign-hud" class="campaign-hud hidden" aria-live="polite"></div>
 
   <div id="tilt-hint">Tilt phone to steer · Tap a move button to unleash a gimmick</div>
 

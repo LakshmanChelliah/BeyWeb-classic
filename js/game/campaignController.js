@@ -65,27 +65,69 @@ export function createCampaignController({
     return setTournamentOpponent();
   }
 
+  function seriesDotsHtml(wins, losses) {
+    const parts = [];
+    for (let i = 0; i < 3; i++) {
+      if (i < wins) {
+        parts.push('<span class="campaign-dot campaign-dot--win" aria-hidden="true"></span>');
+      } else if (i < wins + losses) {
+        parts.push('<span class="campaign-dot campaign-dot--loss" aria-hidden="true"></span>');
+      } else {
+        parts.push('<span class="campaign-dot campaign-dot--pending" aria-hidden="true"></span>');
+      }
+    }
+    return parts.join('');
+  }
+
+  function isMobileHud() {
+    return document.body.classList.contains('mobile');
+  }
+
   function updateHud() {
     if (!campaignHud) return;
     if (!isActive()) {
       campaignHud.classList.add('hidden');
       campaignHud.textContent = '';
+      campaignHud.removeAttribute('aria-label');
       return;
     }
 
     const opp = currentMode().getCurrentOpponent();
     const diffLabel = getDifficultyLabel(getEffectiveAiTier());
+    const oppName = opp?.name ?? 'CPU';
 
     if (activeMode === 'casual') {
-      campaignHud.textContent = `Casual · ${diffLabel} · vs ${opp?.name ?? 'CPU'}`;
-      campaignHud.classList.remove('hidden');
+      campaignHud.textContent = `Casual · ${diffLabel} · vs ${oppName}`;
+      campaignHud.classList.remove('hidden', 'campaign-hud--tournament');
       return;
     }
 
     const { player, cpu } = tournament.getSeriesScore();
     const tier = tournament.getOpponentIndex() + 1;
-    campaignHud.textContent =
-      `Tournament ${tier}/${CAMPAIGN_STAGE_COUNT} · Best of 3: ${player}–${cpu} · ${diffLabel} · vs ${opp?.name ?? 'CPU'}`;
+
+    if (isMobileHud()) {
+      campaignHud.classList.add('campaign-hud--tournament');
+      campaignHud.innerHTML = `
+        <div class="campaign-hud-mobile campaign-hud-mobile--center">
+          <div class="campaign-hud-tier">T${tier}/${CAMPAIGN_STAGE_COUNT}</div>
+          <div class="campaign-hud-series" role="group" aria-label="Your best of 3 series score">
+            <span class="campaign-series-dots">${seriesDotsHtml(player, cpu)}</span>
+          </div>
+        </div>`;
+      campaignHud.setAttribute(
+        'aria-label',
+        `Tournament ${tier} of ${CAMPAIGN_STAGE_COUNT}, best of 3, you ${player} rival ${cpu}, versus ${oppName}`
+      );
+    } else {
+      campaignHud.classList.remove('campaign-hud--tournament');
+      campaignHud.textContent =
+        `Tournament ${tier}/${CAMPAIGN_STAGE_COUNT} · Best of 3: ${player}–${cpu} · ${diffLabel} · vs ${oppName}`;
+      campaignHud.setAttribute(
+        'aria-label',
+        `Tournament ${tier} of ${CAMPAIGN_STAGE_COUNT}, series ${player} to ${cpu}, versus ${oppName}`
+      );
+    }
+
     campaignHud.classList.remove('hidden');
   }
 

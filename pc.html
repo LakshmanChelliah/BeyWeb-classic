@@ -4,34 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spin Sumo | PC Edition</title>
-  <link rel="stylesheet" href="css/game.css" />
+  <link rel="stylesheet" href="css/game.css?v=16" />
 </head>
 <body>
 
   <canvas id="game-canvas"></canvas>
 
-  <div id="hud">
-    <div class="hud-panel">
-      <img class="hud-avatar" id="player-avatar" src="updatedLdragoLogo.png" alt="" />
-      <div class="hud-info">
-        <div class="hud-label" id="player-hud-label">P1 · Spin</div>
-        <div class="hud-value" id="player-spin">100%</div>
-        <div class="hud-bar-wrap"><div class="hud-bar" id="player-bar" style="width:100%"></div></div>
+  <div id="top-chrome" class="top-chrome">
+    <div id="hud">
+      <div class="hud-panel">
+        <img class="hud-avatar" id="player-avatar" src="updatedLdragoLogo.png" alt="" />
+        <div class="hud-info">
+          <div class="hud-label" id="player-hud-label">P1 · Spin</div>
+          <div class="hud-value" id="player-spin">100%</div>
+          <div class="hud-bar-wrap"><div class="hud-bar" id="player-bar" style="width:100%"></div></div>
+        </div>
       </div>
-    </div>
-    <div class="hud-panel hud-side-ai">
-      <img class="hud-avatar" id="ai-avatar" src="pegasusLogo.png" alt="" />
-      <div class="hud-info">
-        <div class="hud-label" id="ai-hud-label">P2 · Spin</div>
-        <div class="hud-value" id="ai-spin">100%</div>
-        <div class="hud-bar-wrap"><div class="hud-bar" id="ai-bar" style="width:100%"></div></div>
+
+      <div id="campaign-hud" class="campaign-hud hidden" aria-live="polite"></div>
+
+      <div class="hud-panel hud-side-ai">
+        <img class="hud-avatar" id="ai-avatar" src="pegasusLogo.png" alt="" />
+        <div class="hud-info">
+          <div class="hud-label" id="ai-hud-label">P2 · Spin</div>
+          <div class="hud-value" id="ai-spin">100%</div>
+          <div class="hud-bar-wrap"><div class="hud-bar" id="ai-bar" style="width:100%"></div></div>
+        </div>
       </div>
     </div>
   </div>
 
   <div id="controls-hint">P1: Arrows · Q power · E special &nbsp;|&nbsp; P2: WASD · . power · / special</div>
-
-  <div id="campaign-hud" class="campaign-hud hidden" aria-live="polite"></div>
 
   <div id="p1-abilities" class="ability-bar ability-bar-left"></div>
   <div id="p2-abilities" class="ability-bar ability-bar-right"></div>

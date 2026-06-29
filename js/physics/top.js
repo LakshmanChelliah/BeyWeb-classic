@@ -550,7 +550,8 @@ export function resolveWallClipping(bodyA, bodyB, emitWallImpact) {
         const scale = maxR / dist;
         body.position.x = x * scale;
         body.position.z = z * scale;
-        // Kill any outward radial velocity to stop beys tunnelling on the next step.
+        body.previousPosition.x = body.position.x;
+        body.previousPosition.z = body.position.z;
         const nx = x / dist;
         const nz = z / dist;
         const vOut = body.velocity.x * nx + body.velocity.z * nz;

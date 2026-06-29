@@ -504,6 +504,197 @@ body.vs-cpu #p2-abilities {
   display: none;
 }
 
+.campaign-hud-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.campaign-hud-meta {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #9aadd4;
+}
+
+.campaign-hud-opp {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: #dce6ff;
+}
+
+.campaign-hud-series {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 2px;
+}
+
+.campaign-series-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.campaign-series-tag {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: #7a8cb8;
+}
+
+.campaign-series-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.campaign-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.campaign-dot--win {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.45);
+}
+
+.campaign-dot--loss {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.45);
+}
+
+.campaign-dot--pending {
+  background: transparent;
+  border: 1.5px solid rgba(200, 212, 240, 0.32);
+  box-sizing: border-box;
+}
+
+body.mobile .top-chrome {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+body.mobile .top-chrome:has(#hud.visible) {
+  opacity: 1;
+}
+
+body.mobile #hud {
+  position: static;
+  padding: 0;
+  opacity: 1;
+  transition: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+body.mobile #hud:has(.campaign-hud:not(.hidden)) {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 4px;
+}
+
+body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-panel {
+  min-width: 0;
+  padding: 8px 8px;
+  gap: 8px;
+}
+
+body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-avatar {
+  width: 42px;
+  height: 42px;
+  padding: 4px;
+}
+
+body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-value {
+  font-size: 18px;
+}
+
+body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-label {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.mobile .campaign-hud {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: auto;
+  max-width: 56px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  white-space: normal;
+  text-align: center;
+  align-self: center;
+  justify-self: center;
+}
+
+body.mobile .campaign-hud.hidden {
+  display: none;
+}
+
+body.mobile .campaign-hud-mobile--center {
+  gap: 3px;
+}
+
+body.mobile .campaign-hud-tier {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: #9aadd4;
+  line-height: 1.1;
+}
+
+body.mobile .campaign-hud-series--stacked {
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 0;
+}
+
+body.mobile .campaign-hud-mobile--center .campaign-hud-series {
+  margin-top: 0;
+}
+
+body.mobile .campaign-hud-mobile--center .campaign-dot {
+  width: 8px;
+  height: 8px;
+}
+
+body.mobile .campaign-hud-mobile--center .campaign-series-dots {
+  gap: 3px;
+  justify-content: center;
+}
+
+body.mobile .campaign-hud:not(.campaign-hud--tournament) {
+  max-width: 72px;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  padding: 5px 6px;
+}
+
+body:not(.mobile) #campaign-hud {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+}
+
 /* ---------- Bey selection screen ---------- */
 #select-overlay {
   position: fixed;

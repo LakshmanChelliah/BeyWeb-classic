@@ -388,6 +388,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     };
     apply(dom.playerAvatar, state.playerBey);
     apply(dom.aiAvatar, state.aiBey);
+    if (dom.aiHudLabel && isVsCpu?.() && state.aiBey?.name) {
+      dom.aiHudLabel.textContent = `${state.aiBey.name} · Spin`;
+    }
   }
 
   function freezeBodies() {

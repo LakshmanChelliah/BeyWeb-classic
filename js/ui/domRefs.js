@@ -13,6 +13,7 @@ export function queryGameUi({ controlsHintId, playerAbilitiesId, aiAbilitiesId =
     aiBar: document.getElementById('ai-bar'),
     playerAvatar: document.getElementById('player-avatar'),
     aiAvatar: document.getElementById('ai-avatar'),
+    aiHudLabel: document.getElementById('ai-hud-label'),
     gameoverTitle: document.getElementById('gameover-title'),
     gameoverMsg: document.getElementById('gameover-msg'),
     controlsHint: document.getElementById(controlsHintId),
