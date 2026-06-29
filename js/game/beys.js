@@ -51,9 +51,9 @@ export const BEYS = Object.freeze([
     type: 'Attack',
     desc: 'Ryuga\'s left-spin dragon. Upper Mode unleashes devastating smash strikes; Soaring Destruction calls lightning from above.',
     // Lightning fusion wheel, L-Drago I energy ring (no rubber), 100 track, HF (Hole Flat) tip.
-    // Hasbro BB-43 card stars: Attack 5 / Defense 2 / Stamina 0.
+    // Hasbro BB-43 card stars: Attack 5 / Defense 1 / Stamina 2.
     leftSpin: true,
-    packagingStars: { atk: 5, def: 2, sta: 0 },
+    packagingStars: { atk: 5, def: 1, sta: 2 },
     atk: 83,
     move: 87,
     def: 28,
@@ -132,6 +132,7 @@ export const BEYS = Object.freeze([
     packagingStars: { atk: 2, def: 4, sta: 4 },
     atk: 38,
     move: 34,
+    orbitDrift: 0.35,  // WD tip creates natural wide sweeping arcs
     def: 72,
     sta: 78,
     color: '#6d28d9',

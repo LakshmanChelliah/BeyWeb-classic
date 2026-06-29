@@ -5,27 +5,38 @@ import { isAtPocketAngle } from '../physics/arena.js';
 
 const _force = new CANNON.Vec3();
 
-/** Per-tier tuning — tier index 0 is easiest. */
+/**
+ * Per-tier tuning — tier index 0 is easiest.
+ * Player archetypes: Beginner → Bot.
+ *
+ * outAvoidance — how hard they fight ring-outs (low = rim suicide, high = pro survival)
+ * edgeSkill    — how early they read rim / pocket danger
+ * mistakeRate  — wrong steer choices (suppressed near the rim when outAvoidance is high)
+ */
 const AI_TIERS = [
-  { forceMult: 0.84, decisionInterval: 0.30, specialReach: 4.2, powerReach: 6.4, leadSkill: 0.15, edgeSkill: 0.55 },
-  { forceMult: 0.98, decisionInterval: 0.23, specialReach: 5.0, powerReach: 7.4, leadSkill: 0.35, edgeSkill: 0.68 },
-  { forceMult: 1.10, decisionInterval: 0.18, specialReach: 5.8, powerReach: 8.4, leadSkill: 0.52, edgeSkill: 0.80 },
-  { forceMult: 1.22, decisionInterval: 0.14, specialReach: 6.6, powerReach: 9.4, leadSkill: 0.70, edgeSkill: 0.90 },
-  { forceMult: 1.36, decisionInterval: 0.10, specialReach: 7.6, powerReach: 10.4, leadSkill: 0.85, edgeSkill: 1.0 },
+  { forceMult: 0.72, decisionInterval: 0.42, specialReach: 2.8, powerReach: 4.2, leadSkill: 0.0,  edgeSkill: 0.10, outAvoidance: 0.06, mistakeRate: 0.42, abilityDiscipline: 0.30 },
+  { forceMult: 0.86, decisionInterval: 0.32, specialReach: 3.6, powerReach: 5.4, leadSkill: 0.10, edgeSkill: 0.22, outAvoidance: 0.16, mistakeRate: 0.30, abilityDiscipline: 0.46 },
+  { forceMult: 1.00, decisionInterval: 0.24, specialReach: 4.8, powerReach: 6.8, leadSkill: 0.30, edgeSkill: 0.40, outAvoidance: 0.34, mistakeRate: 0.18, abilityDiscipline: 0.64 },
+  { forceMult: 1.12, decisionInterval: 0.18, specialReach: 5.8, powerReach: 8.2, leadSkill: 0.50, edgeSkill: 0.58, outAvoidance: 0.54, mistakeRate: 0.10, abilityDiscipline: 0.78 },
+  { forceMult: 1.26, decisionInterval: 0.13, specialReach: 7.0, powerReach: 9.8, leadSkill: 0.74, edgeSkill: 0.82, outAvoidance: 0.80, mistakeRate: 0.05, abilityDiscipline: 0.90 },
+  { forceMult: 1.38, decisionInterval: 0.10, specialReach: 7.8, powerReach: 10.8, leadSkill: 0.88, edgeSkill: 0.94, outAvoidance: 0.92, mistakeRate: 0.03, abilityDiscipline: 0.95 },
+  { forceMult: 1.44, decisionInterval: 0.08, specialReach: 8.4, powerReach: 11.4, leadSkill: 0.94, edgeSkill: 1.00, outAvoidance: 0.98, mistakeRate: 0.01, abilityDiscipline: 0.98 },
 ];
 
 export const AI_TIER_MAX = AI_TIERS.length - 1;
 
 export const AI_DIFFICULTIES = Object.freeze([
-  { tier: 0, label: 'Easy' },
-  { tier: 1, label: 'Normal' },
-  { tier: 2, label: 'Hard' },
-  { tier: 3, label: 'Expert' },
-  { tier: 4, label: 'Extreme' },
+  { tier: 0, label: 'Beginner' },
+  { tier: 1, label: 'Amateur' },
+  { tier: 2, label: 'Intermediate' },
+  { tier: 3, label: 'Advanced' },
+  { tier: 4, label: 'Pro' },
+  { tier: 5, label: 'Master' },
+  { tier: 6, label: 'Bot' },
 ]);
 
 export function getDifficultyLabel(tier) {
-  return AI_DIFFICULTIES[Math.max(0, Math.min(tier, AI_TIER_MAX))]?.label ?? 'Normal';
+  return AI_DIFFICULTIES[Math.max(0, Math.min(tier, AI_TIER_MAX))]?.label ?? 'Amateur';
 }
 
 let _tier = 1;
@@ -50,7 +61,17 @@ function decisionTier() {
 }
 
 function decisionConfig() {
-  return AI_TIERS[decisionTier()] ?? AI_TIERS[AI_TIER_MAX];
+  const base = AI_TIERS[decisionTier()] ?? AI_TIERS[AI_TIER_MAX];
+  if (!_tournament) return base;
+  // Tournament rivals play like show bladers — they bail from the rim and use abilities.
+  return {
+    ...base,
+    outAvoidance: Math.max(base.outAvoidance, 0.52),
+    edgeSkill: Math.max(base.edgeSkill, 0.42),
+    abilityDiscipline: Math.max(base.abilityDiscipline, 0.62),
+    mistakeRate: base.mistakeRate * 0.5,
+    leadSkill: Math.min(1, base.leadSkill + 0.06),
+  };
 }
 
 function edgeFracForBody(body) {
@@ -105,26 +126,57 @@ export function resetAIController() {
   _orbitDir = Math.random() < 0.5 ? -1 : 1;
 }
 
-function pickSteerMode(persona, dist, spin, playerSpin, aiBody) {
+function rimBailEdgeFrac() {
+  const { edgeSkill, outAvoidance } = decisionConfig();
+  // Casual players react late; pros / bots read the rim early.
+  return 0.82 - outAvoidance * 0.24 - edgeSkill * 0.06;
+}
+
+function isRimDanger(aiBody) {
+  const edgeFrac = edgeFracForBody(aiBody);
+  return edgeFrac > 0.50 || (edgeFrac > 0.52 && isNearPocket(aiBody));
+}
+
+function naiveSteerMode(persona, rimDanger) {
+  if (rimDanger) return 'chase';
+  if (persona.patience > 0.55 && Math.random() < 0.45) return 'center';
+  return 'chase';
+}
+
+function pickIdealSteerMode(persona, dist, spin, playerSpin, aiBody) {
   const skill = decisionTier() / AI_TIER_MAX;
+  const { outAvoidance } = decisionConfig();
   const edgeFrac = edgeFracForBody(aiBody);
   const inPocket = edgeFrac > 0.54 && isNearPocket(aiBody);
+  const bailAt = rimBailEdgeFrac();
+  const rimPlay = outAvoidance >= 0.75;
 
-  if (inPocket || edgeFrac > 0.74) {
+  if (inPocket) {
+    if (outAvoidance < 0.28) return Math.random() < 0.75 ? 'chase' : 'center';
+    if (outAvoidance < 0.55) return Math.random() < 0.55 ? 'chase' : 'center';
     return 'center';
   }
 
-  if (edgeFrac > 0.62) {
-    return dist < 3.2 && spin > 0.28 ? 'intercept' : 'center';
+  if (edgeFrac > bailAt) {
+    if (outAvoidance < 0.32) return 'chase';
+    if (outAvoidance < 0.58) return Math.random() < 0.5 ? 'center' : 'chase';
+    return 'center';
+  }
+
+  if (edgeFrac > bailAt - 0.09) {
+    if (outAvoidance < 0.45) return 'chase';
+    if (rimPlay) return dist < 3.2 && spin > 0.30 ? 'intercept' : 'center';
+    return dist < 3.0 && spin > 0.32 ? 'intercept' : 'center';
   }
 
   if (persona.aggression > 0.55) {
-    if (edgeFrac > 0.52) return dist < 3.5 ? 'intercept' : 'center';
-    return skill > 0.4 ? 'intercept' : 'chase';
+    if (edgeFrac > 0.52 && rimPlay) return 'center';
+    if (edgeFrac > 0.52) return dist < 3.5 && skill > 0.28 ? 'intercept' : 'center';
+    return skill > 0.45 ? 'intercept' : 'chase';
   }
 
   if (persona.patience > 0.55) {
-    if (dist > 6.5 && spin > 0.28) return skill > 0.35 ? 'orbit' : 'center';
+    if (dist > 6.5 && spin > 0.28) return skill > 0.40 ? 'orbit' : 'center';
     if (dist < 4.5 && playerSpin < spin + 0.08) return 'chase';
     return dist > 5 ? 'center' : 'chase';
   }
@@ -132,10 +184,20 @@ function pickSteerMode(persona, dist, spin, playerSpin, aiBody) {
   if (persona.caution > 0.55) {
     if (dist > 6.5) return 'center';
     if (dist < 3.8 && spin > 0.25) return 'chase';
-    return skill > 0.45 ? 'intercept' : 'center';
+    return skill > 0.50 ? 'intercept' : 'center';
   }
 
-  return skill > 0.4 ? 'intercept' : 'chase';
+  return skill > 0.42 ? 'intercept' : 'chase';
+}
+
+function pickSteerMode(persona, dist, spin, playerSpin, aiBody) {
+  const ideal = pickIdealSteerMode(persona, dist, spin, playerSpin, aiBody);
+  const { mistakeRate, outAvoidance } = decisionConfig();
+  const rimDanger = isRimDanger(aiBody);
+  let slipChance = mistakeRate;
+  if (rimDanger) slipChance *= 1 - outAvoidance * 0.94;
+  if (Math.random() < slipChance) return naiveSteerMode(persona, rimDanger);
+  return ideal;
 }
 
 function computeChaseDir(aiBody, playerBody, leadSkill) {
@@ -155,7 +217,7 @@ function computeChaseDir(aiBody, playerBody, leadSkill) {
   return { dx: tx - ax, dz: tz - az };
 }
 
-/** Blend chase toward center when rim-riding — stronger for fast beys that overshoot. */
+/** Blend chase toward center when rim-riding — strength scales with player archetype. */
 function blendEdgeSafeDir(aiBody, dx, dz, persona) {
   const ax = aiBody.position.x;
   const az = aiBody.position.z;
@@ -163,19 +225,22 @@ function blendEdgeSafeDir(aiBody, dx, dz, persona) {
   if (cr < 0.01) return { dx, dz };
 
   const edgeFrac = edgeFracForBody(aiBody);
-  if (edgeFrac < 0.46) return { dx, dz };
+  if (edgeFrac < 0.48) return { dx, dz };
 
-  const { edgeSkill } = decisionConfig();
+  const { edgeSkill, outAvoidance } = decisionConfig();
   const inPocket = edgeFrac > 0.54 && isNearPocket(aiBody);
-  const edgeT = clamp01((edgeFrac - 0.46) / 0.34);
+  const edgeT = clamp01((edgeFrac - 0.48) / 0.32);
 
-  let centerBlend = edgeT * (0.42 + edgeSkill * 0.38);
-  if (persona.aggression > 0.5) {
-    centerBlend += edgeT * (0.18 + persona.aggression * 0.22);
+  let centerBlend = edgeT * outAvoidance * (0.48 + edgeSkill * 0.42);
+  if (persona.aggression > 0.5 && outAvoidance > 0.7) {
+    centerBlend += edgeT * outAvoidance * persona.aggression * 0.14;
+  } else if (persona.aggression > 0.5) {
+    centerBlend += edgeT * persona.aggression * 0.08;
   }
   if (inPocket) {
-    centerBlend = Math.max(centerBlend, 0.62 + edgeSkill * 0.28);
+    centerBlend = Math.max(centerBlend, outAvoidance * (0.50 + edgeSkill * 0.38));
   }
+  if (outAvoidance < 0.25) centerBlend *= 0.35;
   centerBlend = clamp01(centerBlend);
 
   const cx = (-ax / cr);
@@ -184,6 +249,19 @@ function blendEdgeSafeDir(aiBody, dx, dz, persona) {
     dx: dx * (1 - centerBlend) + cx * centerBlend,
     dz: dz * (1 - centerBlend) + cz * centerBlend,
   };
+}
+
+/** Low-skill CPUs wobble their aim; pros stay sharp near the rim. */
+function applyAimNoise(dx, dz, persona, aiBody) {
+  const { mistakeRate, leadSkill, outAvoidance } = decisionConfig();
+  const rimDanger = isRimDanger(aiBody);
+  let noise = mistakeRate * (0.55 - leadSkill * 0.35);
+  if (rimDanger) noise *= 1 - outAvoidance * 0.88;
+  if (noise < 0.02) return { dx, dz };
+  const angle = (Math.random() - 0.5) * Math.PI * noise * (1.1 + persona.aggression * 0.4);
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return { dx: dx * c - dz * s, dz: dx * s + dz * c };
 }
 
 function computeSteerDir(aiBody, playerBody, persona) {
@@ -200,9 +278,13 @@ function computeSteerDir(aiBody, playerBody, persona) {
   let dz;
 
   if (_steerMode === 'center') {
-    const centerWeight = 0.72 + persona.caution * 0.22;
+    const edgeFrac = edgeFracForBody(aiBody);
+    const { outAvoidance } = decisionConfig();
+    const onRim = edgeFrac > 0.52;
+    const rescueBias = onRim ? 0.30 + outAvoidance * 0.68 : 1;
+    const centerWeight = (0.56 + persona.caution * 0.22) * rescueBias;
     const chase = computeChaseDir(aiBody, playerBody, leadSkill * 0.25);
-    if (dist < 3.6 && edgeFracForBody(aiBody) < 0.58) {
+    if (dist < 3.2 && edgeFrac < 0.56 && outAvoidance < 0.7) {
       ({ dx, dz } = chase);
     } else {
       dx = -ax * centerWeight + chase.dx * (1 - centerWeight);
@@ -226,6 +308,7 @@ function computeSteerDir(aiBody, playerBody, persona) {
     ({ dx, dz } = computeChaseDir(aiBody, playerBody, leadSkill * 0.2));
   }
 
+  ({ dx, dz } = applyAimNoise(dx, dz, persona, aiBody));
   return blendEdgeSafeDir(aiBody, dx, dz, persona);
 }
 
@@ -236,27 +319,34 @@ function applyEdgeSafety(aiBody, spin, aiForce, persona) {
   if (cr < 0.01) return;
 
   const edgeFrac = edgeFracForBody(aiBody);
-  if (edgeFrac < 0.48) return;
+  if (edgeFrac < 0.50) return;
 
-  const { edgeSkill } = decisionConfig();
+  const { edgeSkill, outAvoidance } = decisionConfig();
+  if (outAvoidance < 0.12) return;
+
   const inPocket = edgeFrac > 0.54 && isNearPocket(aiBody);
-
-  const basePull = 0.38 + persona.caution * 0.42 + edgeSkill * 0.48;
-  const speedComp = persona.aggression * (0.35 + edgeSkill * 0.4);
-  const pocketUrgency = inPocket ? 1.55 + edgeSkill * 0.55 : 1;
-  const edgeT = clamp01((edgeFrac - 0.48) / 0.36);
+  const basePull = (0.22 + persona.caution * 0.30 + edgeSkill * 0.28) * outAvoidance;
+  const speedComp = persona.aggression * edgeSkill * 0.14 * outAvoidance;
+  const pocketUrgency = inPocket ? 1.15 + outAvoidance * 0.65 : 1;
+  const edgeT = clamp01((edgeFrac - 0.50) / 0.34);
   const pull = edgeT * (basePull + speedComp) * pocketUrgency;
 
   const force = computeSteerForce(aiBody, spin, aiForce);
   _force.set((-ax / cr) * force * pull, 0, (-az / cr) * force * pull);
   aiBody.applyForce(_force, aiBody.position);
 
-  if (inPocket || edgeFrac > 0.64) {
-    const escape = (0.25 + edgeSkill * 0.55 + persona.aggression * 0.2) * (inPocket ? 1.35 : 0.85);
+  if (inPocket && outAvoidance >= 0.72) {
+    const escape = outAvoidance * (0.22 + edgeSkill * 0.38 + persona.aggression * 0.12);
     const tangX = -az / cr;
     const tangZ = ax / cr;
     const pocketBias = isNearPocket(aiBody, 1.05) ? _orbitDir : -_orbitDir;
-    _force.set(tangX * force * escape * 0.65 * pocketBias, 0, tangZ * force * escape * 0.65 * pocketBias);
+    _force.set(tangX * force * escape * 0.72 * pocketBias, 0, tangZ * force * escape * 0.72 * pocketBias);
+    aiBody.applyForce(_force, aiBody.position);
+  } else if (edgeFrac > 0.64 && outAvoidance >= 0.55) {
+    const escape = outAvoidance * (0.12 + edgeSkill * 0.18);
+    const tangX = -az / cr;
+    const tangZ = ax / cr;
+    _force.set(tangX * force * escape * 0.5 * _orbitDir, 0, tangZ * force * escape * 0.5 * _orbitDir);
     aiBody.applyForce(_force, aiBody.position);
   }
 }
@@ -300,6 +390,16 @@ export function applyAISteering(aiBody, playerBody, spin, playerSpin = 1) {
 
   applySteerForce(aiBody, dx, dz, spin, aiForce, { minSpin: 0.05 });
   applyEdgeSafety(aiBody, spin, CONFIG.AI_FORCE * forceMult, persona);
+}
+
+function shouldUseAbility(wants, aiRimDanger) {
+  const { abilityDiscipline, mistakeRate } = decisionConfig();
+  if (!wants) {
+    // Beginners sometimes panic-move on the rim even when it is a bad idea.
+    if (aiRimDanger && Math.random() < mistakeRate * 0.18) return true;
+    return false;
+  }
+  return Math.random() < abilityDiscipline;
 }
 
 /** Periodically triggers CPU power/special when conditions are favorable. */
@@ -361,7 +461,7 @@ export function tickAIAbilities(state, onTrigger) {
       useSpecial = false;
     }
 
-    if (useSpecial) {
+    if (shouldUseAbility(useSpecial, aiRimDanger)) {
       onTrigger('special');
       return;
     }
@@ -381,6 +481,6 @@ export function tickAIAbilities(state, onTrigger) {
       usePower = true;
     }
 
-    if (usePower) onTrigger('power');
+    if (shouldUseAbility(usePower, aiRimDanger)) onTrigger('power');
   }
 }

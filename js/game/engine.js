@@ -16,6 +16,7 @@ import {
   beginLaunchDrop,
   stepLaunchDrop,
   applyCenterPull,
+  applyOrbitDrift,
   resolveWallClipping,
 } from '../physics/top.js';
 import {
@@ -418,7 +419,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     apply(dom.playerAvatar, state.playerBey);
     apply(dom.aiAvatar, state.aiBey);
     if (dom.aiHudLabel && isVsCpu?.() && state.aiBey?.name) {
-      dom.aiHudLabel.textContent = `${state.aiBey.name} · Spin`;
+      if (mode === 'mobile') {
+        dom.aiHudLabel.textContent = 'Rival · Spin';
+      } else {
+        const blader = state.aiBey.bladerName;
+        dom.aiHudLabel.textContent = blader
+          ? `${blader} · ${state.aiBey.name} · Spin`
+          : `${state.aiBey.name} · Spin`;
+      }
     }
   }
 
@@ -504,8 +512,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       id: aiBey.id,
       atk: aiBey.atk ?? 50,
       move: aiBey.move ?? aiBey.atk ?? 50,
-      def: aiBey.def ?? 50,
-      sta: aiBey.sta ?? 50,
+      def: Math.min(100, (aiBey.def ?? 50) + (aiBey.tournamentBuffs?.defBonus ?? 0)),
+      sta: Math.min(100, (aiBey.sta ?? 50) + (aiBey.tournamentBuffs?.staBonus ?? 0)),
+      orbitDrift: aiBey.orbitDrift,
     };
     state.aiBody.userData.beyColor = beyColorHex(aiBey.color);
     state.aiBody.userData.spinSign = aiBey.leftSpin ? -0.95 : 0.95;
@@ -591,6 +600,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       input.applySteering?.(state);
       applyCenterPull(state.playerBody, state.playerSpin);
       applyCenterPull(state.aiBody, state.aiSpin);
+      applyOrbitDrift(state.playerBody, state.playerSpin);
+      applyOrbitDrift(state.aiBody, state.aiSpin);
     }
 
     world.step(CONFIG.FIXED_DT);

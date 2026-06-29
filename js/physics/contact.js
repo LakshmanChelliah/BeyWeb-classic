@@ -108,6 +108,7 @@ function applySpinDelta(state, side, delta, body) {
   if (!delta) return;
   const top = body ?? (side === 'player' ? state.playerBody : state.aiBody);
   if (delta < 0 && top?.userData?.invulnerable) return;
+  if (delta < 0 && top?.userData?.controlLocked) return;
   if (delta < 0 && isLibraBusterChannelingBody(state, top)) {
     delta *= 0.1;
     if (!delta) return;

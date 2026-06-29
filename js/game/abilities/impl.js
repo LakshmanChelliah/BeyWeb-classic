@@ -147,12 +147,13 @@ export const BULL_STAMPEDE_DURATION = 3;
 const BULL_STAMPEDE_KB_OUT = 1.35;
 const BULL_STAMPEDE_STEER = 1.35;
 export const BULL_UPPERCUT_DURATION = 9;
-export const BULL_UPPERCUT_WINDUP = 0.65;
-export const BULL_DASH_BUILD_DUR = 0.55;
+export const BULL_UPPERCUT_WINDUP = 0.42;
+export const BULL_DASH_BUILD_DUR = 0.32;
 export const BULL_CHARGE_DUR = BULL_DASH_BUILD_DUR;
-const BULL_DASH_SPEED = 19.5;
+const BULL_DASH_SPEED = 28;
 const BULL_DASH_LEAN = 0.36;
-const BULL_COAST_ARRIVE = 0.45;
+const BULL_COAST_ARRIVE = 0.35;
+const BULL_DASH_AIM_TRACK_DUR = 0.14;
 const BULL_RECOVER_DUR = 0.45;
 const BULL_UPPERCUT_BASE_KB = 2.4;
 const BULL_UPPERCUT_SPIN_MIN = 0.25;
@@ -179,7 +180,7 @@ const EAGLE_COUNTER_SPIN_MULT = 2.15;
 const EAGLE_DIVE_APEX = 24;
 const EAGLE_DIVE_ASCEND_DUR = 0.74;
 const EAGLE_DIVE_HOVER_DUR = 0.34;
-const EAGLE_DIVE_DUR = 0.58;
+const EAGLE_DIVE_DUR = 0.44;
 const EAGLE_DIVE_SETTLE_DUR = 0.75;
 const EAGLE_DIVE_HIT_SPIN = 0.22;
 const EAGLE_DIVE_MISS_SELF = 0.045;
@@ -303,13 +304,19 @@ function initBullDashTarget(body, opp) {
 function stepBullDash(state, side, body, opp, dt) {
   if (body.userData.bullCoastTargetX == null) initBullDashTarget(body, opp);
 
+  body.userData.bullUpperPhaseT = (body.userData.bullUpperPhaseT ?? 0) + dt;
+
+  // Refresh aim line through the foe for the first fraction of the dash.
+  if (opp && body.userData.bullUpperPhaseT < BULL_DASH_AIM_TRACK_DUR) {
+    initBullDashTarget(body, opp);
+  }
+
   const tx = body.userData.bullCoastTargetX;
   const tz = body.userData.bullCoastTargetZ;
   const dx = tx - body.position.x;
   const dz = tz - body.position.z;
   const remain = Math.hypot(dx, dz);
 
-  body.userData.bullUpperPhaseT = (body.userData.bullUpperPhaseT ?? 0) + dt;
   body.userData.bullUpperSlamming = true;
   body.position.y = groundY(body);
 
@@ -522,10 +529,11 @@ function initStarBlast(body) {
   body.userData.starWallZ = wall.z;
   body.userData.starWallNx = wall.nx;
   body.userData.starWallNz = wall.nz;
-  body.userData.starPhase = 'windup';
+  body.userData.starBlastWindup = true;
   body.userData.starPhaseT = 0;
   body.userData.starImpactFlash = false;
   body.userData.starBlastHit = false;
+  delete body.userData.starPhase;
   delete body.userData.starBlastResolved;
   setBodyCollisions(body, false);
 }
@@ -545,6 +553,7 @@ function releaseStarBlastControl(body) {
   body.userData.controlLocked = false;
   body.userData.airborne = false;
   clearStarBlastMotion(body);
+  delete body.userData.starBlastWindup;
   delete body.userData.starPhase;
   delete body.userData.starPhaseT;
   delete body.userData.starImpactFlash;
@@ -697,7 +706,8 @@ function bullUppercutOverlap(body, opp) {
   const dz = body.position.z - opp.position.z;
   const rA = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
   const rB = opp.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
-  const reach = rA + rB;
+  const reachMult = body.userData.bullUpperSlamming ? 1.12 : 1;
+  const reach = (rA + rB) * reachMult;
   return dx * dx + dz * dz <= reach * reach;
 }
 
@@ -1050,6 +1060,7 @@ export const ABILITY_REGISTRY = {
       b.userData.slamming = false;
       b.userData.flightTilt = 0;
       b.userData.flightRoll = 0;
+      delete b.userData.starBlastWindup;
       b.userData.starPhase = 'dash';
       b.userData.starPhaseT = 0;
       setAirborneKinematic(b);
@@ -1821,14 +1832,17 @@ export function tickAbilityVisuals(state, dt) {
     if (!body) continue;
 
     const inMove =
-      slot.windupRemaining > 0 || slot.active || body.userData.starPhase != null;
+      slot.windupRemaining > 0 ||
+      slot.active ||
+      body.userData.starBlastWindup ||
+      body.userData.starPhase != null;
     if (!inMove) continue;
 
     const floor = groundY(body);
     body.position.y = floor;
     body.velocity.set(0, 0, 0);
 
-    if (slot.windupRemaining > 0) {
+    if (slot.windupRemaining > 0 || body.userData.starBlastWindup) {
       // Anticipation: crouch on the floor (no lift) while the logo flash plays.
       const windup = slotWindupTotal(slot, 0.5);
       const t = clamp01(windup > 0 ? 1 - slot.windupRemaining / windup : 1);
@@ -1841,11 +1855,26 @@ export function tickAbilityVisuals(state, dt) {
       continue;
     }
 
-    if (!slot.active) continue;
+    if (!slot.active) {
+      if (body.userData.controlLocked) {
+        resolveStarBlastOutcome(state, side, body);
+        releaseStarBlastControl(body);
+      }
+      continue;
+    }
 
-    const phase = body.userData.starPhase ?? 'dash';
+    const phase = body.userData.starPhase;
+    if (!phase) {
+      finishStarBlast(state, side, slot, body, dt);
+      continue;
+    }
+
     body.userData.starPhaseT = (body.userData.starPhaseT ?? 0) + dt;
     body.userData.flightSquash = body.userData.flightSquash ?? 1;
+
+    const oppSide = side === 'player' ? 'ai' : 'player';
+    const oppSleeping =
+      body.userData.starBlastHit && state[spinKey(oppSide)] <= CONFIG.SPIN_STOPPED;
 
     switch (phase) {
       // 1) Accelerating dash toward the wall, leaning into the run.
@@ -1881,6 +1910,16 @@ export function tickAbilityVisuals(state, dt) {
 
       // 2) Wall hit + continuous elevation in one arc (no plateau between kicks).
       case 'ascend': {
+        if (oppSleeping) {
+          body.userData.starPhase = 'settle';
+          body.userData.starPhaseT = STAR_SETTLE_DUR * 0.82;
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          body.userData.slamming = false;
+          break;
+        }
         body.userData.slamming = false;
         const t = clamp01(body.userData.starPhaseT / STAR_ASCEND_DUR);
         const ix = body.userData.starImpactX ?? body.position.x;
@@ -1926,6 +1965,17 @@ export function tickAbilityVisuals(state, dt) {
 
       // 3) Accelerating plunge, pitched to show the underside, homing onto foe.
       case 'dive': {
+        if (oppSleeping) {
+          body.userData.starPhase = 'settle';
+          body.userData.starPhaseT = STAR_SETTLE_DUR * 0.82;
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          body.userData.slamming = false;
+          setBodyCollisions(body, true);
+          break;
+        }
         body.userData.slamming = true;
         const t = clamp01(body.userData.starPhaseT / STAR_DIVE_DUR);
         const e = easeInQuad(t); // gentler, slower-looking acceleration
@@ -1952,6 +2002,17 @@ export function tickAbilityVisuals(state, dt) {
       // 6) Real decaying bounces: integrate velocity + gravity, squash on each
       //    contact, and progressively right itself to upright.
       case 'bounce': {
+        if (oppSleeping) {
+          body.userData.starPhase = 'settle';
+          body.userData.starPhaseT = STAR_SETTLE_DUR * 0.82;
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          body.userData.slamming = false;
+          delete body.userData.starVY;
+          break;
+        }
         body.userData.slamming = body.userData.starVY > 0; // only damages going up off the slam
         let vy = body.userData.starVY ?? 0;
         vy -= STAR_BOUNCE_GRAVITY * dt;
@@ -2031,8 +2092,7 @@ export function tickAbilityVisuals(state, dt) {
       }
 
       default:
-        body.userData.starPhase = 'dash';
-        body.userData.starPhaseT = 0;
+        finishStarBlast(state, side, slot, body, dt);
         break;
     }
 
@@ -2181,6 +2241,8 @@ export function tickBullAbilityVisuals(state, dt) {
       const windup = slotWindupTotal(spSlot, BULL_UPPERCUT_WINDUP);
       const t = clamp01(1 - spSlot.windupRemaining / windup);
       const e = easeInOutCubic(t);
+      // Late windup: slide toward the foe so the dash line is fresher at launch.
+      if (t > 0.5 && opp) homingXZ(body, opp, 5 * dt);
       body.userData.flightLift = 0;
       body.userData.bullWindupEndTilt = 0.12 * easeOutCubic(t);
       body.userData.flightTilt = body.userData.bullWindupEndTilt;
@@ -2301,7 +2363,6 @@ export function tickEagleAbilityVisuals(state, dt) {
         homingXZ(body, opp, 2.4 * dt);
         setBodyCollisions(body, false);
         if (t >= 1) {
-          lockEagleDiveTarget(body, opp);
           body.userData.eagleDivePhase = 'hover';
           body.userData.eagleDivePhaseT = 0;
         }
@@ -2315,9 +2376,11 @@ export function tickEagleAbilityVisuals(state, dt) {
         body.userData.flightSquash = 1;
         body.userData.slamming = false;
         body.userData.eagleDiveSlamming = false;
-        moveTowardEagleDiveTarget(body, 5.5 * dt);
+        // Keep tracking the live opponent position during hover — target locks only at dive start.
+        homingXZ(body, opp, 7 * dt);
         setBodyCollisions(body, false);
         if (t >= 1) {
+          lockEagleDiveTarget(body, opp);
           body.userData.eagleDivePhase = 'dive';
           body.userData.eagleDivePhaseT = 0;
         }
@@ -2523,8 +2586,9 @@ export function tickLdragoAbilityVisuals(state, dt) {
 /** True while Pegasus Star Blast should show the blue emissive glow. */
 export function shouldStarBlastGlow(body) {
   if (!body) return false;
+  if (body.userData.starBlastWindup) return true;
   const phase = body.userData.starPhase;
-  return phase === 'windup' || phase === 'dash' || phase === 'ascend' || phase === 'dive';
+  return phase === 'dash' || phase === 'ascend' || phase === 'dive';
 }
 
 /** Max visual flight height across both tops — used for other cinematic camera lift. */
@@ -2575,7 +2639,10 @@ function findActiveStarBlast(state) {
     const body = side === 'player' ? state.playerBody : state.aiBody;
     if (!body) continue;
     const inMove =
-      slot.windupRemaining > 0 || slot.active || body.userData.starPhase != null;
+      slot.windupRemaining > 0 ||
+      slot.active ||
+      body.userData.starBlastWindup ||
+      body.userData.starPhase != null;
     if (!inMove) continue;
     return true;
   }
@@ -2984,6 +3051,7 @@ export function clearAbilityFlags(body) {
   body.userData.flightRoll = 0;
   body.userData.flightSquash = 1;
   delete body.userData.contactLift;
+  delete body.userData.starBlastWindup;
   delete body.userData.starPhase;
   delete body.userData.starPhaseT;
   delete body.userData.starImpactFlash;

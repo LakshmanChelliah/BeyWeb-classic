@@ -70,7 +70,7 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
 
     if (hintEl) {
       if (mode === GAME_MODES.TOURNAMENT) {
-        hintEl.textContent = 'Five rivals in order.';
+        hintEl.textContent = 'Six bladers in order — Benkei to Ryuga.';
         hintEl.classList.remove('hidden');
       } else if (isCasual) {
         hintEl.textContent = 'CPU rival is random each match';

@@ -13,6 +13,7 @@
     "color-eagle": "node scripts/color-earth-eagle.mjs",
     "build-eagle-logo": "node scripts/build-earth-eagle-logo.mjs",
     "recolor-leone": "node scripts/recolor-leone-top.mjs",
+    "dev": "npx --yes http-server -p 8000 -c-1 -a 127.0.0.1 .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -23,8 +24,10 @@
     "@gltf-transform/core": "^4.4.0",
     "@gltf-transform/extensions": "^4.4.0",
     "@gltf-transform/functions": "^4.4.0",
+    "cannon-es": "^0.20.0",
     "jpeg-js": "^0.4.4",
     "meshoptimizer": "^1.1.1",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "three": "^0.160.0"
   }
 }

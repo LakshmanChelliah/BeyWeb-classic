@@ -460,6 +460,37 @@ export function createTopPhysicsBody(world, topMaterial, x, z, collisionGroup, p
 }
 
 /**
+ * Applies a small tangential (perpendicular-to-velocity) drift force for beys
+ * whose tip creates natural orbital precession (e.g. Earth Eagle's WD tip).
+ * The force curves straight-line movement into wide sweeping arcs without
+ * fighting player/AI steering — it just makes the bey want to arc rather than
+ * charge dead-straight. Direction follows spinSign so the curve is consistent.
+ *
+ * Beys opt in by setting `beyStats.orbitDrift` (0–1). Eagle uses ~0.35.
+ */
+export function applyOrbitDrift(body, spin) {
+  if (!body || spin < CONFIG.SLEEP_THRESHOLD) return;
+  if (body.userData.airborne || body.userData.ringOut || body.userData.launching) return;
+
+  const driftStrength = body.userData.beyStats?.orbitDrift ?? 0;
+  if (driftStrength <= 0) return;
+
+  const vx = body.velocity.x;
+  const vz = body.velocity.z;
+  const speed = Math.hypot(vx, vz);
+  if (speed < 0.4) return;
+
+  // Perpendicular to velocity; spinSign keeps the curve direction tied to the
+  // bey's own spin so it always arcs the same consistent way.
+  const spinSign = body.userData.spinSign ?? 1;
+  const tx = (-vz / speed) * spinSign;
+  const tz = (vx / speed) * spinSign;
+
+  const force = driftStrength * spin * speed * 8;
+  body.applyForce(new CANNON.Vec3(tx * force, 0, tz * force), body.position);
+}
+
+/**
  * Applies a gentle inward force proportional to distance from centre,
  * simulating the curved bowl of a real Beyblade stadium.
  * Force scales from zero at the centre to CENTER_PULL_FORCE at the rim.

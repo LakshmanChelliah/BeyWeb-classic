@@ -51,7 +51,7 @@ body.mobile {
   line-height: 1.45;
   color: #c8d4f0;
 }
-@media (orientation: landscape) {
+@media (orientation: landscape) and (pointer: coarse) {
   body.mobile .orientation-lock {
     display: flex;
   }
@@ -600,6 +600,20 @@ body.mobile #hud {
   align-items: center;
 }
 
+/* Mobile: numeric spin % (not bar-only). */
+body.mobile .hud-bar-wrap {
+  display: none;
+}
+
+body.mobile .hud-value {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+body.mobile .hud-label {
+  margin-bottom: 2px;
+}
+
 body.mobile #hud:has(.campaign-hud:not(.hidden)) {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 4px;
@@ -618,7 +632,7 @@ body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-avatar {
 }
 
 body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-value {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-label {

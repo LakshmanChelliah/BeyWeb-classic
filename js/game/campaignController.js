@@ -8,8 +8,11 @@ import {
 import {
   createCampaign,
   CAMPAIGN_OPPONENT_IDS,
-  CAMPAIGN_STAGE_COUNT,
+  getTournamentRoster,
   getAiTierForOpponentId,
+  getTournamentBlader,
+  getBladerDisplayName,
+  applyTournamentBladerProfile,
   pickRandomRival,
   pickTournamentOpponent,
 } from './campaign.js';
@@ -50,7 +53,8 @@ export function createCampaignController({
   }
 
   function setTournamentOpponent() {
-    const opp = pickTournamentOpponent(tournament.getOpponentIndex(), getPlayerBey());
+    const raw = pickTournamentOpponent(tournament.getOpponentIndex(), getPlayerBey());
+    const opp = applyTournamentBladerProfile(raw);
     tournament.setOpponent(opp);
     return opp;
   }
@@ -94,7 +98,8 @@ export function createCampaignController({
 
     const opp = currentMode().getCurrentOpponent();
     const diffLabel = getDifficultyLabel(getEffectiveAiTier());
-    const oppName = opp?.name ?? 'CPU';
+    const oppName = activeMode === 'tournament' ? getBladerDisplayName(opp) : (opp?.name ?? 'CPU');
+    const blader = activeMode === 'tournament' ? getTournamentBlader(opp?.id) : null;
 
     if (activeMode === 'casual') {
       campaignHud.textContent = `Casual · ${diffLabel} · vs ${oppName}`;
@@ -104,27 +109,29 @@ export function createCampaignController({
 
     const { player, cpu } = tournament.getSeriesScore();
     const tier = tournament.getOpponentIndex() + 1;
+    const stageCount = tournament.getStageCount();
 
     if (isMobileHud()) {
       campaignHud.classList.add('campaign-hud--tournament');
       campaignHud.innerHTML = `
         <div class="campaign-hud-mobile campaign-hud-mobile--center">
-          <div class="campaign-hud-tier">T${tier}/${CAMPAIGN_STAGE_COUNT}</div>
+          <div class="campaign-hud-tier">T${tier}/${stageCount}</div>
           <div class="campaign-hud-series" role="group" aria-label="Your best of 3 series score">
             <span class="campaign-series-dots">${seriesDotsHtml(player, cpu)}</span>
           </div>
         </div>`;
       campaignHud.setAttribute(
         'aria-label',
-        `Tournament ${tier} of ${CAMPAIGN_STAGE_COUNT}, best of 3, you ${player} rival ${cpu}, versus ${oppName}`
+        `Tournament ${tier} of ${stageCount}, best of 3, you ${player} rival ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`
       );
     } else {
       campaignHud.classList.remove('campaign-hud--tournament');
+      const bladerLine = blader ? `${blader.name} (${blader.title})` : oppName;
       campaignHud.textContent =
-        `Tournament ${tier}/${CAMPAIGN_STAGE_COUNT} · Best of 3: ${player}–${cpu} · ${diffLabel} · vs ${oppName}`;
+        `Tournament ${tier}/${stageCount} · Best of 3: ${player}–${cpu} · ${diffLabel} · vs ${bladerLine}`;
       campaignHud.setAttribute(
         'aria-label',
-        `Tournament ${tier} of ${CAMPAIGN_STAGE_COUNT}, series ${player} to ${cpu}, versus ${oppName}`
+        `Tournament ${tier} of ${stageCount}, series ${player} to ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`
       );
     }
 
@@ -172,11 +179,14 @@ export function createCampaignController({
     const { player, cpu } = tournament.getSeriesScore();
     const scoreLine = `Series: ${player}–${cpu}`;
     const seriesStatus = tournament.getSeriesStatus();
+    const opp = tournament.getCurrentOpponent();
+    const blader = getTournamentBlader(opp?.id);
+    const rivalName = blader?.name ?? opp?.name ?? 'the rival';
 
     if (isDraw) {
       restartAction = 'next-round';
       btnRestart.textContent = 'Rematch';
-      gameoverMsg.textContent = `${scoreLine}. Rematch this round.`;
+      gameoverMsg.textContent = `${scoreLine}. Rematch against ${rivalName}.`;
       updateHud();
       return;
     }
@@ -184,7 +194,7 @@ export function createCampaignController({
     if (seriesStatus === 'ongoing') {
       restartAction = 'next-round';
       btnRestart.textContent = 'Next Round';
-      gameoverMsg.textContent = `${scoreLine}. First to 2 wins the series.`;
+      gameoverMsg.textContent = `${scoreLine}. First to 2 wins the series vs ${rivalName}.`;
       updateHud();
       return;
     }
@@ -194,7 +204,7 @@ export function createCampaignController({
       btnRestart.textContent = 'Try Again';
       gameoverTitle.textContent = 'DEFEATED';
       gameoverTitle.className = 'lose';
-      gameoverMsg.textContent = `${scoreLine}. The CPU won this series.`;
+      gameoverMsg.textContent = `${scoreLine}. ${rivalName} takes the series.`;
       campaignHud?.classList.add('hidden');
       return;
     }
@@ -204,7 +214,7 @@ export function createCampaignController({
       btnRestart.textContent = 'Play Again';
       gameoverTitle.textContent = 'CHAMPION!';
       gameoverTitle.className = 'win';
-      gameoverMsg.textContent = `You beat all ${CAMPAIGN_STAGE_COUNT} rivals. Tournament complete!`;
+      gameoverMsg.textContent = `You defeated Ryuga and conquered the tournament!`;
       campaignHud?.classList.add('hidden');
       return;
     }
@@ -213,7 +223,7 @@ export function createCampaignController({
     btnRestart.textContent = 'Next Rival';
     gameoverTitle.textContent = 'SERIES WON!';
     gameoverTitle.className = 'win';
-    gameoverMsg.textContent = `${scoreLine}. Next rival awaits (tougher CPU).`;
+    gameoverMsg.textContent = `${scoreLine}. You beat ${rivalName}! The next blader awaits.`;
   }
 
   function handleMatchEnd(result) {
@@ -239,7 +249,7 @@ export function createCampaignController({
     }
 
     if (restartAction === 'retry-tournament') {
-      tournament.start();
+      tournament.start(getPlayerBey());
       rollAndSetOpponent();
       beginOpponent();
       resetAIController();
@@ -269,7 +279,7 @@ export function createCampaignController({
     handleRestart,
     startTournament(playerBey) {
       activeMode = 'tournament';
-      tournament.start();
+      tournament.start(playerBey);
       setTournamentOpponent();
       beginOpponent();
     },
