@@ -98,6 +98,11 @@ const GUARD_SPIN_MULT = 2.2;
 const GUARD_SELF_IMPULSE = 0.04;
 const SPIN_STEAL_KB_MULT = 0.4; // 60% knockback reduction while Spin Steal is active
 
+// Lightning L-Drago — Upper Mode (Smash Attack knockback boost; wiki mode-change gimmick).
+const LDRAGO_GLOW = '#5B21D9';
+const LDRAGO_UPPER_MODE_DUR = 3.5;
+const LDRAGO_UPPER_MODE_KB_MULT = 1.5; // +50% outgoing collision knockback
+
 // Rock Leone — Wide Ball anchor + Lion Gale Force Wall (defense-tuned, low ATK).
 const LEONE_ANCHOR_KB_OUT = 0.82;  // outgoing (low ATK stat)
 const LEONE_ANCHOR_DAMAGE_TAKEN = 0.2; // knockback felt while planted
@@ -164,6 +169,22 @@ export function isBullFlipActive(body) {
 }
 const BULL_UPPERCUT_SLAM_MULT = 1.2;
 const BULL_UPPERCUT_LIFT = 14;
+
+// Earth Eagle — Counter Stance + Diving Crush.
+const EAGLE_GLOW = '#f59e0b';
+const EAGLE_COUNTER_DUR = 3.2;
+const EAGLE_COUNTER_KB_MULT = 2.2;
+const EAGLE_COUNTER_SELF_MULT = 0.18;
+const EAGLE_COUNTER_SPIN_MULT = 2.15;
+const EAGLE_DIVE_APEX = 24;
+const EAGLE_DIVE_ASCEND_DUR = 0.74;
+const EAGLE_DIVE_HOVER_DUR = 0.34;
+const EAGLE_DIVE_DUR = 0.58;
+const EAGLE_DIVE_SETTLE_DUR = 0.75;
+const EAGLE_DIVE_HIT_SPIN = 0.22;
+const EAGLE_DIVE_MISS_SELF = 0.045;
+const EAGLE_DIVE_IMPULSE_MULT = 4.0;
+const EAGLE_DIVE_MIN_IMPULSE = 8.0;
 
 function groundY(body) {
   const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
@@ -397,13 +418,9 @@ function applyLightningStrike(state, casterBody, spot) {
 
     const k = spinKey(side);
     state[k] = Math.max(0, state[k] - STAR_BLAST_HIT_SPIN);
-
-    let dx = body.position.x - spot.x;
-    let dz = body.position.z - spot.z;
-    const d = Math.hypot(dx, dz) || 1;
-    dx /= d;
-    dz /= d;
-    applyPhysicsKnockback(body, dx, dz, LDRAGO_LIGHTNING_HIT_KNOCKBACK);
+    // Star Blast-style connect: launch the victim away from L-Drago (the caster),
+    // not radially from the strike point. Matches Pegasus Star Blast feel.
+    applyStarBlastHitKnockback(casterBody, body);
   }
 }
 
@@ -542,6 +559,74 @@ function releaseStarBlastControl(body) {
   body.position.y = groundY(body);
   body.velocity.set(0, 0, 0);
   body.angularVelocity.set(0, 0, 0);
+}
+
+function clearEagleDiveMotion(body) {
+  if (!body) return;
+  body.userData.flightLift = 0;
+  body.userData.flightTilt = 0;
+  body.userData.flightRoll = 0;
+  body.userData.flightSquash = 1;
+  body.userData.slamming = false;
+  body.userData.eagleDiveSlamming = false;
+  body.userData.eagleImpactFlash = false;
+  delete body.userData.eagleDivePhase;
+  delete body.userData.eagleDivePhaseT;
+  delete body.userData.eagleDiveHit;
+  delete body.userData.eagleDiveResolved;
+  delete body.userData.eagleDiveSettleTilt;
+  delete body.userData.eagleDiveSettleRoll;
+  delete body.userData.eagleDiveTargetX;
+  delete body.userData.eagleDiveTargetZ;
+}
+
+function releaseEagleDiveControl(body) {
+  if (!body) return;
+  body.userData.controlLocked = false;
+  body.userData.airborne = false;
+  body.userData.invulnerable = false;
+  body.userData.eagleDiveWindup = false;
+  clearEagleDiveMotion(body);
+  setBodyCollisions(body, true);
+  if (body.type === CANNON.Body.KINEMATIC) {
+    restoreDynamicBody(body);
+  }
+  body.position.y = groundY(body);
+  body.velocity.set(0, 0, 0);
+  body.angularVelocity.set(0, 0, 0);
+}
+
+function resolveEagleDiveOutcome(state, side, body) {
+  if (!body || body.userData.eagleDiveResolved) return;
+  body.userData.eagleDiveResolved = true;
+  if (!body.userData.eagleDiveHit) {
+    const k = spinKey(side);
+    state[k] = Math.max(0, state[k] - EAGLE_DIVE_MISS_SELF);
+  }
+}
+
+function finishEagleDive(state, side, slot, body, dt) {
+  if (!body || (!slot.active && body.userData.eagleDivePhase == null)) return;
+  resolveEagleDiveOutcome(state, side, body);
+  slot.active = false;
+  slot.activeRemaining = 0;
+  slot.windupRemaining = 0;
+  if (slot.ability.onEnd) slot.ability.onEnd(makeCtx(state, side, dt));
+}
+
+function lockEagleDiveTarget(body, opp) {
+  if (!body) return;
+  body.userData.eagleDiveTargetX = opp?.position.x ?? body.position.x;
+  body.userData.eagleDiveTargetZ = opp?.position.z ?? body.position.z;
+}
+
+function moveTowardEagleDiveTarget(body, rate) {
+  if (!body) return;
+  const tx = body.userData.eagleDiveTargetX ?? body.position.x;
+  const tz = body.userData.eagleDiveTargetZ ?? body.position.z;
+  const t = Math.min(1, rate);
+  body.position.x += (tx - body.position.x) * t;
+  body.position.z += (tz - body.position.z) * t;
 }
 
 function clearStarBlastMotion(body) {
@@ -975,17 +1060,78 @@ export const ABILITY_REGISTRY = {
     },
   },
 
-  ldrago_supreme_flight: {
-    id: 'ldrago_supreme_flight',
-    name: 'Dragon Emperor Supreme Flight',
+  eagle_counter_stance: {
+    id: 'eagle_counter_stance',
+    name: 'Counter Stance',
+    slot: 'power',
+    icon: 'C',
+    desc: 'Eagle braces and counters the foe\'s next move with reflected knockback and spin damage.',
+    charge: 6,
+    cooldown: 9,
+    duration: EAGLE_COUNTER_DUR,
+    windup: 0,
+    glow: EAGLE_GLOW,
+    onActivate(ctx) {
+      const b = ctx.body;
+      b.userData.counterStance = true;
+      b.userData.eagleCounterT = 0;
+      b.userData.eagleCounterFlashT = 0;
+      b.userData.eagleCounterFromX = null;
+      b.userData.eagleCounterFromZ = null;
+    },
+    onEnd(ctx) {
+      const b = ctx.body;
+      b.userData.counterStance = false;
+      delete b.userData.eagleCounterT;
+      delete b.userData.eagleCounterFlashT;
+      delete b.userData.eagleCounterFromX;
+      delete b.userData.eagleCounterFromZ;
+    },
+  },
+
+  eagle_diving_crush: {
+    id: 'eagle_diving_crush',
+    name: 'Diving Crush',
+    slot: 'special',
+    icon: 'V',
+    desc: 'Eagle rises above the stadium, then crushes its opponent with a talon-first diving smash.',
+    charge: 11,
+    cooldown: 13,
+    duration: 3.1,
+    windup: 0.55,
+    glow: EAGLE_GLOW,
+    onActivate(ctx) {
+      const b = ctx.body;
+      b.userData.airborne = true;
+      b.userData.invulnerable = true;
+      b.userData.controlLocked = true;
+      b.userData.slamming = false;
+      b.userData.eagleDiveWindup = false;
+      b.userData.eagleDivePhase = 'ascend';
+      b.userData.eagleDivePhaseT = 0;
+      b.userData.eagleDiveHit = false;
+      delete b.userData.eagleDiveResolved;
+      delete b.userData.eagleDiveTargetX;
+      delete b.userData.eagleDiveTargetZ;
+      setAirborneKinematic(b);
+      setBodyCollisions(b, false);
+    },
+    onEnd(ctx) {
+      releaseEagleDiveControl(ctx.body);
+    },
+  },
+
+  ldrago_soaring_destruction: {
+    id: 'ldrago_soaring_destruction',
+    name: 'Dragon Emperor, Soaring Destruction',
     slot: 'special',
     icon: '\u2726',
-    desc: 'Rises and calls down five lightning strikes; foes caught take Star Blast-level spin damage and heavy knockback.',
+    desc: 'Ryuga\'s soaring lightning assault — foes struck take Star Blast-level knockback and spin loss.',
     charge: 12,
     cooldown: 14,
     duration: 3.05,
     windup: 0.65,
-    glow: '#f87171',
+    glow: LDRAGO_GLOW,
     onActivate(ctx) {
       const b = ctx.body;
       b.userData.airborne = true;
@@ -1055,6 +1201,31 @@ export const ABILITY_REGISTRY = {
       delete b.userData.spinStealBurstT;
       delete b.userData.spinStealFromX;
       delete b.userData.spinStealFromZ;
+    },
+  },
+
+  // Lightning L-Drago power: rotate L-Drago I to Upper Mode for a Smash Attack
+  // knockback burst (wiki fusion-wheel mode-change gimmick).
+  ldrago_upper_mode: {
+    id: 'ldrago_upper_mode',
+    name: 'Upper Mode',
+    slot: 'power',
+    icon: '\u25B2',
+    desc: 'Rotates L-Drago I to Upper Attack — outgoing collision knockback boosted 50% for 3.5s.',
+    charge: 7.5,
+    cooldown: 10,
+    duration: LDRAGO_UPPER_MODE_DUR,
+    windup: 0,
+    glow: LDRAGO_GLOW,
+    onActivate(ctx) {
+      const b = ctx.body;
+      b.userData.atkCombatMultMult = LDRAGO_UPPER_MODE_KB_MULT;
+      b.userData.ldragoUpperMode = true;
+    },
+    onEnd(ctx) {
+      const b = ctx.body;
+      delete b.userData.atkCombatMultMult;
+      delete b.userData.ldragoUpperMode;
     },
   },
 
@@ -1490,7 +1661,7 @@ function applyAbilityWindupSetup(state, side, ability) {
     body.userData.controlLocked = true;
     initStarBlast(body);
   }
-  if (ability.id === 'ldrago_supreme_flight') {
+  if (ability.id === 'ldrago_soaring_destruction') {
     body.userData.invulnerable = true;
     body.userData.ldragoFlightWindup = true;
   }
@@ -1512,6 +1683,18 @@ function applyAbilityWindupSetup(state, side, ability) {
   if (ability.id === 'bull_red_horn_uppercut') {
     body.userData.controlLocked = true;
     initBullUppercut(body);
+  }
+  if (ability.id === 'eagle_diving_crush') {
+    body.userData.controlLocked = true;
+    body.userData.airborne = true;
+    body.userData.invulnerable = true;
+    body.userData.eagleDiveWindup = true;
+    body.userData.flightLift = 0;
+    body.userData.flightTilt = 0;
+    body.userData.flightRoll = 0;
+    body.userData.flightSquash = 1;
+    body.velocity.set(0, 0, 0);
+    setBodyCollisions(body, false);
   }
 }
 
@@ -1570,6 +1753,10 @@ function cancelSlotOnSpinStop(state, side, slot, dt) {
   }
   if (id === 'bull_red_horn_uppercut') {
     finishBullUppercut(state, side, slot, body, dt);
+    return true;
+  }
+  if (id === 'eagle_diving_crush') {
+    finishEagleDive(state, side, slot, body, dt);
     return true;
   }
   if (ability.onEnd) ability.onEnd(makeCtx(state, side, dt));
@@ -2035,6 +2222,155 @@ export function tickBullAbilityVisuals(state, dt) {
   }
 }
 
+// ---- Earth Eagle cinematic visual driver (render rate) -----------------------
+
+function markEagleDiveHit(state, attackerSide, body, opp) {
+  if (!body || body.userData.eagleDiveHit) return;
+  if (opp?.userData?.invulnerable) return;
+  body.userData.eagleDiveHit = true;
+  const oppSide = attackerSide === 'player' ? 'ai' : 'player';
+  const k = spinKey(oppSide);
+  state[k] = Math.max(0, state[k] - EAGLE_DIVE_HIT_SPIN);
+  if (opp) {
+    const dx = opp.position.x - body.position.x;
+    const dz = opp.position.z - body.position.z;
+    const d = Math.hypot(dx, dz) || 1;
+    applyPhysicsKnockback(opp, dx / d, dz / d, STAR_BLAST_HIT_KNOCKBACK * 0.92);
+  }
+}
+
+export function tickEagleAbilityVisuals(state, dt) {
+  if (!state.abilities) return;
+  for (const side of ['player', 'ai']) {
+    const body = side === 'player' ? state.playerBody : state.aiBody;
+    const opp = side === 'player' ? state.aiBody : state.playerBody;
+    if (!body) continue;
+    const runtime = state.abilities[side];
+    if (!runtime) continue;
+
+    const pwSlot = runtime.power;
+    if (pwSlot?.active && pwSlot.ability.id === 'eagle_counter_stance') {
+      const t = body.userData.eagleCounterT ?? 0;
+      body.userData.eagleCounterT = t + dt;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 18);
+      body.userData.flightSquash = 0.93 + pulse * 0.03;
+      body.userData.flightTilt = Math.sin(t * 10) * 0.035;
+      body.userData.flightRoll = Math.cos(t * 8) * 0.025;
+      if ((body.userData.eagleCounterFlashT ?? 0) > 0) {
+        body.userData.eagleCounterFlashT = Math.max(0, body.userData.eagleCounterFlashT - dt * 3.2);
+      }
+    }
+
+    const spSlot = runtime.special;
+    if (!spSlot || spSlot.ability.id !== 'eagle_diving_crush') continue;
+    const inMove = spSlot.windupRemaining > 0 || spSlot.active || body.userData.eagleDivePhase != null;
+    if (!inMove) continue;
+
+    body.position.y = groundY(body);
+    body.velocity.set(0, 0, 0);
+
+    if (spSlot.windupRemaining > 0) {
+      const windup = slotWindupTotal(spSlot, 0.55);
+      const t = clamp01(windup > 0 ? 1 - spSlot.windupRemaining / windup : 1);
+      body.userData.eagleDiveWindup = true;
+      body.userData.flightLift = 0;
+      body.userData.flightTilt = 0.16 * easeOutQuad(t);
+      body.userData.flightRoll = Math.sin(t * Math.PI * 3) * 0.08;
+      body.userData.flightSquash = 1 - 0.18 * easeOutQuad(t);
+      body.userData.slamming = false;
+      body.userData.eagleDiveSlamming = false;
+      setBodyCollisions(body, false);
+      continue;
+    }
+
+    if (!spSlot.active) continue;
+    body.userData.eagleDiveWindup = false;
+    const phase = body.userData.eagleDivePhase ?? 'ascend';
+    body.userData.eagleDivePhaseT = (body.userData.eagleDivePhaseT ?? 0) + dt;
+
+    switch (phase) {
+      case 'ascend': {
+        const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_ASCEND_DUR);
+        const e = easeOutCubic(t);
+        body.userData.flightLift = EAGLE_DIVE_APEX * e;
+        body.userData.flightTilt = -0.18 * Math.sin(t * Math.PI);
+        body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.18;
+        body.userData.flightSquash = 1 + 0.12 * Math.sin(t * Math.PI);
+        body.userData.slamming = false;
+        body.userData.eagleDiveSlamming = false;
+        homingXZ(body, opp, 2.4 * dt);
+        setBodyCollisions(body, false);
+        if (t >= 1) {
+          lockEagleDiveTarget(body, opp);
+          body.userData.eagleDivePhase = 'hover';
+          body.userData.eagleDivePhaseT = 0;
+        }
+        break;
+      }
+      case 'hover': {
+        const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_HOVER_DUR);
+        body.userData.flightLift = EAGLE_DIVE_APEX + Math.sin(t * Math.PI) * 1.2;
+        body.userData.flightTilt = 0.1 * Math.sin(t * Math.PI);
+        body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.12;
+        body.userData.flightSquash = 1;
+        body.userData.slamming = false;
+        body.userData.eagleDiveSlamming = false;
+        moveTowardEagleDiveTarget(body, 5.5 * dt);
+        setBodyCollisions(body, false);
+        if (t >= 1) {
+          body.userData.eagleDivePhase = 'dive';
+          body.userData.eagleDivePhaseT = 0;
+        }
+        break;
+      }
+      case 'dive': {
+        const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_DUR);
+        const e = easeInQuad(t);
+        moveTowardEagleDiveTarget(body, 11 * dt);
+        body.userData.flightLift = EAGLE_DIVE_APEX * (1 - e);
+        body.userData.flightTilt = -Math.PI * 0.38 * easeOutQuad(t);
+        body.userData.flightRoll = Math.PI * 0.22 * Math.sin(t * Math.PI);
+        body.userData.flightSquash = 1 + 0.2 * e;
+        body.userData.slamming = true;
+        body.userData.eagleDiveSlamming = true;
+        if (e >= 1 || body.userData.flightLift <= 0.2) {
+          body.userData.flightLift = 0;
+          body.userData.eagleImpactFlash = true;
+          if (starBlastOverlap(body, opp)) markEagleDiveHit(state, side, body, opp);
+          body.userData.eagleDiveSettleTilt = body.userData.flightTilt;
+          body.userData.eagleDiveSettleRoll = body.userData.flightRoll;
+          body.userData.eagleDivePhase = 'settle';
+          body.userData.eagleDivePhaseT = 0;
+          body.userData.slamming = false;
+          body.userData.eagleDiveSlamming = false;
+          setBodyCollisions(body, true);
+        } else {
+          setBodyCollisions(body, false);
+        }
+        break;
+      }
+      case 'settle': {
+        const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_SETTLE_DUR);
+        const decay = (1 - t) * (1 - t);
+        body.userData.eagleImpactFlash = t < 0.18;
+        body.userData.flightLift = Math.abs(Math.sin(t * Math.PI * 2)) * 0.26 * decay;
+        body.userData.flightTilt = (body.userData.eagleDiveSettleTilt ?? 0) * (1 - easeOutCubic(t));
+        body.userData.flightRoll = (body.userData.eagleDiveSettleRoll ?? 0) * (1 - easeOutCubic(t));
+        body.userData.flightSquash = 1 - 0.16 * (1 - t) + 0.08 * Math.sin(t * Math.PI) * decay;
+        body.userData.slamming = false;
+        body.userData.eagleDiveSlamming = false;
+        setBodyCollisions(body, true);
+        if (t >= 1) finishEagleDive(state, side, spSlot, body, dt);
+        break;
+      }
+      default:
+        body.userData.eagleDivePhase = 'ascend';
+        body.userData.eagleDivePhaseT = 0;
+        break;
+    }
+  }
+}
+
 // ---- Libra cinematic visual driver (render rate) ----------------------------
 
 /**
@@ -2089,7 +2425,7 @@ export function tickLibraAbilityVisuals(state, dt) {
 // ---- L-Drago cinematic visual driver (render rate) --------------------------
 
 /**
- * Per-frame body animation for L-Drago Spin Steal and Supreme Flight.
+ * Per-frame body animation for L-Drago Spin Steal and Soaring Destruction.
  */
 export function tickLdragoAbilityVisuals(state, dt) {
   if (!state.abilities) return;
@@ -2115,9 +2451,9 @@ export function tickLdragoAbilityVisuals(state, dt) {
       continue;
     }
 
-    // --- Supreme Flight (special) ---
+    // --- Soaring Destruction (special) ---
     const spSlot = runtime.special;
-    if (!spSlot || spSlot.ability.id !== 'ldrago_supreme_flight') continue;
+    if (!spSlot || spSlot.ability.id !== 'ldrago_soaring_destruction') continue;
 
     const inWindup = spSlot.windupRemaining > 0;
     const inActive = spSlot.active;
@@ -2340,6 +2676,13 @@ export function tickAbilityTimers(state, dt) {
               finishBullUppercut(state, side, slot, body, dt);
             }
           }
+        } else if (slot.ability.id === 'eagle_diving_crush') {
+          // Phase machine in tickEagleAbilityVisuals ends this move.
+          slot.activeRemaining = Math.max(0, slot.activeRemaining - dt);
+          if (slot.activeRemaining === 0 && slot.active) {
+            const body = side === 'player' ? state.playerBody : state.aiBody;
+            if (body) finishEagleDive(state, side, slot, body, dt);
+          }
         } else {
           slot.activeRemaining = Math.max(0, slot.activeRemaining - dt);
           if (slot.activeRemaining === 0) {
@@ -2410,9 +2753,28 @@ function applyBullUppercutSlam(state, impact, slamBody, slamTag, victimTag) {
   return true;
 }
 
+function applyEagleDiveSlam(impact, slamBody, slamTag, victimTag) {
+  if (!slamBody?.userData?.eagleDiveSlamming) return false;
+  if (!slamBody.userData.eagleDiveHit) {
+    slamBody.userData.eagleDiveHit = true;
+    impact['spinDelta' + victimTag] = Math.min(impact['spinDelta' + victimTag], -EAGLE_DIVE_HIT_SPIN);
+  } else {
+    impact['spinDelta' + victimTag] = Math.min(impact['spinDelta' + victimTag], 0);
+  }
+  impact['spinDelta' + slamTag] *= 0.18;
+  impact['impulse' + victimTag] = Math.max(
+    impact['impulse' + victimTag] * EAGLE_DIVE_IMPULSE_MULT,
+    EAGLE_DIVE_MIN_IMPULSE
+  );
+  impact['impulse' + slamTag] *= SLAM_SELF_IMPULSE;
+  slamBody.userData.eagleImpactFlash = true;
+  return true;
+}
+
 function applySlam(impact, slamBody, slamTag, victimTag, state) {
   if (applyStarBlastSlam(impact, slamBody, slamTag, victimTag)) return;
   if (applyBullUppercutSlam(state, impact, slamBody, slamTag, victimTag)) return;
+  if (applyEagleDiveSlam(impact, slamBody, slamTag, victimTag)) return;
   if (!slamBody.userData.slamming) return;
   impact['impulse' + victimTag] *= SLAM_IMPULSE_MULT;
   impact['impulse' + slamTag] *= SLAM_SELF_IMPULSE;
@@ -2455,7 +2817,7 @@ function applySpinStealKnockback(state, impact) {
   }
 }
 
-/** Blocks spin loss (negative deltas) while a body is invulnerable (Supreme Flight). */
+/** Blocks spin loss (negative deltas) while a body is invulnerable (Soaring Destruction). */
 function applyInvulnerability(impact) {
   for (const tag of ['A', 'B']) {
     const body = impact['body' + tag];
@@ -2468,6 +2830,30 @@ function applyInvulnerability(impact) {
 function applyBullStampede(impact, body, selfTag, oppTag) {
   if (!body?.userData?.stampeding) return;
   impact['impulse' + oppTag] *= BULL_STAMPEDE_KB_OUT;
+}
+
+function applyEagleCounter(impact, body, selfTag, oppTag) {
+  if (!body?.userData?.counterStance) return;
+  const oppBody = impact['body' + oppTag];
+  const foeInMove = isBodyInSpecialMove(oppBody) || impact['closingSpeed'] > 3.4;
+  if (!foeInMove) return;
+
+  impact['impulse' + oppTag] = Math.max(
+    impact['impulse' + oppTag] * EAGLE_COUNTER_KB_MULT,
+    4.6
+  );
+  impact['impulse' + selfTag] *= EAGLE_COUNTER_SELF_MULT;
+  impact['spinDelta' + oppTag] = Math.min(
+    impact['spinDelta' + oppTag] * EAGLE_COUNTER_SPIN_MULT,
+    -0.055
+  );
+  const selfDelta = impact['spinDelta' + selfTag];
+  if (selfDelta < 0) impact['spinDelta' + selfTag] = selfDelta * 0.1;
+  body.userData.eagleCounterFlashT = 1;
+  if (oppBody) {
+    body.userData.eagleCounterFromX = oppBody.position.x;
+    body.userData.eagleCounterFromZ = oppBody.position.z;
+  }
 }
 
 function applyLeoneAnchor(impact, body, selfTag, oppTag) {
@@ -2518,6 +2904,8 @@ export function resolveContactAbilities(state, impact) {
   applyLeoneAnchor(impact, impact.bodyB, 'B', 'A');
   applyBullStampede(impact, impact.bodyA, 'A', 'B');
   applyBullStampede(impact, impact.bodyB, 'B', 'A');
+  applyEagleCounter(impact, impact.bodyA, 'A', 'B');
+  applyEagleCounter(impact, impact.bodyB, 'B', 'A');
   applyLibraBusterMitigation(state, impact);
   applyLeoneSpinResist(impact);
 }
@@ -2532,6 +2920,9 @@ export function isBodyInSpecialMove(body, state) {
     ud.slamming ||
     ud.airborne ||
     ud.stampeding ||
+    ud.counterStance ||
+    ud.eagleDivePhase != null ||
+    ud.eagleDiveSlamming ||
     ud.bullUpperSlamming ||
     ud.boosting ||
     ud.spinStealing ||
@@ -2550,6 +2941,7 @@ function contactLift(body) {
 function isAerialStriker(body) {
   if (!body) return false;
   if (body.userData.bullUpperSlamming) return true;
+  if (body.userData.eagleDiveSlamming) return true;
   if (!body.userData.slamming) return false;
   const phase = body.userData.starPhase;
   return phase === 'dive' || phase === 'bounce';
@@ -2585,6 +2977,7 @@ export function clearAbilityFlags(body) {
   body.userData.sonicSandBoost = false;
   body.userData.spinStealing = false;
   body.userData.stampeding = false;
+  body.userData.counterStance = false;
   body.userData.invulnerable = false;
   body.userData.flightLift = 0;
   body.userData.flightTilt = 0;
@@ -2619,6 +3012,12 @@ export function clearAbilityFlags(body) {
   delete body.userData.spinStealFromX;
   delete body.userData.spinStealFromZ;
   delete body.userData.stampedeT;
+  delete body.userData.eagleCounterT;
+  delete body.userData.eagleCounterFlashT;
+  delete body.userData.eagleCounterFromX;
+  delete body.userData.eagleCounterFromZ;
+  body.userData.eagleDiveWindup = false;
+  clearEagleDiveMotion(body);
   if (body.userData.bullFlipPhase) {
     releaseBullFlipVictim(body, false);
   }
@@ -2631,6 +3030,8 @@ export function clearAbilityFlags(body) {
   delete body.userData.flightRepulseT;
   delete body.userData.ldragoLightningSpots;
   delete body.userData.ldragoLightningFired;
+  delete body.userData.ldragoUpperMode;
+  delete body.userData.atkCombatMultMult;
   body.userData.lionWallWindup = false;
   body.userData.ldragoFlightWindup = false;
   body.userData.sonicBusterWindup = false;

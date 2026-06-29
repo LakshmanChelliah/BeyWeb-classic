@@ -751,15 +751,15 @@ body:not(.mobile) #campaign-hud {
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
-  max-height: 560px;
+  max-height: 590px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
 }
 .carousel-container {
-  width: 300px;
-  height: 520px;
+  width: 320px;
+  height: 550px;
   position: relative;
   transform-style: preserve-3d;
   transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
@@ -803,7 +803,7 @@ body:not(.mobile) #campaign-hud {
   position: absolute;
   top: 0;
   left: 0;
-  width: 300px;
+  width: 320px;
   transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1),
     opacity 0.6s ease, filter 0.6s ease;
 }
@@ -815,7 +815,7 @@ body:not(.mobile) #campaign-hud {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 18px 18px 20px;
+  padding: 16px 18px 18px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px);
@@ -879,9 +879,9 @@ body:not(.mobile) #campaign-hud {
 
 .bey-emblem {
   position: relative;
-  width: 124px;
-  height: 124px;
-  margin-bottom: 14px;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 10px;
   border-radius: 50%;
   overflow: hidden;
   display: flex;
@@ -913,17 +913,30 @@ body:not(.mobile) #campaign-hud {
 }
 .bey-card.active .bey-emblem-img { animation: bey-spin 3.5s linear infinite reverse; }
 
-/* L-Drago: transparent logo on the standard spinning emblem disc */
+/* Lightning L-Drago: transparent logo on the standard spinning emblem disc */
 .bey-emblem-img--ldrago {
-  width: 86%;
-  height: 86%;
+  width: 98%;
+  height: 98%;
   object-fit: contain;
-  object-position: 50% 46%;
+  object-position: 50% 50%;
   filter:
     contrast(1.15)
     saturate(1.1)
-    drop-shadow(0 0 1px rgba(185, 28, 28, 0.45))
-    drop-shadow(0 1px 3px rgba(127, 29, 29, 0.2));
+    drop-shadow(0 0 4px rgba(91, 33, 217, 0.55))
+    drop-shadow(0 1px 3px rgba(40, 15, 96, 0.35));
+}
+
+/* Earth Eagle: cleaned Aquila logo on the standard spinning emblem disc */
+.bey-emblem-img--eagle {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  object-position: 50% 50%;
+  filter:
+    contrast(1.08)
+    saturate(1.12)
+    drop-shadow(0 0 5px rgba(109, 40, 217, 0.45))
+    drop-shadow(0 2px 5px rgba(20, 12, 36, 0.55));
 }
 
 /* Dark Bull: transparent logo on the standard spinning emblem disc */
@@ -958,11 +971,11 @@ body:not(.mobile) #campaign-hud {
 }
 .bey-desc {
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.35;
   color: #8a9bc0;
-  height: 52px;
+  height: 48px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 /* Metal Fusion packaging star stats */
@@ -1039,7 +1052,7 @@ body:not(.mobile) #campaign-hud {
 
 .bey-moves {
   width: 100%;
-  margin-top: 12px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -1062,17 +1075,21 @@ body:not(.mobile) #campaign-hud {
   border-radius: 5px;
 }
 .bey-move-name {
+  min-width: 0;
   color: #cdddff;
   font-weight: 600;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bey-select-btn {
   appearance: none;
   cursor: pointer;
-  margin-top: 18px;
+  margin-top: 12px;
   width: 100%;
-  padding: 12px;
+  padding: 11px 12px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1570,9 +1587,15 @@ body.mobile .bey-emblem-img {
 }
 
 body.mobile .bey-emblem-img--ldrago,
+body.mobile .bey-emblem-img--eagle,
 body.mobile .bey-emblem-img--bull {
   width: 88%;
   height: 88%;
+}
+
+body.mobile .bey-emblem-img--ldrago {
+  width: 98%;
+  height: 98%;
 }
 
 body.mobile .bey-type {

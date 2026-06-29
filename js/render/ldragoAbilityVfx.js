@@ -32,12 +32,14 @@ function createMatCache() {
   };
 }
 
-const CRIMSON = 0xef4444;
-const RED_DEEP = 0xdc2626;
-const RED_DARK = 0x7f1d1d;
-const ORANGE = 0xfb923c;
-const PALE = 0xfca5a5;
-const WHITE_HOT = 0xfee2e2;
+// Lightning L-Drago wears a purple/magenta accent (wiki) — palette names kept
+// for diff history, but the constants are tuned to the new purple theme.
+const CRIMSON = 0x5b21d9;   // primary dark violet
+const RED_DEEP = 0x4510a8;  // saturated deep violet
+const RED_DARK = 0x280f60;  // dark amethyst
+const ORANGE = 0x7c3aed;    // lavender accent (formerly orange embers)
+const PALE = 0xb794f4;      // pale lilac
+const WHITE_HOT = 0xfaf5ff; // hot violet-tinted white
 
 const DRAIN_COUNT = 28;
 const EMBER_COUNT = 8;
@@ -99,7 +101,7 @@ const EMBER_GEOS = [
   new THREE.PlaneGeometry(0.1, 0.1),
 ];
 const HELIX_HEAT_COLORS = [WHITE_HOT, ORANGE, CRIMSON];
-const BOLT_VIOLET = 0xc4b5fd;
+const BOLT_VIOLET = 0x9f8cf0;
 const BOLT_GLOW = 0xfff7ed;
 const LIGHTNING_SKY_Y = 26;
 const LIGHTNING_BOLT_SPREAD = 2.85;
@@ -215,7 +217,7 @@ function makeShadowMat(map) {
   });
 }
 
-/** Vertical fire streak texture for the Supreme Flight energy column. */
+/** Vertical fire streak texture for the Soaring Destruction energy column. */
 function createFireStreakTexture() {
   const c = document.createElement('canvas');
   c.width = 128;
@@ -313,7 +315,7 @@ function createDragonSilhouetteTexture() {
   return tex;
 }
 
-/** L-Drago Spin Steal + Supreme Flight scene VFX. */
+/** L-Drago Spin Steal + Soaring Destruction scene VFX. */
 export function createLdragoAbilityVfx(scene) {
   const root = new THREE.Group();
   scene.add(root);

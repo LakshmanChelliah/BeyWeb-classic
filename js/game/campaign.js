@@ -6,7 +6,7 @@ export const CAMPAIGN_OPPONENT_IDS = Object.freeze([
   'libra',   // Flame Libra
   'leone',   // Rock Leone
   'pegasus', // Storm Pegasus
-  'ldrago',  // Meteo L-Drago
+  'ldrago',  // Lightning L-Drago
 ]);
 
 export const CAMPAIGN_STAGE_COUNT = CAMPAIGN_OPPONENT_IDS.length;

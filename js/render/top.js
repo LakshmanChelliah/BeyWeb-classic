@@ -69,6 +69,9 @@ export function loadTopModel(url, fallbackColor, parentGroup, physicsBody, onRea
             } else if (/leone|bull/i.test(url)) {
               mat.metalness = 0.15;
               mat.roughness = 0.48;
+            } else if (/ldrago/i.test(url)) {
+              mat.metalness = 0.55;
+              mat.roughness = 0.36;
             }
             if (mat.transparent || mat.alphaTest > 0) {
               mat.depthWrite = mat.opacity >= 0.99;
@@ -80,8 +83,8 @@ export function loadTopModel(url, fallbackColor, parentGroup, physicsBody, onRea
       const modelHolder = new THREE.Group();
       modelHolder.add(model);
       orientSpinAxisToY(modelHolder);
-      // Leone / Libra / Bull: pole faces -Z in the baked mesh; map to +Y spin axis.
-      if (/leone|libra|bull/i.test(url)) modelHolder.rotation.x = Math.PI / 2;
+      // Leone / Libra / Bull / Lightning L-Drago / Earth Eagle: pole faces -Z in the baked mesh; map to +Y spin axis.
+      if (/leone|libra|bull|ldrago|eagle/i.test(url)) modelHolder.rotation.x = Math.PI / 2;
       // Dark Bull wheel art is 90° off the baked UV frame — align before scaling.
       if (/bull/i.test(url)) model.rotation.z = Math.PI / 2;
 

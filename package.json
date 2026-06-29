@@ -8,6 +8,10 @@
     "color-libra": "node scripts/color-flame-libra.mjs",
     "color-bull": "node scripts/color-dark-bull.mjs",
     "build-bull-logo": "node scripts/build-darkbull-logo.mjs",
+    "color-ldrago": "node scripts/color-meteo-ldrago.mjs",
+    "build-ldrago-logo": "node scripts/build-ldrago-logo.mjs",
+    "color-eagle": "node scripts/color-earth-eagle.mjs",
+    "build-eagle-logo": "node scripts/build-earth-eagle-logo.mjs",
     "recolor-leone": "node scripts/recolor-leone-top.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

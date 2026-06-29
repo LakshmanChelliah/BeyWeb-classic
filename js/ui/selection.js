@@ -248,13 +248,27 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
       return BEYS.filter((b) => isBeyPlayable(b) && !locked.has(b.id));
     },
     /** Restart picks (e.g. when switching VS CPU / 2-player). */
-    reset(newPlayers, { keepCarousel = false } = {}) {
-      const prevId = keepCarousel ? ROSTER[currentIndex]?.id : null;
+    reset(newPlayers, { keepCarousel = false, preserveBeyId = null, autoPick = false } = {}) {
+      const prevId = preserveBeyId ?? (keepCarousel ? ROSTER[currentIndex]?.id : null);
       players.splice(0, players.length, ...newPlayers);
       locked.clear();
       picks.length = 0;
       rivalPick = null;
       turn = 0;
+
+      if (autoPick && prevId && players.length === 1) {
+        const bey = ROSTER.find((b) => b.id === prevId);
+        if (bey) {
+          locked.add(bey.id);
+          picks.push(bey);
+          turn = players.length;
+          const idx = ROSTER.findIndex((b) => b.id === prevId);
+          currentIndex = idx >= 0 ? idx : nextOpenIndex(0);
+          render();
+          return;
+        }
+      }
+
       if (prevId) {
         const idx = ROSTER.findIndex((b) => b.id === prevId);
         currentIndex = idx >= 0 ? idx : nextOpenIndex(0);

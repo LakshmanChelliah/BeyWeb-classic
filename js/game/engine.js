@@ -40,6 +40,7 @@ import {
   tickLdragoAbilityVisuals,
   tickLibraAbilityVisuals,
   tickBullAbilityVisuals,
+  tickEagleAbilityVisuals,
   getCameraCue,
   resetStarBlastCamera,
   shouldStarBlastGlow,
@@ -54,6 +55,7 @@ import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';
 import { createLdragoAbilityVfx } from '../render/ldragoAbilityVfx.js';
 import { createLibraAbilityVfx } from '../render/libraAbilityVfx.js';
 import { createBullAbilityVfx } from '../render/bullAbilityVfx.js';
+import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
 
@@ -92,6 +94,10 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     player: createBullAbilityVfx(scene),
     ai: createBullAbilityVfx(scene),
   };
+  const eagleVfx = {
+    player: createEagleAbilityVfx(scene),
+    ai: createEagleAbilityVfx(scene),
+  };
   const collisionSparksVfx = createCollisionSparksVfx(scene, {
     poolSize: mode === 'mobile' ? 64 : 128,
     countScale: mode === 'mobile' ? 0.72 : 1,
@@ -110,6 +116,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     libraVfx.ai.reset();
     bullVfx.player.reset();
     bullVfx.ai.reset();
+    eagleVfx.player.reset();
+    eagleVfx.ai.reset();
     collisionSparksVfx.reset();
   }
 
@@ -253,7 +261,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         // Warm stone / wind haze — not saturated green.
         return { color: '#c4bfb6', intensity };
       }
-      if (sp.ability.id === 'ldrago_supreme_flight') {
+      if (sp.ability.id === 'ldrago_soaring_destruction') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
         const repulse = body?.userData.flightRepulseT ?? 0;
         const launch = body?.userData.ldragoFlightLaunchT ?? 0;
@@ -291,6 +299,16 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
           sp.windupRemaining > 0 || phase === 'windup' || phase === 'dash';
         return { color: sp.ability.glow, intensity: intense ? pulse * 1.55 : pulse * 0.9 };
       }
+      if (sp.ability.id === 'eagle_diving_crush') {
+        const body = side === 'player' ? state.playerBody : state.aiBody;
+        if (body?.userData.eagleImpactFlash) {
+          return { color: '#fef3c7', intensity: 2.4 };
+        }
+        const phase = body?.userData.eagleDivePhase;
+        const pulse = 0.68 + 0.32 * Math.sin(performance.now() * 0.014);
+        const intense = sp.windupRemaining > 0 || phase === 'hover' || phase === 'dive';
+        return { color: sp.ability.glow, intensity: intense ? pulse * 1.65 : pulse * 1.05 };
+      }
       return { color: sp.ability.glow, intensity: 1.0 };
     }
     const pw = runtime.power;
@@ -311,6 +329,11 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         const intensity = burst > 0 ? Math.max(base, 1.4 + burst * 0.8) : base;
         return { color: pw.ability.glow, intensity };
       }
+      if (pw.ability.id === 'ldrago_upper_mode') {
+        // Pulsing purple aura while Upper Mode is active (+50% knockback window).
+        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.013);
+        return { color: pw.ability.glow, intensity: pulse * 1.7 };
+      }
       if (pw.ability.id === 'libra_sonic_shield') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
         const burst = body?.userData.sonicShieldBurstT ?? 0;
@@ -322,6 +345,12 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       if (pw.ability.id === 'bull_maximum_stampede') {
         const pulse = 0.68 + 0.32 * Math.sin(performance.now() * 0.013);
         return { color: pw.ability.glow, intensity: pulse * 1.2 };
+      }
+      if (pw.ability.id === 'eagle_counter_stance') {
+        const body = side === 'player' ? state.playerBody : state.aiBody;
+        const flash = body?.userData.eagleCounterFlashT ?? 0;
+        const pulse = 0.65 + 0.35 * Math.sin(performance.now() * 0.016);
+        return { color: pw.ability.glow, intensity: Math.max(pulse * 1.05, flash * 2.1) };
       }
       return { color: pw.ability.glow, intensity: 0.55 };
     }
@@ -468,6 +497,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       sta: playerBey.sta ?? 50,
     };
     state.playerBody.userData.beyColor = beyColorHex(playerBey.color);
+    // Left-spin beys (canon: Lightning / Meteo L-Drago) flip the spin sign.
+    // Player uses ±1, AI uses ±0.95 to keep the slight visual offset between sides.
+    state.playerBody.userData.spinSign = playerBey.leftSpin ? -1 : 1;
     state.aiBody.userData.beyStats = {
       id: aiBey.id,
       atk: aiBey.atk ?? 50,
@@ -476,6 +508,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       sta: aiBey.sta ?? 50,
     };
     state.aiBody.userData.beyColor = beyColorHex(aiBey.color);
+    state.aiBody.userData.spinSign = aiBey.leftSpin ? -0.95 : 0.95;
 
     // Tag sides and build the per-bey ability runtimes + on-screen buttons.
     state.playerBody.userData.side = 'player';
@@ -491,8 +524,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     buildAbilityButtons('player');
     buildAbilityButtons('ai');
 
-    stabilizeTop(state.playerBody, 0.15, 1, state.launchGrace);
-    stabilizeTop(state.aiBody, 0.15, -0.95, state.launchGrace);
+    stabilizeTop(state.playerBody, 0.15, state.playerBody.userData.spinSign ?? 1, state.launchGrace);
+    stabilizeTop(state.aiBody, 0.15, state.aiBody.userData.spinSign ?? -0.95, state.launchGrace);
     beginLaunchDrop(state.playerBody);
     beginLaunchDrop(state.aiBody);
     updateTopCollisions(state);
@@ -543,14 +576,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       if (!state.playerBody.userData.ringOut) {
         settleSleepingTop(state.playerBody, state.playerSpin);
       }
-      stabilizeTop(state.playerBody, state.playerSpin, 1, state.launchGrace);
+      stabilizeTop(state.playerBody, state.playerSpin, state.playerBody.userData.spinSign ?? 1, state.launchGrace);
       pinTopToFloor(state.playerBody);
     }
     if (state.aiBody) {
       if (!state.aiBody.userData.ringOut) {
         settleSleepingTop(state.aiBody, state.aiSpin);
       }
-      stabilizeTop(state.aiBody, state.aiSpin, -0.95, state.launchGrace);
+      stabilizeTop(state.aiBody, state.aiSpin, state.aiBody.userData.spinSign ?? -0.95, state.launchGrace);
       pinTopToFloor(state.aiBody);
     }
 
@@ -576,7 +609,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
 
     if (state.playerBody) {
       clampLaunchSpeed(state.playerBody, state.launchGrace);
-      stabilizeTop(state.playerBody, state.playerSpin, 1, state.launchGrace);
+      stabilizeTop(state.playerBody, state.playerSpin, state.playerBody.userData.spinSign ?? 1, state.launchGrace);
       pinTopToFloor(state.playerBody);
       if (!state.playerBody.userData.ringOut) {
         settleSleepingTop(state.playerBody, state.playerSpin);
@@ -584,7 +617,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     }
     if (state.aiBody) {
       clampLaunchSpeed(state.aiBody, state.launchGrace);
-      stabilizeTop(state.aiBody, state.aiSpin, -0.95, state.launchGrace);
+      stabilizeTop(state.aiBody, state.aiSpin, state.aiBody.userData.spinSign ?? -0.95, state.launchGrace);
       pinTopToFloor(state.aiBody);
       if (!state.aiBody.userData.ringOut) {
         settleSleepingTop(state.aiBody, state.aiSpin);
@@ -650,6 +683,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       tickLdragoAbilityVisuals(state, dt);
       tickLibraAbilityVisuals(state, dt);
       tickBullAbilityVisuals(state, dt);
+      tickEagleAbilityVisuals(state, dt);
       trackSleepers(state);
       updateHud();
       updateAbilityHud();
@@ -685,7 +719,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         state.playerSpin,
         state.playerVisualYaw,
         dt,
-        1
+        state.playerBody.userData.spinSign ?? 1
       );
     }
     if (state.aiBody) {
@@ -695,7 +729,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         state.aiSpin,
         state.aiVisualYaw,
         dt,
-        -0.95
+        state.aiBody.userData.spinSign ?? -0.95
       );
     }
 
@@ -714,6 +748,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     libraVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     bullVfx.player.update(playerGroup, state.playerBody, camera, dt);
     bullVfx.ai.update(aiGroup, state.aiBody, camera, dt);
+    eagleVfx.player.update(playerGroup, state.playerBody, camera, dt);
+    eagleVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     collisionSparksVfx.update(camera, dt);
 
     if (!state.gameFrozen) {

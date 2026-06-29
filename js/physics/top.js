@@ -511,13 +511,15 @@ export function setBodyCollisions(body, enabled) {
 }
 
 export function settleSpawnedTops(world, state) {
+  const ps = () => state.playerBody?.userData.spinSign ?? 1;
+  const as = () => state.aiBody?.userData.spinSign ?? -0.95;
   for (let i = 0; i < 16; i++) {
     if (state.playerBody) {
-      stabilizeTop(state.playerBody, 0.15, 1, state.launchGrace);
+      stabilizeTop(state.playerBody, 0.15, ps(), state.launchGrace);
       pinTopToFloor(state.playerBody);
     }
     if (state.aiBody) {
-      stabilizeTop(state.aiBody, 0.15, -0.95, state.launchGrace);
+      stabilizeTop(state.aiBody, 0.15, as(), state.launchGrace);
       pinTopToFloor(state.aiBody);
     }
     world.step(CONFIG.FIXED_DT);
@@ -525,11 +527,11 @@ export function settleSpawnedTops(world, state) {
 
   if (state.playerBody) {
     state.playerBody.velocity.set(0, 0, 0);
-    stabilizeTop(state.playerBody, 0.15, 1, state.launchGrace);
+    stabilizeTop(state.playerBody, 0.15, ps(), state.launchGrace);
   }
   if (state.aiBody) {
     state.aiBody.velocity.set(0, 0, 0);
-    stabilizeTop(state.aiBody, 0.15, -0.95, state.launchGrace);
+    stabilizeTop(state.aiBody, 0.15, as(), state.launchGrace);
   }
 }
 

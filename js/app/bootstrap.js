@@ -59,9 +59,13 @@ export function createAppBootstrap({
   }
 
   function openBeySelect() {
+    const preserveBeyId = beysChosen ? gameRef?.state.playerBey?.id : null;
     campaignCtrl.resetCampaign();
     resetAIController();
-    selection?.reset(getPlayers());
+    selection?.reset(getPlayers(), {
+      preserveBeyId,
+      keepCarousel: !preserveBeyId,
+    });
     selection?.setRivalLabel(getRivalLabel());
     gameRef.returnToMenu();
     selectOverlay.classList.remove('hidden');
@@ -109,13 +113,33 @@ export function createAppBootstrap({
   const playSetup = createPlaySetup(playSetupEl, {
     show2Player,
     onChange({ mode, difficulty: diff }) {
+      const prevBey = beysChosen ? gameRef?.state.playerBey : null;
+      const hadVsCpuPick = beysChosen && isVsCpu(gameMode);
       gameMode = mode;
       difficulty = diff;
-      beysChosen = false;
-      btnStart.disabled = true;
       campaignCtrl.resetCampaign();
       applyModeUi();
-      selection?.reset(getPlayers(), { keepCarousel: true });
+
+      const keepSameBey = hadVsCpuPick && prevBey && isVsCpu(gameMode);
+      if (keepSameBey) {
+        gameRef.state.playerBey = prevBey;
+        beysChosen = true;
+        btnStart.disabled = false;
+        selection?.reset(getPlayers(), { preserveBeyId: prevBey.id, autoPick: true });
+        if (gameMode === GAME_MODES.TOURNAMENT) {
+          campaignCtrl.startTournament(prevBey);
+        } else {
+          campaignCtrl.startCasual(prevBey, difficulty);
+        }
+      } else {
+        beysChosen = false;
+        btnStart.disabled = true;
+        selection?.reset(getPlayers(), {
+          preserveBeyId: prevBey?.id ?? null,
+          keepCarousel: !prevBey,
+        });
+      }
+
       selection?.setRivalLabel(getRivalLabel());
       if (platform === 'mobile') {
         btnStart.textContent = 'Calibrate & Start';
