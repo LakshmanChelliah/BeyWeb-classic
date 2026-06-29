@@ -533,6 +533,53 @@ export function settleSpawnedTops(world, state) {
   }
 }
 
+const WALL_CLIP_POCKET_TOLERANCE = 1;
+
+function killOutwardRadial(body, nx, nz, emitWallImpact) {
+  const vOut = body.velocity.x * nx + body.velocity.z * nz;
+  if (vOut > 0) {
+    emitWallImpact?.(body, vOut, nx, nz);
+    body.velocity.x -= vOut * nx;
+    body.velocity.z -= vOut * nz;
+  }
+}
+
+/**
+ * Snaps a bey inside the solid-wall circle and blocks outward velocity that would
+ * tunnel through the rim on the next physics step. KO pocket gaps are exempt.
+ */
+export function clampSolidWallBody(body, emitWallImpact) {
+  if (!body || body.userData.collisionsDisabled || body.userData.ringOut || body.userData.launching) {
+    return;
+  }
+
+  const x = body.position.x;
+  const z = body.position.z;
+  const dist = Math.hypot(x, z);
+  if (dist <= 0.001) return;
+
+  const maxR = wallClampRadius(body);
+  if (isAtPocketAngle(Math.atan2(z, x), WALL_CLIP_POCKET_TOLERANCE)) return;
+
+  const nx = x / dist;
+  const nz = z / dist;
+  const predDist = Math.hypot(
+    x + body.velocity.x * CONFIG.FIXED_DT,
+    z + body.velocity.z * CONFIG.FIXED_DT
+  );
+
+  if (dist > maxR) {
+    const scale = maxR / dist;
+    body.position.x = x * scale;
+    body.position.z = z * scale;
+    body.previousPosition.x = body.position.x;
+    body.previousPosition.z = body.position.z;
+    killOutwardRadial(body, nx, nz, emitWallImpact);
+  } else if (predDist > maxR) {
+    killOutwardRadial(body, nx, nz, emitWallImpact);
+  }
+}
+
 /**
  * Hard positional correction run after every physics step to stop beys from
  * tunnelling through the rim wall. Bey-vs-bey contact (separation + knockback)
@@ -540,27 +587,6 @@ export function settleSpawnedTops(world, state) {
  */
 export function resolveWallClipping(bodyA, bodyB, emitWallImpact) {
   for (const body of [bodyA, bodyB]) {
-    if (!body || body.userData.collisionsDisabled || body.userData.ringOut || body.userData.launching) continue;
-    const x = body.position.x;
-    const z = body.position.z;
-    const dist = Math.hypot(x, z);
-    const maxR = wallClampRadius(body);
-    if (dist > maxR && dist > 0.001) {
-      if (!isAtPocketAngle(Math.atan2(z, x), 1.5)) {
-        const scale = maxR / dist;
-        body.position.x = x * scale;
-        body.position.z = z * scale;
-        body.previousPosition.x = body.position.x;
-        body.previousPosition.z = body.position.z;
-        const nx = x / dist;
-        const nz = z / dist;
-        const vOut = body.velocity.x * nx + body.velocity.z * nz;
-        if (vOut > 0) {
-          emitWallImpact?.(body, vOut, nx, nz);
-          body.velocity.x -= vOut * nx;
-          body.velocity.z -= vOut * nz;
-        }
-      }
-    }
+    clampSolidWallBody(body, emitWallImpact);
   }
 }

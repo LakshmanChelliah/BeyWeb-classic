@@ -9,6 +9,7 @@ import {
 } from '../game/abilities.js';
 import { createCollisionSparkEmitter, isSpecialClash } from './collisionSparks.js';
 import { isAtPocketAngle, wallClampRadius } from './arena.js';
+import { clampSolidWallBody } from './top.js';
 import { clamp01 } from '../utils/math.js';
 
 const _impulse = new CANNON.Vec3();
@@ -291,6 +292,8 @@ export function setupContactHandlers(world, getState, spawnImpact) {
     }
 
     separateTops(bodyA, bodyB, nx, nz, minDist - dist);
+    clampSolidWallBody(bodyA, emitWallImpact);
+    clampSolidWallBody(bodyB, emitWallImpact);
 
     if (clashCooldown > 0) {
       tickClashSpark(bodyA, bodyB, nx, nz, closingSpeed, specialActive);
@@ -302,6 +305,8 @@ export function setupContactHandlers(world, getState, spawnImpact) {
     const impact = buildImpact(bodyA, bodyB, closingSpeed);
     resolveContactAbilities(state, impact);
     applyImpact(impact, nx, nz);
+    clampSolidWallBody(bodyA, emitWallImpact);
+    clampSolidWallBody(bodyB, emitWallImpact);
     applySpinDelta(state, impact.sideA, impact.spinDeltaA, impact.bodyA);
     applySpinDelta(state, impact.sideB, impact.spinDeltaB, impact.bodyB);
     sparks.clash(bodyA, bodyB, nx, nz, closingSpeed, specialActive, false);
