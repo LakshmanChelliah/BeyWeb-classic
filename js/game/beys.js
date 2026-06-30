@@ -149,7 +149,7 @@ export const BEYS = Object.freeze([
     id: 'striker',
     name: 'RAY STRIKER',
     type: 'Attack',
-    desc: 'Masamune\'s blitz striker. Ray wheel and CS tip carve sharp angles; Lightning Sword Flash pierces rivals at full speed.',
+    desc: 'Masamune\'s blitz striker. Ray wheel and CS tip carve sharp angles; Lightning Sword Flash vanishes and pierces rivals.',
     // Ray wheel (ATK ***), Unicorno ring (ATK ****), D125 track, CS Control Sharp tip.
     // Hasbro BB-99 card: Attack 5 / Defense 1 / Stamina 2.
     packagingStars: { atk: 5, def: 1, sta: 2 },

@@ -176,6 +176,9 @@ const STRIKER_GLOW = '#14b8a6';
 const STRIKER_BLITZ_STEER = 1.95;
 export const STRIKER_FLASH_DURATION = 3.4;
 export const STRIKER_FLASH_WINDUP = 0.35;
+export const STRIKER_VANISH_DUR = 0.16;
+export const STRIKER_REAPPEAR_DUR = 0.12;
+const STRIKER_TELEPORT_LEAD = 2.4;
 const STRIKER_DASH_SPEED = 32;
 const STRIKER_DASH_AIM_TRACK = 0.2;
 const STRIKER_FLASH_KB = 4.4;
@@ -386,6 +389,32 @@ function initStrikerDashTarget(body, opp) {
   body.userData.strikerCoastTargetZ = Math.sin(angle) * maxR;
 }
 
+/** Snap Ray Striker behind the rival along the attack line (anime blink-in). */
+function teleportStrikerForFlash(body, opp) {
+  if (!opp) return;
+  const fromX = body.userData.strikerVanishX ?? body.position.x;
+  const fromZ = body.userData.strikerVanishZ ?? body.position.z;
+  let nx = opp.position.x - fromX;
+  let nz = opp.position.z - fromZ;
+  const d = Math.hypot(nx, nz);
+  if (d < 0.05) {
+    const yaw = Math.atan2(body.position.z, body.position.x);
+    nx = Math.cos(yaw);
+    nz = Math.sin(yaw);
+  } else {
+    nx /= d;
+    nz /= d;
+  }
+  const rA = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const rB = opp.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const lead = rA + rB + STRIKER_TELEPORT_LEAD;
+  body.position.x = opp.position.x - nx * lead;
+  body.position.z = opp.position.z - nz * lead;
+  body.userData.strikerChargeFromX = body.position.x;
+  body.userData.strikerChargeFromZ = body.position.z;
+  initStrikerDashTarget(body, opp);
+}
+
 function advanceStrikerFlashDash(state, side, body, opp, dt) {
   if (body.userData.strikerCoastTargetX == null) initStrikerDashTarget(body, opp);
 
@@ -463,6 +492,10 @@ function releaseStrikerFlashControl(body) {
   delete body.userData.strikerImpactFlashT;
   delete body.userData.strikerDashDone;
   delete body.userData.strikerWindupEndTilt;
+  delete body.userData.topVanish;
+  delete body.userData.strikerVanishX;
+  delete body.userData.strikerVanishZ;
+  delete body.userData.strikerReappearFlash;
   body.userData.flightLift = 0;
   body.userData.flightTilt = 0;
   body.userData.flightRoll = 0;
@@ -1776,7 +1809,7 @@ export const ABILITY_REGISTRY = {
     name: 'Lightning Sword Flash',
     slot: 'special',
     icon: '\u26A1',
-    desc: 'Unicorn horn lines up a piercing dash through the rival; whiffs cost a little spin.',
+    desc: 'Vanishes in a teal flash, reappears on the rival, and pierces through — whiffs cost a little spin.',
     charge: 10,
     cooldown: 11,
     duration: STRIKER_FLASH_DURATION,
@@ -1786,13 +1819,18 @@ export const ABILITY_REGISTRY = {
       const b = ctx.body;
       b.userData.airborne = true;
       b.userData.controlLocked = true;
-      b.userData.strikerFlashPhase = 'dash';
+      b.userData.strikerFlashPhase = 'vanish';
       b.userData.strikerFlashPhaseT = 0;
+      b.userData.topVanish = 0;
       delete b.userData.strikerFlashHit;
       delete b.userData.strikerDashDone;
+      delete b.userData.strikerReappearFlash;
+      b.userData.strikerVanishX = b.position.x;
+      b.userData.strikerVanishZ = b.position.z;
       b.userData.strikerChargeFromX = b.position.x;
       b.userData.strikerChargeFromZ = b.position.z;
-      initStrikerDashTarget(b, ctx.opponentBody);
+      delete b.userData.strikerCoastTargetX;
+      delete b.userData.strikerCoastTargetZ;
       setAirborneKinematic(b);
       setBodyCollisions(b, false);
     },
@@ -2553,7 +2591,44 @@ export function tickStrikerAbilityVisuals(state, dt) {
       continue;
     }
 
-    if (!spSlot.active && body.userData.strikerFlashPhase !== 'dash') continue;
+    if (!spSlot.active && body.userData.strikerFlashPhase == null) continue;
+
+    const phase = body.userData.strikerFlashPhase;
+
+    if (phase === 'vanish') {
+      body.userData.strikerFlashPhaseT = (body.userData.strikerFlashPhaseT ?? 0) + dt;
+      const t = clamp01(body.userData.strikerFlashPhaseT / STRIKER_VANISH_DUR);
+      body.userData.topVanish = easeInQuad(t);
+      body.userData.flightSquash = 1 - 0.22 * easeInQuad(t);
+      body.userData.flightTilt = (body.userData.strikerWindupEndTilt ?? 0.14) * (1 - t);
+      if (t >= 1) {
+        teleportStrikerForFlash(body, opp);
+        body.userData.strikerFlashPhase = 'reappear';
+        body.userData.strikerFlashPhaseT = 0;
+        body.userData.topVanish = 1;
+        body.userData.strikerReappearFlash = 1;
+      }
+      continue;
+    }
+
+    if (phase === 'reappear') {
+      body.userData.strikerFlashPhaseT = (body.userData.strikerFlashPhaseT ?? 0) + dt;
+      const t = clamp01(body.userData.strikerFlashPhaseT / STRIKER_REAPPEAR_DUR);
+      body.userData.topVanish = 1 - easeOutCubic(t);
+      body.userData.strikerReappearFlash = 1 - t;
+      body.userData.flightSquash = 0.82 + 0.18 * easeOutBack(t);
+      body.userData.flightTilt = 0.2 * easeOutCubic(t);
+      body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.04 * t;
+      if (t >= 1) {
+        body.userData.strikerFlashPhase = 'dash';
+        body.userData.strikerFlashPhaseT = 0;
+        delete body.userData.topVanish;
+        delete body.userData.strikerReappearFlash;
+      }
+      continue;
+    }
+
+    if (phase !== 'dash') continue;
 
     const phaseT = body.userData.strikerFlashPhaseT ?? 0;
     const lean = 0.32;
@@ -3037,7 +3112,7 @@ export function tickAbilityTimers(state, dt) {
             const phase = body?.userData.strikerFlashPhase;
             if (body && phase == null) {
               finishStrikerFlash(state, side, slot, body, dt);
-            } else if (body && (phase === 'dash' || body.userData.strikerDashDone)) {
+            } else if (body && (phase === 'dash' || phase === 'vanish' || phase === 'reappear' || body.userData.strikerDashDone)) {
               releaseStrikerFlashControl(body);
               finishStrikerFlash(state, side, slot, body, dt);
             }
@@ -3392,6 +3467,7 @@ export function clearAbilityFlags(body) {
   delete body.userData.bullImpactFlash;
   delete body.userData.bullImpactFlashT;
   clearBullUppercutMotion(body);
+  releaseStrikerFlashControl(body);
   delete body.userData.ldragoFlightT;
   delete body.userData.ldragoFlightLaunchT;
   delete body.userData.flightRepulseT;

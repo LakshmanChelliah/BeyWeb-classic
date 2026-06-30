@@ -148,6 +148,9 @@ export function syncTopVisual(group, body, spinPct, visualYaw, dt, spinSign = 1)
     body.position.z + flightOffsetZ
   );
 
+  const vanish = body.userData.topVanish ?? 0;
+  group.visible = vanish < 0.98;
+
   const scaleBoost = 1 + Math.min(0.35, (flightLift / 38) * 0.35);
   // Squash & stretch along the bey's spin axis (local Y). >1 stretches tall,
   // <1 flattens; keep XZ volume-ish so contacts read as a real impact.
