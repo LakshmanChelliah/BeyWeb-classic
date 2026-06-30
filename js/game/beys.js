@@ -59,7 +59,7 @@ export const BEYS = Object.freeze([
     def: 28,
     sta: 28,
     color: '#5B21D9',
-    model: 'meteo_ldrago.glb',
+    model: 'lightning_ldrago.glb',
     logo: 'ldrago_logo.png',
     gimmicks: {
       power: 'ldrago_upper_mode',
