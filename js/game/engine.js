@@ -264,6 +264,18 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         // Warm stone / wind haze — not saturated green.
         return { color: '#c4bfb6', intensity };
       }
+      if (sp.ability.id === 'ldrago_absorb_break') {
+        const body = side === 'player' ? state.playerBody : state.aiBody;
+        if (body?.userData.ldragoAbsorbImpact) {
+          return { color: '#fef2f2', intensity: 2.6 };
+        }
+        const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.013);
+        const intense =
+          sp.windupRemaining > 0 ||
+          body?.userData.ldragoAbsorbWindup ||
+          body?.userData.ldragoAbsorbRush;
+        return { color: sp.ability.glow, intensity: intense ? pulse * 1.75 : pulse * 1.1 };
+      }
       if (sp.ability.id === 'ldrago_soaring_destruction') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
         const repulse = body?.userData.flightRepulseT ?? 0;

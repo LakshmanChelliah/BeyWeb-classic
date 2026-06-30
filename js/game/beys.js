@@ -47,23 +47,23 @@ export const BEYS = Object.freeze([
   },
   {
     id: 'ldrago',
-    name: 'LIGHTNING L-DRAGO',
+    name: 'METEO L-DRAGO',
     type: 'Attack',
-    desc: 'Ryuga\'s left-spin dragon. Upper Mode unleashes devastating smash strikes; Soaring Destruction calls lightning from above.',
-    // Lightning fusion wheel, L-Drago I energy ring (no rubber), 100 track, HF (Hole Flat) tip.
-    // Hasbro BB-43 card stars: Attack 5 / Defense 1 / Stamina 2.
+    desc: 'Ryuga\'s left-spin dragon. Spin Steal drains rivals on every clash; Absorb Break coils and devours their spin in a crimson dragon rush.',
+    // Meteo fusion wheel, L-Drago II rubber ring (spin-steal), LF left-flat tip.
+    // Hasbro BB-88 card stars: Attack 4 / Defense 2 / Stamina 3.
     leftSpin: true,
-    packagingStars: { atk: 5, def: 1, sta: 2 },
-    atk: 83,
-    move: 87,
-    def: 28,
-    sta: 28,
-    color: '#5B21D9',
+    packagingStars: { atk: 4, def: 2, sta: 3 },
+    atk: 77,
+    move: 85,
+    def: 32,
+    sta: 52,
+    color: '#ef4444',
     model: 'meteo_ldrago.glb',
-    logo: 'ldrago_logo.png',
+    logo: 'updatedLdragoLogo.png',
     gimmicks: {
-      power: 'ldrago_upper_mode',
-      special: 'ldrago_soaring_destruction',
+      power: 'ldrago_spin_steal',
+      special: 'ldrago_absorb_break',
       passive: null,
     },
     available: true,

@@ -98,6 +98,19 @@ const GUARD_SPIN_MULT = 2.2;
 const GUARD_SELF_IMPULSE = 0.04;
 const SPIN_STEAL_KB_MULT = 0.4; // 60% knockback reduction while Spin Steal is active
 
+// Meteo L-Drago — Absorb Break (anime dragon-rush finisher that devours rival spin).
+export const LDRAGO_ABSORB_DURATION = 3.2;
+export const LDRAGO_ABSORB_WINDUP = 0.55;
+const LDRAGO_ABSORB_DASH_SPEED = 30;
+const LDRAGO_ABSORB_DASH_AIM_TRACK = 0.28;
+const LDRAGO_ABSORB_COAST_ARRIVE = 0.35;
+const LDRAGO_ABSORB_HIT_KB = 5.6;
+const LDRAGO_ABSORB_HIT_SPIN = 0.24;
+const LDRAGO_ABSORB_STEAL_GAIN = 0.1;
+const LDRAGO_ABSORB_MISS_SELF = 0.045;
+const LDRAGO_ABSORB_PULL_RATE = 5.5;
+const METEO_GLOW = '#ef4444';
+
 // Lightning L-Drago — Upper Mode (Smash Attack knockback boost; wiki mode-change gimmick).
 const LDRAGO_GLOW = '#5B21D9';
 const LDRAGO_UPPER_MODE_DUR = 3.5;
@@ -482,6 +495,158 @@ function finishStrikerFlash(state, side, slot, body, dt) {
   slot.activeRemaining = 0;
   slot.windupRemaining = 0;
   slot.windupDuration = 0;
+}
+
+function initLdragoAbsorbTarget(body, opp) {
+  const fromX = body.userData.ldragoAbsorbFromX ?? body.position.x;
+  const fromZ = body.userData.ldragoAbsorbFromZ ?? body.position.z;
+  let nx = (opp?.position.x ?? body.position.x) - fromX;
+  let nz = (opp?.position.z ?? body.position.z) - fromZ;
+  const d = Math.hypot(nx, nz);
+  if (d < 0.05) {
+    const yaw = Math.atan2(body.position.z, body.position.x);
+    nx = Math.cos(yaw);
+    nz = Math.sin(yaw);
+  } else {
+    nx /= d;
+    nz /= d;
+  }
+  body.userData.ldragoAbsorbNx = nx;
+  body.userData.ldragoAbsorbNz = nz;
+
+  const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const maxR = CONFIG.WALL_RADIUS - r - 0.04;
+  const angle = Math.atan2(nz, nx);
+  body.userData.ldragoAbsorbTargetX = Math.cos(angle) * maxR;
+  body.userData.ldragoAbsorbTargetZ = Math.sin(angle) * maxR;
+}
+
+function ldragoAbsorbOverlap(body, opp) {
+  if (!body || !opp) return false;
+  const dx = body.position.x - opp.position.x;
+  const dz = body.position.z - opp.position.z;
+  const rA = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const rB = opp.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const reach = (rA + rB) * 1.1;
+  return dx * dx + dz * dz <= reach * reach;
+}
+
+function applyLdragoAbsorbHit(state, side, body, opp) {
+  if (!body || !opp || body.userData.ldragoAbsorbHit) return;
+  if (opp.userData?.invulnerable) return;
+  body.userData.ldragoAbsorbHit = true;
+  let nx = opp.position.x - body.position.x;
+  let nz = opp.position.z - body.position.z;
+  const d = Math.hypot(nx, nz) || 1;
+  nx /= d;
+  nz /= d;
+  applyPhysicsKnockback(opp, nx, nz, LDRAGO_ABSORB_HIT_KB);
+  const victimSpinKey = side === 'player' ? 'aiSpin' : 'playerSpin';
+  const attackerSpinKey = spinKey(side);
+  const stolen = Math.min(state[victimSpinKey], LDRAGO_ABSORB_HIT_SPIN);
+  state[victimSpinKey] = Math.max(0, state[victimSpinKey] - stolen);
+  state[attackerSpinKey] = Math.min(1, state[attackerSpinKey] + stolen * 0.65 + LDRAGO_ABSORB_STEAL_GAIN);
+  body.userData.spinStealBurstT = 1;
+  body.userData.spinStealFromX = opp.position.x;
+  body.userData.spinStealFromZ = opp.position.z;
+  body.userData.ldragoAbsorbImpact = true;
+  body.userData.ldragoAbsorbImpactT = 0;
+}
+
+function releaseLdragoAbsorbControl(body) {
+  if (!body) return;
+  body.userData.airborne = false;
+  body.userData.controlLocked = false;
+  body.userData.invulnerable = false;
+  delete body.userData.ldragoAbsorbPhase;
+  delete body.userData.ldragoAbsorbPhaseT;
+  delete body.userData.ldragoAbsorbTargetX;
+  delete body.userData.ldragoAbsorbTargetZ;
+  delete body.userData.ldragoAbsorbNx;
+  delete body.userData.ldragoAbsorbNz;
+  delete body.userData.ldragoAbsorbFromX;
+  delete body.userData.ldragoAbsorbFromZ;
+  delete body.userData.ldragoAbsorbHit;
+  delete body.userData.ldragoAbsorbWindup;
+  delete body.userData.ldragoAbsorbRush;
+  delete body.userData.ldragoAbsorbImpact;
+  delete body.userData.ldragoAbsorbImpactT;
+  delete body.userData.ldragoAbsorbDashDone;
+  delete body.userData.ldragoAbsorbCoilTilt;
+  body.userData.flightLift = 0;
+  body.userData.flightTilt = 0;
+  body.userData.flightRoll = 0;
+  body.userData.flightSquash = 1;
+  setBodyCollisions(body, true);
+  if (body.type === CANNON.Body.KINEMATIC) restoreDynamicBody(body);
+}
+
+function finishLdragoAbsorb(state, side, slot, body, dt) {
+  if (!body.userData.ldragoAbsorbHit) {
+    const selfSpinKey = spinKey(side);
+    state[selfSpinKey] = Math.max(0, state[selfSpinKey] - LDRAGO_ABSORB_MISS_SELF);
+  }
+  releaseLdragoAbsorbControl(body);
+  if (slot.ability.onEnd) slot.ability.onEnd(makeCtx(state, side, dt));
+  slot.active = false;
+  slot.activeRemaining = 0;
+  slot.windupRemaining = 0;
+  slot.windupDuration = 0;
+}
+
+function advanceLdragoAbsorbRush(state, side, body, opp, dt) {
+  if (body.userData.ldragoAbsorbTargetX == null) initLdragoAbsorbTarget(body, opp);
+
+  body.userData.ldragoAbsorbPhaseT = (body.userData.ldragoAbsorbPhaseT ?? 0) + dt;
+  if (opp && body.userData.ldragoAbsorbPhaseT < LDRAGO_ABSORB_DASH_AIM_TRACK) {
+    initLdragoAbsorbTarget(body, opp);
+  }
+
+  const tx = body.userData.ldragoAbsorbTargetX;
+  const tz = body.userData.ldragoAbsorbTargetZ;
+  const dx = tx - body.position.x;
+  const dz = tz - body.position.z;
+  const remain = Math.hypot(dx, dz);
+
+  body.userData.ldragoAbsorbRush = true;
+  body.position.y = groundY(body);
+
+  if (remain < LDRAGO_ABSORB_COAST_ARRIVE) {
+    body.position.x = tx;
+    body.position.z = tz;
+    return true;
+  }
+
+  const move = Math.min(LDRAGO_ABSORB_DASH_SPEED * dt, remain);
+  body.position.x += (dx / remain) * move;
+  body.position.z += (dz / remain) * move;
+
+  if (opp && ldragoAbsorbOverlap(body, opp)) {
+    applyLdragoAbsorbHit(state, side, body, opp);
+    return true;
+  }
+
+  return false;
+}
+
+function stepLdragoAbsorbRush(state, dt) {
+  for (const side of ['player', 'ai']) {
+    const spSlot = state.abilities?.[side]?.special;
+    if (!spSlot?.active || spSlot.ability.id !== 'ldrago_absorb_break') continue;
+    const body = side === 'player' ? state.playerBody : state.aiBody;
+    const opp = side === 'player' ? state.aiBody : state.playerBody;
+    if (!body || body.userData.ldragoAbsorbPhase !== 'rush') continue;
+    if (advanceLdragoAbsorbRush(state, side, body, opp, dt)) {
+      body.userData.ldragoAbsorbDashDone = true;
+    }
+  }
+}
+
+function pullTowardAbsorb(body, opp, rate) {
+  if (!body || !opp) return;
+  const t = Math.min(1, rate);
+  opp.position.x += (body.position.x - opp.position.x) * t * 0.35;
+  opp.position.z += (body.position.z - opp.position.z) * t * 0.35;
 }
 
 function stepStrikerFlashDash(state, dt) {
@@ -1279,6 +1444,38 @@ export const ABILITY_REGISTRY = {
     },
   },
 
+  ldrago_absorb_break: {
+    id: 'ldrago_absorb_break',
+    name: 'Dragon Emperor: Absorb Break',
+    slot: 'special',
+    icon: '\u2620',
+    desc: 'Coils and rushes the rival — devours a huge chunk of spin and knocks them back on connect.',
+    charge: 11,
+    cooldown: 13,
+    duration: LDRAGO_ABSORB_DURATION,
+    windup: LDRAGO_ABSORB_WINDUP,
+    glow: METEO_GLOW,
+    onActivate(ctx) {
+      const b = ctx.body;
+      b.userData.airborne = true;
+      b.userData.controlLocked = true;
+      b.userData.invulnerable = true;
+      b.userData.ldragoAbsorbPhase = 'rush';
+      b.userData.ldragoAbsorbPhaseT = 0;
+      delete b.userData.ldragoAbsorbHit;
+      delete b.userData.ldragoAbsorbDashDone;
+      delete b.userData.ldragoAbsorbWindup;
+      b.userData.ldragoAbsorbFromX = b.position.x;
+      b.userData.ldragoAbsorbFromZ = b.position.z;
+      initLdragoAbsorbTarget(b, ctx.opponentBody);
+      setAirborneKinematic(b);
+      setBodyCollisions(b, false);
+    },
+    onEnd(ctx) {
+      releaseLdragoAbsorbControl(ctx.body);
+    },
+  },
+
   ldrago_soaring_destruction: {
     id: 'ldrago_soaring_destruction',
     name: 'Dragon Emperor, Soaring Destruction',
@@ -1341,12 +1538,12 @@ export const ABILITY_REGISTRY = {
     name: 'Spin Steal',
     slot: 'power',
     icon: '\u21BB',
-    desc: 'While active, steal opponent spin, take no spin loss, and cut collision knockback by 60%.',
+    desc: 'While active, steal opponent spin on every clash, take no spin loss, and cut collision knockback by 60%.',
     charge: 7.5,
     cooldown: 10,
     duration: 4,
     windup: 0,
-    glow: '#f87171',
+    glow: METEO_GLOW,
     onActivate(ctx) {
       const b = ctx.body;
       b.userData.spinStealing = true;
@@ -1881,6 +2078,12 @@ function applyAbilityWindupSetup(state, side, ability) {
     body.userData.invulnerable = true;
     body.userData.ldragoFlightWindup = true;
   }
+  if (ability.id === 'ldrago_absorb_break') {
+    body.userData.controlLocked = true;
+    body.userData.ldragoAbsorbWindup = true;
+    body.userData.ldragoAbsorbFromX = body.position.x;
+    body.userData.ldragoAbsorbFromZ = body.position.z;
+  }
   if (ability.id === 'leone_lion_wall') {
     body.userData.controlLocked = true;
     body.userData.lionWallWindup = true;
@@ -1979,6 +2182,10 @@ function cancelSlotOnSpinStop(state, side, slot, dt) {
     finishStrikerFlash(state, side, slot, body, dt);
     return true;
   }
+  if (id === 'ldrago_absorb_break') {
+    finishLdragoAbsorb(state, side, slot, body, dt);
+    return true;
+  }
   if (id === 'eagle_diving_crush') {
     finishEagleDive(state, side, slot, body, dt);
     return true;
@@ -2020,6 +2227,7 @@ export function stepAbilities(state, dt) {
   tickBullFlipDecay(state.aiBody, dt);
   stepBullUppercutDash(state, dt);
   stepStrikerFlashDash(state, dt);
+  stepLdragoAbsorbRush(state, dt);
   stepLibraBusterChannel(state, dt);
   for (const side of ['player', 'ai']) {
     const runtime = state.abilities[side];
@@ -2781,6 +2989,7 @@ export function tickLdragoAbilityVisuals(state, dt) {
   if (!state.abilities) return;
   for (const side of ['player', 'ai']) {
     const body = side === 'player' ? state.playerBody : state.aiBody;
+    const opp = side === 'player' ? state.aiBody : state.playerBody;
     if (!body) continue;
     const runtime = state.abilities[side];
     if (!runtime) continue;
@@ -2799,6 +3008,56 @@ export function tickLdragoAbilityVisuals(state, dt) {
         }
       }
       continue;
+    }
+
+    // --- Absorb Break (special) ---
+    const spAbsorb = runtime.special;
+    if (spAbsorb?.ability?.id === 'ldrago_absorb_break') {
+      const inWindup = spAbsorb.windupRemaining > 0 || body.userData.ldragoAbsorbWindup;
+      const inActive = spAbsorb.active;
+      const inMove = inWindup || inActive || body.userData.ldragoAbsorbPhase != null;
+      if (inMove) {
+        body.position.y = groundY(body);
+        body.velocity.set(0, 0, 0);
+        setBodyCollisions(body, false);
+        if (body.type !== CANNON.Body.KINEMATIC) setAirborneKinematic(body);
+
+        if (body.userData.ldragoAbsorbImpact) {
+          body.userData.ldragoAbsorbImpactT = (body.userData.ldragoAbsorbImpactT ?? 0) + dt;
+          if (body.userData.ldragoAbsorbImpactT > 0.18) {
+            body.userData.ldragoAbsorbImpact = false;
+            delete body.userData.ldragoAbsorbImpactT;
+          }
+        }
+
+        if (inWindup) {
+          const windup = slotWindupTotal(spAbsorb, LDRAGO_ABSORB_WINDUP);
+          const t = clamp01(windup > 0 ? 1 - spAbsorb.windupRemaining / windup : 1);
+          if (opp && t > 0.2) pullTowardAbsorb(body, opp, LDRAGO_ABSORB_PULL_RATE * dt);
+          body.userData.flightLift = 0;
+          body.userData.ldragoAbsorbCoilTilt = 0.18 * easeOutQuad(t);
+          body.userData.flightTilt = body.userData.ldragoAbsorbCoilTilt;
+          body.userData.flightRoll = Math.sin(t * Math.PI * 4) * 0.06;
+          body.userData.flightSquash = 1 - 0.16 * easeOutQuad(t);
+          continue;
+        }
+
+        if (inActive) {
+          const phaseT = body.userData.ldragoAbsorbPhaseT ?? 0;
+          const coilTilt = body.userData.ldragoAbsorbCoilTilt ?? 0.18;
+          const lean = 0.36;
+          const build = easeOutCubic(clamp01(phaseT / 0.2));
+          body.userData.flightTilt = coilTilt + (lean - coilTilt) * build;
+          body.userData.flightSquash = 1 + 0.05 * build;
+          body.userData.flightRoll = (body.userData.ldragoAbsorbNz ?? 0) * 0.06 * build;
+          if (body.userData.ldragoAbsorbDashDone) {
+            delete body.userData.ldragoAbsorbDashDone;
+            body.userData.ldragoAbsorbRush = false;
+            finishLdragoAbsorb(state, side, spAbsorb, body, dt);
+          }
+          continue;
+        }
+      }
     }
 
     // --- Soaring Destruction (special) ---
@@ -3040,6 +3299,18 @@ export function tickAbilityTimers(state, dt) {
             } else if (body && (phase === 'dash' || body.userData.strikerDashDone)) {
               releaseStrikerFlashControl(body);
               finishStrikerFlash(state, side, slot, body, dt);
+            }
+          }
+        } else if (slot.ability.id === 'ldrago_absorb_break') {
+          slot.activeRemaining = Math.max(0, slot.activeRemaining - dt);
+          if (slot.activeRemaining === 0 && slot.active) {
+            const body = side === 'player' ? state.playerBody : state.aiBody;
+            const phase = body?.userData.ldragoAbsorbPhase;
+            if (body && phase == null) {
+              finishLdragoAbsorb(state, side, slot, body, dt);
+            } else if (body && (phase === 'rush' || body.userData.ldragoAbsorbDashDone)) {
+              releaseLdragoAbsorbControl(body);
+              finishLdragoAbsorb(state, side, slot, body, dt);
             }
           }
         } else if (slot.ability.id === 'eagle_diving_crush') {
@@ -3399,6 +3670,11 @@ export function clearAbilityFlags(body) {
   delete body.userData.ldragoLightningFired;
   delete body.userData.ldragoUpperMode;
   delete body.userData.atkCombatMultMult;
+  delete body.userData.ldragoAbsorbPhase;
+  delete body.userData.ldragoAbsorbPhaseT;
+  delete body.userData.ldragoAbsorbWindup;
+  delete body.userData.ldragoAbsorbRush;
+  delete body.userData.ldragoAbsorbImpact;
   body.userData.lionWallWindup = false;
   body.userData.ldragoFlightWindup = false;
   body.userData.sonicBusterWindup = false;
