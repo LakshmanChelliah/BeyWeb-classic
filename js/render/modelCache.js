@@ -80,6 +80,12 @@ function applyModelMaterials(model, url) {
   });
 }
 
+/** Pole-to-+Y correction for meshes authored with spin on -Z (not Meteo — that GLB is already Y-up). */
+function needsPoleToYRotation(url) {
+  if (/meteo_ldrago/i.test(url)) return false;
+  return /leone|libra|bull|lightning_ldrago|eagle/i.test(url);
+}
+
 /** Builds a scaled, oriented holder group from a loaded GLTF scene. */
 export function prepareTopModelHolder(gltf, url) {
   const model = gltf.scene;
@@ -88,7 +94,7 @@ export function prepareTopModelHolder(gltf, url) {
   const modelHolder = new THREE.Group();
   modelHolder.add(model);
   orientSpinAxisToY(modelHolder);
-  if (/leone|libra|bull|ldrago|eagle/i.test(url)) modelHolder.rotation.x = Math.PI / 2;
+  if (needsPoleToYRotation(url)) modelHolder.rotation.x = Math.PI / 2;
   if (/bull/i.test(url)) model.rotation.z = Math.PI / 2;
 
   const box = new THREE.Box3().setFromObject(modelHolder);
