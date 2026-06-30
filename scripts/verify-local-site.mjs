@@ -25,6 +25,10 @@ for (const path of ['/pc.html', '/index.html']) {
     canvas: Boolean(document.getElementById('game-canvas')),
   }));
   console.log(`BOOT ${path}:`, JSON.stringify(boot));
+  if (boot.cards < 8) {
+    console.error(`FAIL: expected 8 playable beys, got ${boot.cards}`);
+    process.exitCode = 1;
+  }
 
   const reqs = await page.evaluate(() =>
     performance.getEntriesByType('resource').map((r) => r.name)

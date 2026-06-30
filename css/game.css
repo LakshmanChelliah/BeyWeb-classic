@@ -943,6 +943,7 @@ body:not(.mobile) #campaign-hud {
 .bey-card.active .bey-emblem-img { animation: bey-spin 3.5s linear infinite reverse; }
 
 /* Lightning L-Drago: transparent logo on the standard spinning emblem disc */
+.bey-emblem-img--lightning_ldrago,
 .bey-emblem-img--ldrago {
   width: 98%;
   height: 98%;
@@ -953,6 +954,19 @@ body:not(.mobile) #campaign-hud {
     saturate(1.1)
     drop-shadow(0 0 4px rgba(91, 33, 217, 0.55))
     drop-shadow(0 1px 3px rgba(40, 15, 96, 0.35));
+}
+
+/* Meteo L-Drago: crimson dragon facebolt */
+.bey-emblem-img--meteo_ldrago {
+  width: 98%;
+  height: 98%;
+  object-fit: contain;
+  object-position: 50% 50%;
+  filter:
+    contrast(1.12)
+    saturate(1.15)
+    drop-shadow(0 0 4px rgba(239, 68, 68, 0.55))
+    drop-shadow(0 1px 3px rgba(127, 29, 29, 0.35));
 }
 
 /* Earth Eagle: cleaned Aquila logo on the standard spinning emblem disc */
@@ -1615,6 +1629,8 @@ body.mobile .bey-emblem-img {
   height: 92%;
 }
 
+body.mobile .bey-emblem-img--lightning_ldrago,
+body.mobile .bey-emblem-img--meteo_ldrago,
 body.mobile .bey-emblem-img--ldrago,
 body.mobile .bey-emblem-img--eagle,
 body.mobile .bey-emblem-img--bull {
@@ -1622,6 +1638,8 @@ body.mobile .bey-emblem-img--bull {
   height: 88%;
 }
 
+body.mobile .bey-emblem-img--lightning_ldrago,
+body.mobile .bey-emblem-img--meteo_ldrago,
 body.mobile .bey-emblem-img--ldrago {
   width: 98%;
   height: 98%;

@@ -21,7 +21,7 @@ export function createGameState() {
     abilities: null,
     // Selected beys (overwritten by the selection screen before launch).
     playerBey: getBeyById('pegasus'),
-    aiBey: getBeyById('ldrago'),
+    aiBey: getBeyById('meteo_ldrago'),
   };
 }
 

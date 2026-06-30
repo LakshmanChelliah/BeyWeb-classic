@@ -51,7 +51,7 @@ let _orbitDir = 1;
 const TOURNAMENT_BOSS_OVERRIDES = {
   leone: { powerReach: 8.5, outAvoidance: 0.82, interceptBias: true },
   pegasus: { abilityDiscipline: 0.96, specialReach: 8.0, decisionInterval: 0.08 },
-  ldrago: { abilityDiscipline: 1.0, specialReach: 9.0, decisionInterval: 0.06, mistakeRate: 0.01, outAvoidance: 0.95, forceMult: 1.50 }
+  meteo_ldrago: { abilityDiscipline: 1.0, specialReach: 9.0, decisionInterval: 0.06, mistakeRate: 0.01, outAvoidance: 0.95, forceMult: 1.50 }
 };
 
 function clamp01(v) {

@@ -54,7 +54,7 @@ export const TOURNAMENT_BLADERS = Object.freeze({
     atkBonus: 8,
     moveBonus: 6,
   },
-  ldrago: {
+  meteo_ldrago: {
     name: 'Ryuga',
     title: 'The Dark Emperor',
     aiTier: BOT_AI_TIER,
@@ -72,7 +72,7 @@ export const CAMPAIGN_OPPONENT_IDS = Object.freeze([
   'eagle',   // Tsubasa — Earth Eagle
   'leone',   // Kyoya — Rock Leone
   'pegasus', // Gingka — Storm Pegasus
-  'ldrago',  // Ryuga — Meteo L-Drago
+  'meteo_ldrago',  // Ryuga — Meteo L-Drago
   'striker', // Masamune — Ray Striker
 ]);
 
@@ -93,7 +93,7 @@ const OPPONENT_AI_TIER = Object.freeze({
   leone: TOURNAMENT_BLADERS.leone.aiTier,
   striker: TOURNAMENT_BLADERS.striker.aiTier,
   pegasus: TOURNAMENT_BLADERS.pegasus.aiTier,
-  ldrago: TOURNAMENT_BLADERS.ldrago.aiTier,
+  meteo_ldrago: TOURNAMENT_BLADERS.meteo_ldrago.aiTier,
 });
 
 /** Show blader profile for a tournament opponent id. */
