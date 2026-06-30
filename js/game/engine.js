@@ -59,6 +59,7 @@ import { createLdragoAbilityVfx } from '../render/ldragoAbilityVfx.js';
 import { createLibraAbilityVfx } from '../render/libraAbilityVfx.js';
 import { createBullAbilityVfx } from '../render/bullAbilityVfx.js';
 import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
+import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
 
@@ -101,6 +102,10 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     player: createEagleAbilityVfx(scene),
     ai: createEagleAbilityVfx(scene),
   };
+  const strikerVfx = {
+    player: createStrikerAbilityVfx(scene),
+    ai: createStrikerAbilityVfx(scene),
+  };
   const collisionSparksVfx = createCollisionSparksVfx(scene, {
     poolSize: mode === 'mobile' ? 64 : 128,
     countScale: mode === 'mobile' ? 0.72 : 1,
@@ -121,6 +126,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     bullVfx.ai.reset();
     eagleVfx.player.reset();
     eagleVfx.ai.reset();
+    strikerVfx.player.reset();
+    strikerVfx.ai.reset();
     collisionSparksVfx.reset();
   }
 
@@ -313,6 +320,20 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         const intense =
           sp.windupRemaining > 0 || phase === 'windup' || phase === 'dash';
         return { color: sp.ability.glow, intensity: intense ? pulse * 1.55 : pulse * 0.9 };
+      }
+      if (sp.ability.id === 'striker_lightning_flash') {
+        const body = side === 'player' ? state.playerBody : state.aiBody;
+        if (body?.userData.strikerImpactFlash) {
+          return { color: '#ccfbf1', intensity: 2.5 };
+        }
+        const phase = body?.userData.strikerFlashPhase;
+        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.016);
+        const intense =
+          sp.windupRemaining > 0 ||
+          phase === 'vanish' ||
+          phase === 'reappear' ||
+          phase === 'dash';
+        return { color: sp.ability.glow, intensity: intense ? pulse * 1.8 : pulse * 1.05 };
       }
       if (sp.ability.id === 'eagle_diving_crush') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
@@ -778,6 +799,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     bullVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     eagleVfx.player.update(playerGroup, state.playerBody, camera, dt);
     eagleVfx.ai.update(aiGroup, state.aiBody, camera, dt);
+    strikerVfx.player.update(playerGroup, state.playerBody, camera, dt);
+    strikerVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     collisionSparksVfx.update(camera, dt);
 
     if (!state.gameFrozen) {
