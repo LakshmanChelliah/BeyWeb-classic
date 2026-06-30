@@ -632,9 +632,11 @@ export function createLdragoAbilityVfx(scene) {
 
       const spinStealing = !!body.userData.spinStealing;
       const flightWindup = !!body.userData.ldragoFlightWindup;
+      const absorbWindup = !!body.userData.ldragoAbsorbWindup;
+      const absorbRush = !!body.userData.ldragoAbsorbRush;
       const inFlight = !!body.userData.airborne && !!body.userData.invulnerable;
 
-      if (!spinStealing && !flightWindup && !inFlight) {
+      if (!spinStealing && !flightWindup && !absorbWindup && !absorbRush && !inFlight) {
         reset();
         return;
       }
@@ -648,14 +650,16 @@ export function createLdragoAbilityVfx(scene) {
       const yBase = body.position.y + (body.userData.visualYOffset ?? 0)
         + (body.userData.flightLift ?? 0);
 
-      if (spinStealing) {
+      if (spinStealing || absorbWindup || absorbRush) {
         hideFlight();
         stealGroup.position.set(0, 0, 0);
-        stealSpin -= dt * 4.2;
+        stealSpin -= dt * (absorbRush ? 6.5 : 4.2);
 
-        const stealT = body.userData.spinStealT ?? 0;
-        const life = clamp01(1 - stealT / LDRAGO_SPIN_STEAL_DURATION);
-        const burst = body.userData.spinStealBurstT ?? 0;
+        const stealT = body.userData.spinStealT ?? body.userData.ldragoAbsorbPhaseT ?? 0;
+        const life = absorbRush
+          ? 1
+          : clamp01(1 - stealT / LDRAGO_SPIN_STEAL_DURATION);
+        const burst = body.userData.spinStealBurstT ?? (body.userData.ldragoAbsorbImpact ? 1 : 0);
         const fromX = body.userData.spinStealFromX ?? bx;
         const fromZ = body.userData.spinStealFromZ ?? bz;
 

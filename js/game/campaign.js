@@ -72,7 +72,7 @@ export const CAMPAIGN_OPPONENT_IDS = Object.freeze([
   'eagle',   // Tsubasa — Earth Eagle
   'leone',   // Kyoya — Rock Leone
   'pegasus', // Gingka — Storm Pegasus
-  'ldrago',  // Ryuga — Lightning L-Drago
+  'ldrago',  // Ryuga — Meteo L-Drago
   'striker', // Masamune — Ray Striker
 ]);
 
