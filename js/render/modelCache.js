@@ -51,7 +51,7 @@ export function createFallbackTopMesh(color) {
   return group;
 }
 
-function applyModelMaterials(model, url) {
+function applyModelMaterials(model, meta = {}) {
   model.traverse((child) => {
     if (!child.isMesh) return;
     child.castShadow = true;
@@ -60,19 +60,8 @@ function applyModelMaterials(model, url) {
     for (const mat of mats) {
       if (!mat) continue;
       if (child.geometry?.attributes?.color) mat.vertexColors = true;
-      if (/libra/i.test(url)) {
-        mat.metalness = 0.12;
-        mat.roughness = 0.65;
-      } else if (/leone|bull/i.test(url)) {
-        mat.metalness = 0.15;
-        mat.roughness = 0.48;
-      } else if (/ldrago/i.test(url)) {
-        mat.metalness = 0.55;
-        mat.roughness = 0.36;
-      } else if (/striker/i.test(url)) {
-        mat.metalness = 0.35;
-        mat.roughness = 0.55;
-      }
+      if (meta.metalness != null) mat.metalness = meta.metalness;
+      if (meta.roughness != null) mat.roughness = meta.roughness;
       if (mat.transparent || mat.alphaTest > 0) {
         mat.depthWrite = mat.opacity >= 0.99;
       }
@@ -80,22 +69,16 @@ function applyModelMaterials(model, url) {
   });
 }
 
-/** Pole-to-+Y correction for meshes authored with spin on -Z (not Meteo — that GLB is already Y-up). */
-function needsPoleToYRotation(url) {
-  if (/meteo_ldrago/i.test(url)) return false;
-  return /leone|libra|bull|lightning_ldrago|eagle/i.test(url);
-}
-
 /** Builds a scaled, oriented holder group from a loaded GLTF scene. */
-export function prepareTopModelHolder(gltf, url) {
+export function prepareTopModelHolder(gltf, meta = {}) {
   const model = gltf.scene;
-  applyModelMaterials(model, url);
+  applyModelMaterials(model, meta);
 
   const modelHolder = new THREE.Group();
   modelHolder.add(model);
   orientSpinAxisToY(modelHolder);
-  if (needsPoleToYRotation(url)) modelHolder.rotation.x = Math.PI / 2;
-  if (/bull/i.test(url)) model.rotation.z = Math.PI / 2;
+  if (meta.poleToY) modelHolder.rotation.x = Math.PI / 2;
+  if (meta.bullSpinFix) model.rotation.z = Math.PI / 2;
 
   const box = new THREE.Box3().setFromObject(modelHolder);
   const size = box.getSize(new THREE.Vector3());
@@ -112,19 +95,24 @@ function prepareFallbackHolder(fallbackColor = 0x888888) {
   return fallback;
 }
 
-function loadAndCache(url, fallbackColor) {
+function cacheKey(url, meta) {
+  if (!meta || Object.keys(meta).length === 0) return url;
+  return `${url}::${JSON.stringify(meta)}`;
+}
+
+function loadAndCache(url, fallbackColor, meta) {
   return new Promise((resolve) => {
     gltfLoader.load(
       url,
       (gltf) => {
-        const holder = prepareTopModelHolder(gltf, url);
-        _templates.set(url, holder);
+        const holder = prepareTopModelHolder(gltf, meta);
+        _templates.set(cacheKey(url, meta), holder);
         resolve(holder);
       },
       undefined,
       () => {
         const holder = prepareFallbackHolder(fallbackColor);
-        _templates.set(url, holder);
+        _templates.set(cacheKey(url, meta), holder);
         resolve(holder);
       }
     );
@@ -132,8 +120,8 @@ function loadAndCache(url, fallbackColor) {
 }
 
 /** Returns a cached prepared template, or null if not loaded yet. */
-export function getTopModelTemplate(url) {
-  return _templates.get(url) ?? null;
+export function getTopModelTemplate(url, meta) {
+  return _templates.get(cacheKey(url, meta)) ?? null;
 }
 
 /** Deep-clones a template so each top gets independent materials (emissive VFX). */
@@ -145,23 +133,25 @@ export function cloneTopModel(template) {
  * Preloads and caches a bey GLB. Deduplicates concurrent requests for the same URL.
  * @param {string} url
  * @param {number} [fallbackColor=0x888888]
+ * @param {object} [meta] — modelMeta from bey roster
  */
-export function preloadTopModel(url, fallbackColor = 0x888888) {
+export function preloadTopModel(url, fallbackColor = 0x888888, meta) {
   if (!url) return Promise.resolve(null);
-  if (_templates.has(url)) return Promise.resolve(_templates.get(url));
-  if (_inFlight.has(url)) return _inFlight.get(url);
+  const key = cacheKey(url, meta);
+  if (_templates.has(key)) return Promise.resolve(_templates.get(key));
+  if (_inFlight.has(key)) return _inFlight.get(key);
 
-  const promise = loadAndCache(url, fallbackColor).finally(() => {
-    _inFlight.delete(url);
+  const promise = loadAndCache(url, fallbackColor, meta).finally(() => {
+    _inFlight.delete(key);
   });
-  _inFlight.set(url, promise);
+  _inFlight.set(key, promise);
   return promise;
 }
 
 /** Awaits both match beys being cached before spawn. */
 export async function ensureMatchModelsReady(playerBey, aiBey) {
   await Promise.all([
-    preloadTopModel(playerBey?.model),
-    preloadTopModel(aiBey?.model),
+    preloadTopModel(playerBey?.model, undefined, playerBey?.modelMeta),
+    preloadTopModel(aiBey?.model, undefined, aiBey?.modelMeta),
   ]);
 }

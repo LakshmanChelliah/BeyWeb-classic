@@ -26,16 +26,16 @@ function attachTemplate(parentGroup, template, physicsBody, onReady) {
   }
 }
 
-export function loadTopModel(url, fallbackColor, parentGroup, physicsBody, onReady) {
+export function loadTopModel(url, fallbackColor, parentGroup, physicsBody, onReady, meta) {
   const token = nextLoadToken(parentGroup);
 
-  const template = getTopModelTemplate(url);
+  const template = getTopModelTemplate(url, meta);
   if (template) {
     attachTemplate(parentGroup, template, physicsBody, onReady);
     return;
   }
 
-  preloadTopModel(url, fallbackColor).then((loaded) => {
+  preloadTopModel(url, fallbackColor, meta).then((loaded) => {
     if (parentGroup.userData.loadToken !== token) return;
     if (!loaded) return;
     attachTemplate(parentGroup, loaded, physicsBody, onReady);

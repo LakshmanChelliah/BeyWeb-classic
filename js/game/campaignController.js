@@ -230,7 +230,7 @@ export function createCampaignController({
     gameoverTitle.className = 'win';
     gameoverMsg.textContent = `${scoreLine}. You beat ${rivalName}! The next blader awaits.`;
     const nextRaw = pickTournamentOpponent(tournament.getOpponentIndex() + 1, getPlayerBey());
-    if (nextRaw?.model) preloadTopModel(nextRaw.model);
+    if (nextRaw?.model) preloadTopModel(nextRaw.model, undefined, nextRaw.modelMeta);
   }
 
   function handleMatchEnd(result) {

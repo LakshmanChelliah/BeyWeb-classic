@@ -41,7 +41,7 @@ export function createAppBootstrap({
     onOpponentChange(opp) {
       gameRef.state.aiBey = opp;
       selection?.setRivalPick(opp);
-      if (opp?.model) preloadTopModel(opp.model);
+      if (opp?.model) preloadTopModel(opp.model, undefined, opp.modelMeta);
     },
   });
 
@@ -97,8 +97,8 @@ export function createAppBootstrap({
     }
 
     await Promise.all([
-      preloadTopModel(picks[0].model),
-      preloadTopModel(gameRef.state.aiBey?.model),
+      preloadTopModel(picks[0].model, undefined, picks[0].modelMeta),
+      preloadTopModel(gameRef.state.aiBey?.model, undefined, gameRef.state.aiBey?.modelMeta),
     ]);
 
     beysChosen = true;
@@ -177,7 +177,7 @@ export function createAppBootstrap({
   });
 
   BEYS.filter(isBeyPlayable).forEach((b) => {
-    if (b.model) preloadTopModel(b.model);
+    if (b.model) preloadTopModel(b.model, undefined, b.modelMeta);
   });
 
   ({ mode: gameMode, difficulty } = playSetup.getState());

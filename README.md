@@ -15,7 +15,24 @@ No server required. Open `index.html` or `pc.html` locally, or use the GitHub Pa
 
 ## Local
 
-Open `index.html` (mobile) or `pc.html` (desktop) in a browser, or serve the folder with any static file server.
+Open `index.html` (mobile) or `pc.html` (desktop) in a browser, or serve the folder with any static file server:
+
+```bash
+npm run dev
+```
+
+## Assets
+
+Game media lives under `assets/`:
+
+| Folder | Contents |
+|--------|----------|
+| `assets/models/` | Playable bey GLB meshes |
+| `assets/logos/` | Bey logo PNGs (HUD + special-move flash) |
+| `assets/textures/` | Pipeline debug / baked texture outputs |
+| `assets/reference/` | Art reference stills |
+
+Runtime paths are built in [`js/config/assets.js`](js/config/assets.js). The bey roster in [`js/game/data/beys.js`](js/game/data/beys.js) references those helpers.
 
 ## Main repo
 

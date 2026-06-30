@@ -52,15 +52,7 @@ import {
   isLibraBusterChannelingBody,
   SPECIAL_LOGO_FLASH_DUR,
 } from './abilities.js';
-import { createStarBlastVfx } from '../render/starBlastVfx.js';
-import { createLeoneAbilityVfx } from '../render/leoneAbilityVfx.js';
-import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';
-import { createLdragoAbilityVfx } from '../render/ldragoAbilityVfx.js';
-import { createLibraAbilityVfx } from '../render/libraAbilityVfx.js';
-import { createBullAbilityVfx } from '../render/bullAbilityVfx.js';
-import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
-import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
-import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
+import { createMatchVfx, resetMatchVfx, updateMatchVfx } from '../render/vfx/index.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
 
 /**
@@ -74,67 +66,16 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   createArenaMesh(scene);
 
   const { playerGroup, aiGroup } = createTopGroups(scene);
-  const starBlastVfx = {
-    player: createStarBlastVfx(scene),
-    ai: createStarBlastVfx(scene),
-  };
-  const leoneVfx = {
-    player: createLeoneAbilityVfx(scene),
-    ai: createLeoneAbilityVfx(scene),
-  };
-  const speedBoostVfx = {
-    player: createPegasusSpeedBoostVfx(scene),
-    ai: createPegasusSpeedBoostVfx(scene),
-  };
-  const ldragoVfx = {
-    player: createLdragoAbilityVfx(scene),
-    ai: createLdragoAbilityVfx(scene),
-  };
-  const libraVfx = {
-    player: createLibraAbilityVfx(scene),
-    ai: createLibraAbilityVfx(scene),
-  };
-  const bullVfx = {
-    player: createBullAbilityVfx(scene),
-    ai: createBullAbilityVfx(scene),
-  };
-  const eagleVfx = {
-    player: createEagleAbilityVfx(scene),
-    ai: createEagleAbilityVfx(scene),
-  };
-  const strikerVfx = {
-    player: createStrikerAbilityVfx(scene),
-    ai: createStrikerAbilityVfx(scene),
-  };
-  const collisionSparksVfx = createCollisionSparksVfx(scene, {
-    poolSize: mode === 'mobile' ? 64 : 128,
-    countScale: mode === 'mobile' ? 0.72 : 1,
-  });
+  const vfx = createMatchVfx(scene, { mode });
 
   function resetAllAbilityVfx() {
-    starBlastVfx.player.reset();
-    starBlastVfx.ai.reset();
-    leoneVfx.player.reset();
-    leoneVfx.ai.reset();
-    speedBoostVfx.player.reset();
-    speedBoostVfx.ai.reset();
-    ldragoVfx.player.reset();
-    ldragoVfx.ai.reset();
-    libraVfx.player.reset();
-    libraVfx.ai.reset();
-    bullVfx.player.reset();
-    bullVfx.ai.reset();
-    eagleVfx.player.reset();
-    eagleVfx.ai.reset();
-    strikerVfx.player.reset();
-    strikerVfx.ai.reset();
-    collisionSparksVfx.reset();
+    resetMatchVfx(vfx);
   }
 
   const contacts = setupContactHandlers(
     world,
     () => state,
-    (event) => collisionSparksVfx.spawn(event)
+    (event) => vfx.collisionSparks.spawn(event)
   );
 
   // Debug collider rings (toggle with KeyC): a flat unit ring scaled to each
@@ -576,8 +517,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     updateHud();
     updateAvatars();
 
-    loadTopModel(playerBey.model, beyColorHex(playerBey.color), playerGroup, state.playerBody);
-    loadTopModel(aiBey.model, beyColorHex(aiBey.color), aiGroup, state.aiBody);
+    loadTopModel(playerBey.model, beyColorHex(playerBey.color), playerGroup, state.playerBody, undefined, playerBey.modelMeta);
+    loadTopModel(aiBey.model, beyColorHex(aiBey.color), aiGroup, state.aiBody, undefined, aiBey.modelMeta);
   }
 
   function returnToMenu() {
@@ -785,23 +726,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     syncDebugRing(debug.playerRing, state.playerBody);
     syncDebugRing(debug.aiRing, state.aiBody);
 
-    starBlastVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    starBlastVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    leoneVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    leoneVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    speedBoostVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    speedBoostVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    ldragoVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    ldragoVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    libraVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    libraVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    bullVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    bullVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    eagleVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    eagleVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    strikerVfx.player.update(playerGroup, state.playerBody, camera, dt);
-    strikerVfx.ai.update(aiGroup, state.aiBody, camera, dt);
-    collisionSparksVfx.update(camera, dt);
+    updateMatchVfx(vfx, {
+      playerGroup,
+      aiGroup,
+      playerBody: state.playerBody,
+      aiBody: state.aiBody,
+      camera,
+      dt,
+    });
 
     if (!state.gameFrozen) {
       updateCamera(camera, state, mode, getCameraCue(state, dt, mode));
