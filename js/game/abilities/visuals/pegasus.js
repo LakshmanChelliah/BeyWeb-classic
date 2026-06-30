@@ -1,6 +1,6 @@
-import { CONFIG } from '../../config.js';
-import { setBodyCollisions } from '../../physics/top.js';
-import { clamp01 } from '../../utils/math.js';
+import { CONFIG } from '../../../config.js';
+import { setBodyCollisions } from '../../../physics/top.js';
+import { clamp01 } from '../../../utils/math.js';
 import * as shared from '../shared.js';
 import * as C from '../constants.js';
 import { spinKey } from '../shared.js';

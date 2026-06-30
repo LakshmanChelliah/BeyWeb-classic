@@ -124,7 +124,6 @@ export const ldragoAbilities = {
 
   // Lightning L-Drago power: rotate L-Drago I to Upper Mode for a Smash Attack
   // knockback burst (wiki fusion-wheel mode-change gimmick).
-,
 
   ldrago_upper_mode: {
     id: 'ldrago_upper_mode',
