@@ -17,6 +17,8 @@ import {
   pickTournamentOpponent,
 } from './campaign.js';
 import { createCasualMode } from './casualMode.js';
+import { createLocalSeriesMode } from './localSeriesMode.js';
+import { dualSeriesDotsHtml, seriesDotsHtml, SERIES_BEST_OF } from './seriesScore.js';
 import { preloadTopModel } from '../render/modelCache.js';
 
 /**
@@ -33,16 +35,20 @@ export function createCampaignController({
 }) {
   const tournament = createCampaign();
   const casual = createCasualMode();
+  const localSeries = createLocalSeriesMode();
   let activeMode = null;
   let userDifficultyTier = 1;
   let restartAction = 'next-round';
 
   function isActive() {
-    return isEnabled() && activeMode != null && currentMode().isActive();
+    if (!isEnabled()) return false;
+    if (activeMode === '2player') return localSeries.isActive();
+    return activeMode != null && currentMode().isActive();
   }
 
   function currentMode() {
-    return activeMode === 'casual' ? casual : tournament;
+    if (activeMode === 'casual') return casual;
+    return tournament;
   }
 
   function getEffectiveAiTier() {
@@ -70,22 +76,54 @@ export function createCampaignController({
     return setTournamentOpponent();
   }
 
-  function seriesDotsHtml(wins, losses) {
-    const parts = [];
-    for (let i = 0; i < 3; i++) {
-      if (i < wins) {
-        parts.push('<span class="campaign-dot campaign-dot--win" aria-hidden="true"></span>');
-      } else if (i < wins + losses) {
-        parts.push('<span class="campaign-dot campaign-dot--loss" aria-hidden="true"></span>');
-      } else {
-        parts.push('<span class="campaign-dot campaign-dot--pending" aria-hidden="true"></span>');
-      }
-    }
-    return parts.join('');
-  }
-
   function isMobileHud() {
     return document.body.classList.contains('mobile');
+  }
+
+  function clearHudClasses() {
+    campaignHud?.classList.remove(
+      'campaign-hud--tournament',
+      'campaign-hud--casual',
+      'campaign-hud--local-2p',
+      'campaign-hud--series'
+    );
+  }
+
+  function renderCpuSeriesHud({
+    modeLabel,
+    metaLine,
+    playerWins,
+    cpuWins,
+    slots,
+    ariaLabel,
+    tierLine = null,
+  }) {
+    if (!campaignHud) return;
+
+    clearHudClasses();
+    campaignHud.classList.add('campaign-hud--series');
+    campaignHud.classList.toggle('campaign-hud--tournament', activeMode === 'tournament');
+    campaignHud.classList.toggle('campaign-hud--casual', activeMode === 'casual');
+
+    if (isMobileHud()) {
+      campaignHud.innerHTML = `
+        <div class="campaign-hud-mobile campaign-hud-mobile--center">
+          ${tierLine ? `<div class="campaign-hud-tier">${tierLine}</div>` : ''}
+          <div class="campaign-hud-meta">${modeLabel}</div>
+          <div class="campaign-hud-series" role="group" aria-label="${ariaLabel}">
+            <span class="campaign-series-dots">${seriesDotsHtml(playerWins, cpuWins, slots)}</span>
+          </div>
+        </div>`;
+    } else {
+      campaignHud.innerHTML = `
+        <div class="campaign-hud-desktop">
+          <span class="campaign-hud-meta">${metaLine}</span>
+          <span class="campaign-series-dots">${seriesDotsHtml(playerWins, cpuWins, slots)}</span>
+        </div>`;
+    }
+
+    campaignHud.setAttribute('aria-label', ariaLabel);
+    campaignHud.classList.remove('hidden');
   }
 
   function updateHud() {
@@ -94,6 +132,37 @@ export function createCampaignController({
       campaignHud.classList.add('hidden');
       campaignHud.textContent = '';
       campaignHud.removeAttribute('aria-label');
+      clearHudClasses();
+      return;
+    }
+
+    if (activeMode === '2player') {
+      const { p1, p2 } = localSeries.getSeriesScore();
+      const slots = localSeries.getSeriesSlots();
+      const winsNeeded = localSeries.getWinsNeeded();
+
+      clearHudClasses();
+      campaignHud.classList.add('campaign-hud--local-2p', 'campaign-hud--series');
+
+      if (isMobileHud()) {
+        campaignHud.innerHTML = `
+          <div class="campaign-hud-mobile campaign-hud-mobile--center">
+            <div class="campaign-hud-meta">Best of ${slots}</div>
+            ${dualSeriesDotsHtml(p1, p2, p2, p1, slots)}
+          </div>`;
+      } else {
+        campaignHud.innerHTML = `
+          <div class="campaign-hud-desktop">
+            <span class="campaign-hud-meta">Best of ${slots}</span>
+            ${dualSeriesDotsHtml(p1, p2, p2, p1, slots)}
+          </div>`;
+      }
+
+      campaignHud.setAttribute(
+        'aria-label',
+        `Local best of ${slots}, player 1 ${p1} wins, player 2 ${p2} wins, first to ${winsNeeded}`
+      );
+      campaignHud.classList.remove('hidden');
       return;
     }
 
@@ -103,40 +172,33 @@ export function createCampaignController({
     const blader = activeMode === 'tournament' ? getTournamentBlader(opp?.id) : null;
 
     if (activeMode === 'casual') {
-      campaignHud.textContent = `Casual · ${diffLabel} · vs ${oppName}`;
-      campaignHud.classList.remove('hidden', 'campaign-hud--tournament');
+      const { player, cpu } = casual.getSeriesScore();
+      const slots = casual.getSeriesSlots();
+      renderCpuSeriesHud({
+        modeLabel: 'Casual',
+        metaLine: `Casual · ${diffLabel} · vs ${oppName}`,
+        playerWins: player,
+        cpuWins: cpu,
+        slots,
+        ariaLabel: `Casual best of ${slots}, you ${player} rival ${cpu}, versus ${oppName}`,
+      });
       return;
     }
 
     const { player, cpu } = tournament.getSeriesScore();
     const tier = tournament.getOpponentIndex() + 1;
     const stageCount = tournament.getStageCount();
+    const bladerLine = blader ? `${blader.name} (${blader.title})` : oppName;
 
-    if (isMobileHud()) {
-      campaignHud.classList.add('campaign-hud--tournament');
-      campaignHud.innerHTML = `
-        <div class="campaign-hud-mobile campaign-hud-mobile--center">
-          <div class="campaign-hud-tier">T${tier}/${stageCount}</div>
-          <div class="campaign-hud-series" role="group" aria-label="Your best of 3 series score">
-            <span class="campaign-series-dots">${seriesDotsHtml(player, cpu)}</span>
-          </div>
-        </div>`;
-      campaignHud.setAttribute(
-        'aria-label',
-        `Tournament ${tier} of ${stageCount}, best of 3, you ${player} rival ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`
-      );
-    } else {
-      campaignHud.classList.remove('campaign-hud--tournament');
-      const bladerLine = blader ? `${blader.name} (${blader.title})` : oppName;
-      campaignHud.textContent =
-        `Tournament ${tier}/${stageCount} · Best of 3: ${player}–${cpu} · ${diffLabel} · vs ${bladerLine}`;
-      campaignHud.setAttribute(
-        'aria-label',
-        `Tournament ${tier} of ${stageCount}, series ${player} to ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`
-      );
-    }
-
-    campaignHud.classList.remove('hidden');
+    renderCpuSeriesHud({
+      modeLabel: `T${tier}/${stageCount}`,
+      metaLine: `Tournament ${tier}/${stageCount} · ${diffLabel} · vs ${bladerLine}`,
+      playerWins: player,
+      cpuWins: cpu,
+      slots: SERIES_BEST_OF.THREE,
+      tierLine: `T${tier}/${stageCount}`,
+      ariaLabel: `Tournament ${tier} of ${stageCount}, best of 3, you ${player} rival ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`,
+    });
   }
 
   function beginOpponent() {
@@ -154,27 +216,47 @@ export function createCampaignController({
   function handleCasualMatchEnd(result) {
     const opp = casual.getCurrentOpponent();
     const oppName = opp?.name ?? 'CPU';
+    const isDraw = result.outcome === 'DRAW';
 
-    if (result.outcome === 'DRAW') {
-      restartAction = 'rematch-same';
+    if (!isDraw) casual.recordMatch(result.winner);
+
+    const { player, cpu } = casual.getSeriesScore();
+    const scoreLine = `Series: ${player}–${cpu}`;
+    const seriesStatus = casual.getSeriesStatus();
+    const winsNeeded = casual.getWinsNeeded();
+
+    if (isDraw) {
+      restartAction = 'next-round';
       btnRestart.textContent = 'Rematch';
-      gameoverMsg.textContent = `Draw vs ${oppName}. Fight again!`;
+      gameoverMsg.textContent = `${scoreLine}. Rematch vs ${oppName}.`;
+      updateHud();
       return;
     }
 
-    if (result.winner === 1) {
-      restartAction = 'rematch-random';
-      btnRestart.textContent = 'Next Rival';
-      gameoverTitle.textContent = 'VICTORY!';
-      gameoverTitle.className = 'win';
-      gameoverMsg.textContent = `You defeated ${oppName}! Next rival is random.`;
-    } else {
+    if (seriesStatus === 'ongoing') {
+      restartAction = 'next-round';
+      btnRestart.textContent = 'Next Round';
+      gameoverMsg.textContent = `${scoreLine}. First to ${winsNeeded} wins the series vs ${oppName}.`;
+      updateHud();
+      return;
+    }
+
+    if (seriesStatus === 'cpu') {
       restartAction = 'rematch-same';
       btnRestart.textContent = 'Try Again';
       gameoverTitle.textContent = 'DEFEATED';
       gameoverTitle.className = 'lose';
-      gameoverMsg.textContent = `${oppName} wins. Try again!`;
+      gameoverMsg.textContent = `${scoreLine}. ${oppName} takes the series.`;
+      updateHud();
+      return;
     }
+
+    restartAction = 'rematch-random';
+    btnRestart.textContent = 'Next Rival';
+    gameoverTitle.textContent = 'SERIES WON!';
+    gameoverTitle.className = 'win';
+    gameoverMsg.textContent = `${scoreLine}. You beat ${oppName}! A new rival awaits.`;
+    updateHud();
   }
 
   function handleTournamentMatchEnd(result) {
@@ -210,7 +292,7 @@ export function createCampaignController({
       gameoverTitle.textContent = 'DEFEATED';
       gameoverTitle.className = 'lose';
       gameoverMsg.textContent = `${scoreLine}. ${rivalName} takes the series.`;
-      campaignHud?.classList.add('hidden');
+      updateHud();
       return;
     }
 
@@ -231,6 +313,41 @@ export function createCampaignController({
     gameoverMsg.textContent = `${scoreLine}. You beat ${rivalName}! The next blader awaits.`;
     const nextRaw = pickTournamentOpponent(tournament.getOpponentIndex() + 1, getPlayerBey());
     if (nextRaw?.model) preloadTopModel(nextRaw.model);
+    updateHud();
+  }
+
+  function handleLocalMatchEnd(result) {
+    const isDraw = result.outcome === 'DRAW';
+    if (!isDraw) localSeries.recordMatch(result.winner);
+
+    const { p1, p2 } = localSeries.getSeriesScore();
+    const scoreLine = `Series: P1 ${p1}–${p2} P2`;
+    const seriesStatus = localSeries.getSeriesStatus();
+    const winsNeeded = localSeries.getWinsNeeded();
+
+    if (isDraw) {
+      restartAction = 'next-round';
+      btnRestart.textContent = 'Rematch';
+      gameoverMsg.textContent = `${scoreLine}. Rematch this round.`;
+      updateHud();
+      return;
+    }
+
+    if (seriesStatus === 'ongoing') {
+      restartAction = 'next-round';
+      btnRestart.textContent = 'Next Round';
+      gameoverMsg.textContent = `${scoreLine}. First to ${winsNeeded} wins the series.`;
+      updateHud();
+      return;
+    }
+
+    const winner = seriesStatus === 'p1' ? 1 : 2;
+    restartAction = 'retry-local-series';
+    btnRestart.textContent = 'New Series';
+    gameoverTitle.textContent = `PLAYER ${winner} WINS THE SERIES!`;
+    gameoverTitle.className = 'win';
+    gameoverMsg.textContent = `${scoreLine}. Player ${winner} takes best of ${localSeries.getSeriesSlots()}.`;
+    updateHud();
   }
 
   function handleMatchEnd(result) {
@@ -241,17 +358,35 @@ export function createCampaignController({
       return;
     }
 
+    if (activeMode === '2player') {
+      handleLocalMatchEnd(result);
+      return;
+    }
+
     handleTournamentMatchEnd(result);
   }
 
   async function handleRestart(resetGame) {
+    if (activeMode === '2player') {
+      if (restartAction === 'retry-local-series') {
+        localSeries.start();
+      }
+      await resetGame();
+      updateHud();
+      return;
+    }
+
     if (activeMode === 'casual') {
       if (restartAction === 'rematch-random') {
         rollAndSetOpponent();
         beginOpponent();
+      } else if (restartAction === 'rematch-same') {
+        casual.start(casual.getCurrentOpponent(), userDifficultyTier);
+        beginOpponent();
       }
       resetAIController();
       await resetGame();
+      updateHud();
       return;
     }
 
@@ -261,6 +396,7 @@ export function createCampaignController({
       beginOpponent();
       resetAIController();
       await resetGame();
+      updateHud();
       return;
     }
 
@@ -270,16 +406,19 @@ export function createCampaignController({
       beginOpponent();
       resetAIController();
       await resetGame();
+      updateHud();
       return;
     }
 
     resetAIController();
     await resetGame();
+    updateHud();
   }
 
   return {
     tournament,
     casual,
+    localSeries,
     updateHud,
     beginOpponent,
     handleMatchEnd,
@@ -297,11 +436,17 @@ export function createCampaignController({
       casual.start(opp, userDifficultyTier);
       beginOpponent();
     },
+    startLocalSeries() {
+      activeMode = '2player';
+      localSeries.start();
+      updateHud();
+    },
     resetCampaign() {
       activeMode = null;
       setAIContext({ tournament: false });
       tournament.reset();
       casual.reset();
+      localSeries.reset();
       updateHud();
     },
     handlesRestart() {

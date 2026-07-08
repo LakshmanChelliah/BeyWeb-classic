@@ -565,6 +565,49 @@ body.vs-cpu #p2-abilities {
   gap: 5px;
 }
 
+.campaign-hud-desktop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.campaign-hud--series {
+  white-space: normal;
+  text-align: center;
+}
+
+.campaign-hud--local-2p {
+  min-width: 88px;
+  padding: 8px 12px;
+}
+
+body:not(.mobile) .campaign-hud--local-2p .campaign-hud-series--stacked {
+  gap: 6px;
+}
+
+body:not(.mobile) .campaign-hud--series .campaign-dot {
+  width: 9px;
+  height: 9px;
+}
+
+body:not(.mobile) #hud:has(.campaign-hud--series:not(.hidden)) {
+  justify-content: center;
+  gap: 12px;
+}
+
+body:not(.mobile) #hud:has(.campaign-hud--series:not(.hidden)) .hud-panel {
+  min-width: 148px;
+}
+
+body:not(.mobile) #hud:has(.campaign-hud--series:not(.hidden)) #campaign-hud {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  flex-shrink: 0;
+}
+
 .campaign-dot {
   width: 10px;
   height: 10px;
@@ -629,28 +672,28 @@ body.mobile .hud-label {
   margin-bottom: 2px;
 }
 
-body.mobile #hud:has(.campaign-hud:not(.hidden)) {
+body.mobile #hud:has(.campaign-hud--series:not(.hidden)) {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 4px;
 }
 
-body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-panel {
+body.mobile #hud:has(.campaign-hud--series:not(.hidden)) .hud-panel {
   min-width: 0;
   padding: 8px 8px;
   gap: 8px;
 }
 
-body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-avatar {
+body.mobile #hud:has(.campaign-hud--series:not(.hidden)) .hud-avatar {
   width: 42px;
   height: 42px;
   padding: 4px;
 }
 
-body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-value {
+body.mobile #hud:has(.campaign-hud--series:not(.hidden)) .hud-value {
   font-size: 20px;
 }
 
-body.mobile #hud:has(.campaign-hud--tournament:not(.hidden)) .hud-label {
+body.mobile #hud:has(.campaign-hud--series:not(.hidden)) .hud-label {
   font-size: 8px;
   letter-spacing: 0.08em;
   overflow: hidden;
@@ -708,12 +751,26 @@ body.mobile .campaign-hud-mobile--center .campaign-series-dots {
   justify-content: center;
 }
 
-body.mobile .campaign-hud:not(.campaign-hud--tournament) {
+body.mobile .campaign-hud--series {
   max-width: 72px;
   font-size: 8px;
   letter-spacing: 0.04em;
   line-height: 1.25;
   padding: 5px 6px;
+}
+
+body.mobile .campaign-hud--local-2p {
+  max-width: 64px;
+  padding: 5px 4px;
+}
+
+body.mobile .campaign-hud--local-2p .campaign-dot {
+  width: 7px;
+  height: 7px;
+}
+
+body.mobile .campaign-hud--local-2p .campaign-series-dots {
+  gap: 2px;
 }
 
 body:not(.mobile) #campaign-hud {

@@ -36,7 +36,7 @@ export function createAppBootstrap({
     gameoverTitle: document.getElementById('gameover-title'),
     gameoverMsg: document.getElementById('gameover-msg'),
     btnRestart: document.getElementById('btn-restart'),
-    isEnabled: () => isVsCpu(gameMode),
+    isEnabled: () => isVsCpu(gameMode) || gameMode === GAME_MODES.TWO_PLAYER,
     getPlayerBey: () => gameRef?.state.playerBey,
     onOpponentChange(opp) {
       gameRef.state.aiBey = opp;
@@ -93,7 +93,7 @@ export function createAppBootstrap({
       campaignCtrl.startCasual(picks[0], difficulty);
     } else {
       gameRef.state.aiBey = picks[1];
-      campaignCtrl.resetCampaign();
+      campaignCtrl.startLocalSeries();
     }
 
     await Promise.all([

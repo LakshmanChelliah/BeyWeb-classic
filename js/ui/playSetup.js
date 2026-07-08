@@ -73,7 +73,10 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
         hintEl.textContent = 'Six bladers in order — Benkei to Ryuga.';
         hintEl.classList.remove('hidden');
       } else if (isCasual) {
-        hintEl.textContent = 'CPU rival is random each match';
+        hintEl.textContent = 'Best of 3 vs a random rival — new rival after each series';
+        hintEl.classList.remove('hidden');
+      } else if (mode === GAME_MODES.TWO_PLAYER) {
+        hintEl.textContent = 'Best of 5 local series';
         hintEl.classList.remove('hidden');
       } else {
         hintEl.classList.add('hidden');
