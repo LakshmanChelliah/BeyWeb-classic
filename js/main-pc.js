@@ -2,7 +2,6 @@ import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
 import { createAppBootstrap } from './app/bootstrap.js';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
-import { mountBeyIcon } from './ui/beyIcon.js';
 
 const startOverlay = document.getElementById('start-overlay');
 const selectOverlay = document.getElementById('select-overlay');
@@ -13,8 +12,6 @@ const controlsHint = document.getElementById('controls-hint');
 const playerHudLabel = document.getElementById('player-hud-label');
 const aiHudLabel = document.getElementById('ai-hud-label');
 const btnStart = document.getElementById('btn-start');
-
-mountBeyIcon(document.getElementById('start-bey-icon'), { overlayEl: startOverlay });
 
 createAppBootstrap({
   platform: 'pc',

@@ -4,7 +4,6 @@ import { applyAISteering, tickAIAbilities } from './input/ai.js';
 import { createAppBootstrap } from './app/bootstrap.js';
 import { modeBlurb } from './game/modes.js';
 import { installTouchZoomGuard } from './touchZoomGuard.js';
-import { mountBeyIcon } from './ui/beyIcon.js';
 
 installTouchZoomGuard();
 
@@ -30,8 +29,6 @@ const controlModeCards = document.querySelectorAll('.control-mode-card');
 const tiltHint = document.getElementById('tilt-hint');
 const gyro = createGyroInput(document.getElementById('game-canvas'));
 const joystick = createJoystickInput(document.getElementById('virtual-joystick'));
-
-mountBeyIcon(document.getElementById('start-bey-icon'), { overlayEl: startOverlay });
 
 const TILT_PERMISSION_HINT =
   'Requires motion sensor access on iOS. Hold phone flat when starting.';
