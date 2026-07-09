@@ -8,7 +8,7 @@ import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
-import { mountBeyIcon } from '../ui/beyIcon.js';
+import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
 import { installCaptureApi } from '../debug/captureApi.js';
 
 /**
@@ -182,8 +182,9 @@ export function createAppBootstrap({
     input,
   });
 
-  // Mount after the game WebGL context exists so iOS can reuse it (no second context).
+  // Start grey Pegasus GLB immediately, then mount icons on the shared renderer.
   const getSharedRenderer = () => gameRef?.renderer ?? null;
+  preloadGreyPegasusIcon();
   mountBeyIcon(document.getElementById('boot-bey-icon'), {
     overlayEl: document.getElementById('boot-overlay'),
     getRenderer: getSharedRenderer,
@@ -207,7 +208,12 @@ export function createAppBootstrap({
   const bootProgress = document.getElementById('boot-progress');
   const bootPct = document.getElementById('boot-pct');
   const bootTip = document.getElementById('boot-tip');
-  const playable = BEYS.filter(isBeyPlayable);
+  // Load Pegasus first so the boot icon GLB wins the network queue.
+  const playable = BEYS.filter(isBeyPlayable).sort((a, b) => {
+    if (a.id === 'pegasus') return -1;
+    if (b.id === 'pegasus') return 1;
+    return 0;
+  });
   let tipIndex = -1;
   let tipRotateTimer = null;
 

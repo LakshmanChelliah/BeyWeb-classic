@@ -2,6 +2,10 @@ import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
 import { createAppBootstrap } from './app/bootstrap.js';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
+import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
+
+// Kick off the boot icon GLB before the rest of app bootstrap work.
+preloadGreyPegasusIcon();
 
 const startOverlay = document.getElementById('start-overlay');
 const selectOverlay = document.getElementById('select-overlay');
