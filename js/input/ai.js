@@ -51,6 +51,8 @@ let _orbitDir = 1;
 const TOURNAMENT_BOSS_OVERRIDES = {
   leone: { powerReach: 8.5, outAvoidance: 0.82, interceptBias: true },
   pegasus: { abilityDiscipline: 0.96, specialReach: 8.0, decisionInterval: 0.08 },
+  lightning_ldrago: { abilityDiscipline: 0.98, specialReach: 8.5, decisionInterval: 0.07, outAvoidance: 0.90 },
+  striker: { abilityDiscipline: 0.97, specialReach: 8.2, decisionInterval: 0.07, outAvoidance: 0.92 },
   meteo_ldrago: { abilityDiscipline: 1.0, specialReach: 9.0, decisionInterval: 0.06, mistakeRate: 0.01, outAvoidance: 0.95, forceMult: 1.50 }
 };
 
@@ -72,7 +74,7 @@ function decisionConfig() {
   const base = AI_TIERS[decisionTier()] ?? AI_TIERS[AI_TIER_MAX];
   if (!_tournament) return base;
   
-  const stageFrac = Math.min(1, Math.max(0, _stageIndex / 5));
+  const stageFrac = Math.min(1, Math.max(0, _stageIndex / 7));
   const outAvoidance = 0.58 + stageFrac * 0.30;
   const edgeSkill = 0.48 + stageFrac * 0.27;
   const abilityDiscipline = 0.68 + stageFrac * 0.24;

@@ -36,23 +36,32 @@ export const TOURNAMENT_BLADERS = Object.freeze({
     atkBonus: 6,
     moveBonus: 4,
   },
-  striker: {
-    name: 'Masamune',
-    title: 'The Blitz Striker',
-    aiTier: 5,
-    defBonus: 14,
-    staBonus: 12,
-    atkBonus: 8,
-    moveBonus: 10,
-  },
   pegasus: {
     name: 'Gingka',
     title: 'The Storm Blader',
-    aiTier: 6,
+    aiTier: 5,
     defBonus: 18,
     staBonus: 14,
     atkBonus: 8,
     moveBonus: 6,
+  },
+  lightning_ldrago: {
+    name: 'Ryuga',
+    title: 'The Dragon Emperor',
+    aiTier: 5,
+    defBonus: 20,
+    staBonus: 14,
+    atkBonus: 10,
+    moveBonus: 6,
+  },
+  striker: {
+    name: 'Masamune',
+    title: 'The Blitz Striker',
+    aiTier: 6,
+    defBonus: 14,
+    staBonus: 12,
+    atkBonus: 8,
+    moveBonus: 10,
   },
   meteo_ldrago: {
     name: 'Ryuga',
@@ -67,18 +76,19 @@ export const TOURNAMENT_BLADERS = Object.freeze({
 
 /** Opponents in rising difficulty (easiest → hardest). */
 export const CAMPAIGN_OPPONENT_IDS = Object.freeze([
-  'bull',    // Benkei — Dark Bull
-  'libra',   // Yu — Flame Libra
-  'eagle',   // Tsubasa — Earth Eagle
-  'leone',   // Kyoya — Rock Leone
-  'pegasus', // Gingka — Storm Pegasus
-  'meteo_ldrago',  // Ryuga — Meteo L-Drago
-  'striker', // Masamune — Ray Striker
+  'bull',              // Benkei — Dark Bull
+  'libra',             // Yu — Flame Libra
+  'eagle',             // Tsubasa — Earth Eagle
+  'leone',             // Kyoya — Rock Leone
+  'pegasus',           // Gingka — Storm Pegasus
+  'lightning_ldrago',  // Ryuga — Lightning L-Drago
+  'striker',           // Masamune — Ray Striker
+  'meteo_ldrago',      // Ryuga — Meteo L-Drago
 ]);
 
 export const CAMPAIGN_STAGE_COUNT = CAMPAIGN_OPPONENT_IDS.length;
 
-/** Opponents for this run — full order minus the player's bey (5 rivals when using a roster bey). */
+/** Opponents for this run — full order minus the player's bey (7 rivals when using a roster bey). */
 export function getTournamentRoster(excludeBey) {
   const excludeId = typeof excludeBey === 'string' ? excludeBey : excludeBey?.id;
   if (!excludeId) return [...CAMPAIGN_OPPONENT_IDS];
@@ -91,8 +101,9 @@ const OPPONENT_AI_TIER = Object.freeze({
   libra: TOURNAMENT_BLADERS.libra.aiTier,
   eagle: TOURNAMENT_BLADERS.eagle.aiTier,
   leone: TOURNAMENT_BLADERS.leone.aiTier,
-  striker: TOURNAMENT_BLADERS.striker.aiTier,
   pegasus: TOURNAMENT_BLADERS.pegasus.aiTier,
+  lightning_ldrago: TOURNAMENT_BLADERS.lightning_ldrago.aiTier,
+  striker: TOURNAMENT_BLADERS.striker.aiTier,
   meteo_ldrago: TOURNAMENT_BLADERS.meteo_ldrago.aiTier,
 });
 

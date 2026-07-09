@@ -72,7 +72,7 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
 
     if (hintEl) {
       if (mode === GAME_MODES.TOURNAMENT) {
-        hintEl.textContent = 'Six bladers in order — Benkei to Ryuga.';
+        hintEl.textContent = 'Seven bladers in order — Benkei to Ryuga.';
         hintEl.classList.remove('hidden');
       } else if (isCasual) {
         hintEl.textContent = 'Best of 3 vs a random rival — new rival after each series';
