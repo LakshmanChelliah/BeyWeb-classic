@@ -304,9 +304,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         if (body?.userData.ldragoAbsorbImpact) {
           return { color: '#fef2f2', intensity: 2.6 };
         }
+        const phase = body?.userData.ldragoAbsorbPhase;
         const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.013);
         const intense =
           sp.windupRemaining > 0 ||
+          phase === 'windup' ||
+          phase === 'coil' ||
+          phase === 'rush' ||
+          phase === 'pierce' ||
           body?.userData.ldragoAbsorbWindup ||
           body?.userData.ldragoAbsorbRush;
         return { color: sp.ability.glow, intensity: intense ? pulse * 1.75 : pulse * 1.1 };
@@ -316,7 +321,11 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         const repulse = body?.userData.flightRepulseT ?? 0;
         const launch = body?.userData.ldragoFlightLaunchT ?? 0;
         const windup = body?.userData.ldragoFlightWindup;
-        const active = body?.userData.airborne && body?.userData.invulnerable;
+        // Exclude Absorb Break — it also uses invulnerable but is a grounded rush.
+        const active =
+          body?.userData.airborne &&
+          body?.userData.invulnerable &&
+          body?.userData.ldragoAbsorbPhase == null;
         const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.011);
         let base = pulse * 1.35;
         if (windup) base = Math.max(base, pulse * 1.65);

@@ -106,11 +106,15 @@ const GUARD_SELF_IMPULSE = 0.04;
 const SPIN_STEAL_KB_MULT = 0.4; // 60% knockback reduction while Spin Steal is active
 
 // Meteo L-Drago — Absorb Break (anime dragon-rush finisher that devours rival spin).
-export const LDRAGO_ABSORB_DURATION = 3.2;
-export const LDRAGO_ABSORB_WINDUP = 0.55;
-const LDRAGO_ABSORB_DASH_SPEED = 30;
-const LDRAGO_ABSORB_DASH_AIM_TRACK = 0.28;
-const LDRAGO_ABSORB_COAST_ARRIVE = 0.35;
+// Coil → accelerate → pierce: a flat speed-30 snap reads as a teleport.
+export const LDRAGO_ABSORB_DURATION = 3.6;
+export const LDRAGO_ABSORB_WINDUP = 0.7;
+export const LDRAGO_ABSORB_COIL_DUR = 0.28;
+export const LDRAGO_ABSORB_PIERCE_DUR = 0.42;
+const LDRAGO_ABSORB_DASH_SPEED = 17.5;
+const LDRAGO_ABSORB_DASH_ACCEL_DUR = 0.38;
+const LDRAGO_ABSORB_DASH_AIM_TRACK = 0.42;
+const LDRAGO_ABSORB_COAST_ARRIVE = 0.4;
 const LDRAGO_ABSORB_HIT_KB = 5.6;
 const LDRAGO_ABSORB_HIT_SPIN = 0.24;
 const LDRAGO_ABSORB_STEAL_GAIN = 0.1;
@@ -646,6 +650,7 @@ function releaseLdragoAbsorbControl(body) {
   delete body.userData.ldragoAbsorbImpactT;
   delete body.userData.ldragoAbsorbDashDone;
   delete body.userData.ldragoAbsorbCoilTilt;
+  delete body.userData.ldragoAbsorbSpeed;
   body.userData.flightLift = 0;
   body.userData.flightTilt = 0;
   body.userData.flightRoll = 0;
@@ -667,6 +672,22 @@ function finishLdragoAbsorb(state, side, slot, body, dt) {
   slot.windupDuration = 0;
 }
 
+function pinLdragoAbsorbPhysics(body) {
+  if (!body) return;
+  body.position.y = groundY(body);
+  body.velocity.set(0, 0, 0);
+  body.angularVelocity.set(0, 0, 0);
+  setBodyCollisions(body, false);
+  if (body.type !== CANNON.Body.KINEMATIC) setAirborneKinematic(body);
+  syncBodyPosition(body);
+}
+
+function beginLdragoAbsorbPierce(body) {
+  body.userData.ldragoAbsorbPhase = 'pierce';
+  body.userData.ldragoAbsorbPhaseT = 0;
+  body.userData.ldragoAbsorbRush = true;
+}
+
 function advanceLdragoAbsorbRush(state, side, body, opp, dt) {
   if (body.userData.ldragoAbsorbTargetX == null) initLdragoAbsorbTarget(body, opp);
 
@@ -684,33 +705,112 @@ function advanceLdragoAbsorbRush(state, side, body, opp, dt) {
   body.userData.ldragoAbsorbRush = true;
   body.position.y = groundY(body);
 
+  // Ease into top speed so the rush reads as a charge, not a blink.
+  const accel = easeInCubic(clamp01(body.userData.ldragoAbsorbPhaseT / LDRAGO_ABSORB_DASH_ACCEL_DUR));
+  const speed = LDRAGO_ABSORB_DASH_SPEED * (0.28 + 0.72 * accel);
+  body.userData.ldragoAbsorbSpeed = speed;
+
   if (remain < LDRAGO_ABSORB_COAST_ARRIVE) {
     body.position.x = tx;
     body.position.z = tz;
+    syncBodyPosition(body);
     return true;
   }
 
-  const move = Math.min(LDRAGO_ABSORB_DASH_SPEED * dt, remain);
+  const move = Math.min(speed * dt, remain);
   body.position.x += (dx / remain) * move;
   body.position.z += (dz / remain) * move;
+  syncBodyPosition(body);
 
-  if (opp && ldragoAbsorbOverlap(body, opp)) {
+  if (opp && ldragoAbsorbOverlap(body, opp) && !body.userData.ldragoAbsorbHit) {
     applyLdragoAbsorbHit(state, side, body, opp);
-    return true;
+    beginLdragoAbsorbPierce(body);
+    return false;
   }
 
   return false;
 }
 
+function advanceLdragoAbsorbPierce(body, dt) {
+  body.userData.ldragoAbsorbPhaseT = (body.userData.ldragoAbsorbPhaseT ?? 0) + dt;
+  body.userData.ldragoAbsorbRush = true;
+  const nx = body.userData.ldragoAbsorbNx ?? 0;
+  const nz = body.userData.ldragoAbsorbNz ?? 0;
+  const fade = 1 - clamp01(body.userData.ldragoAbsorbPhaseT / LDRAGO_ABSORB_PIERCE_DUR);
+  const speed = (body.userData.ldragoAbsorbSpeed ?? LDRAGO_ABSORB_DASH_SPEED) * (0.55 + 0.45 * fade);
+  body.position.x += nx * speed * dt;
+  body.position.z += nz * speed * dt;
+  body.position.y = groundY(body);
+  // Soft clamp inside the wall so pierce doesn't hard-pop at the rim.
+  const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+  const maxR = CONFIG.WALL_RADIUS - r - 0.04;
+  const dist = Math.hypot(body.position.x, body.position.z);
+  if (dist > maxR && dist > 0.001) {
+    const s = maxR / dist;
+    body.position.x *= s;
+    body.position.z *= s;
+  }
+  syncBodyPosition(body);
+  return body.userData.ldragoAbsorbPhaseT >= LDRAGO_ABSORB_PIERCE_DUR;
+}
+
+/** Physics-rate phase machine: coil gather → accelerating rush → pierce coast. */
 function stepLdragoAbsorbRush(state, dt) {
   for (const side of ['player', 'ai']) {
     const spSlot = state.abilities?.[side]?.special;
-    if (!spSlot?.active || spSlot.ability.id !== 'ldrago_absorb_break') continue;
+    if (!spSlot || spSlot.ability.id !== 'ldrago_absorb_break') continue;
     const body = side === 'player' ? state.playerBody : state.aiBody;
     const opp = side === 'player' ? state.aiBody : state.playerBody;
-    if (!body || body.userData.ldragoAbsorbPhase !== 'rush') continue;
-    if (advanceLdragoAbsorbRush(state, side, body, opp, dt)) {
-      body.userData.ldragoAbsorbDashDone = true;
+    if (!body) continue;
+
+    const inMove =
+      spSlot.windupRemaining > 0 ||
+      spSlot.active ||
+      body.userData.ldragoAbsorbPhase != null;
+    if (!inMove) continue;
+
+    pinLdragoAbsorbPhysics(body);
+
+    if (spSlot.windupRemaining > 0) {
+      body.userData.ldragoAbsorbPhase = 'windup';
+      continue;
+    }
+
+    if (!spSlot.active && body.userData.ldragoAbsorbPhase == null) continue;
+
+    const phase = body.userData.ldragoAbsorbPhase;
+
+    if (phase === 'coil') {
+      body.userData.ldragoAbsorbPhaseT = (body.userData.ldragoAbsorbPhaseT ?? 0) + dt;
+      body.userData.ldragoAbsorbRush = false;
+      body.userData.ldragoAbsorbWindup = true;
+      if (opp) pullTowardAbsorb(body, opp, LDRAGO_ABSORB_PULL_RATE * 0.55 * dt);
+      if (body.userData.ldragoAbsorbPhaseT >= LDRAGO_ABSORB_COIL_DUR) {
+        body.userData.ldragoAbsorbPhase = 'rush';
+        body.userData.ldragoAbsorbPhaseT = 0;
+        body.userData.ldragoAbsorbWindup = false;
+        body.userData.ldragoAbsorbRush = true;
+        body.userData.ldragoAbsorbFromX = body.position.x;
+        body.userData.ldragoAbsorbFromZ = body.position.z;
+        initLdragoAbsorbTarget(body, opp);
+      }
+      continue;
+    }
+
+    if (phase === 'rush') {
+      if (advanceLdragoAbsorbRush(state, side, body, opp, dt)) {
+        // Missed / reached rim — end after a short coast if we already hit.
+        if (body.userData.ldragoAbsorbHit) beginLdragoAbsorbPierce(body);
+        else body.userData.ldragoAbsorbDashDone = true;
+      }
+      continue;
+    }
+
+    if (phase === 'pierce') {
+      if (advanceLdragoAbsorbPierce(body, dt)) {
+        body.userData.ldragoAbsorbDashDone = true;
+      }
+      continue;
     }
   }
 }
@@ -1561,14 +1661,16 @@ export const ABILITY_REGISTRY = {
     glow: METEO_GLOW,
     onActivate(ctx) {
       const b = ctx.body;
-      b.userData.airborne = true;
+      // Grounded cinematic rush — do NOT set airborne (that hijacks Soaring Destruction VFX).
       b.userData.controlLocked = true;
       b.userData.invulnerable = true;
-      b.userData.ldragoAbsorbPhase = 'rush';
+      b.userData.ldragoAbsorbPhase = 'coil';
       b.userData.ldragoAbsorbPhaseT = 0;
+      b.userData.ldragoAbsorbWindup = true;
+      b.userData.ldragoAbsorbRush = false;
       delete b.userData.ldragoAbsorbHit;
       delete b.userData.ldragoAbsorbDashDone;
-      delete b.userData.ldragoAbsorbWindup;
+      delete b.userData.ldragoAbsorbSpeed;
       b.userData.ldragoAbsorbFromX = b.position.x;
       b.userData.ldragoAbsorbFromZ = b.position.z;
       initLdragoAbsorbTarget(b, ctx.opponentBody);
@@ -2194,9 +2296,14 @@ function applyAbilityWindupSetup(state, side, ability) {
   }
   if (ability.id === 'ldrago_absorb_break') {
     body.userData.controlLocked = true;
+    body.userData.invulnerable = true;
     body.userData.ldragoAbsorbWindup = true;
+    body.userData.ldragoAbsorbPhase = 'windup';
+    body.userData.ldragoAbsorbPhaseT = 0;
     body.userData.ldragoAbsorbFromX = body.position.x;
     body.userData.ldragoAbsorbFromZ = body.position.z;
+    setAirborneKinematic(body);
+    setBodyCollisions(body, false);
   }
   if (ability.id === 'leone_lion_wall') {
     body.userData.controlLocked = true;
@@ -3168,9 +3275,11 @@ export function tickLdragoAbilityVisuals(state, dt) {
     // --- Absorb Break (special) ---
     const spAbsorb = runtime.special;
     if (spAbsorb?.ability?.id === 'ldrago_absorb_break') {
-      const inWindup = spAbsorb.windupRemaining > 0 || body.userData.ldragoAbsorbWindup;
-      const inActive = spAbsorb.active;
-      const inMove = inWindup || inActive || body.userData.ldragoAbsorbPhase != null;
+      const phase = body.userData.ldragoAbsorbPhase;
+      const inWindup = spAbsorb.windupRemaining > 0 || phase === 'windup';
+      const inCoil = phase === 'coil' || (!!body.userData.ldragoAbsorbWindup && phase !== 'rush' && phase !== 'pierce');
+      const inActive = spAbsorb.active || phase === 'rush' || phase === 'pierce';
+      const inMove = inWindup || inCoil || inActive || phase != null;
       if (inMove) {
         body.position.y = groundY(body);
         body.velocity.set(0, 0, 0);
@@ -3179,32 +3288,51 @@ export function tickLdragoAbilityVisuals(state, dt) {
 
         if (body.userData.ldragoAbsorbImpact) {
           body.userData.ldragoAbsorbImpactT = (body.userData.ldragoAbsorbImpactT ?? 0) + dt;
-          if (body.userData.ldragoAbsorbImpactT > 0.18) {
+          if (body.userData.ldragoAbsorbImpactT > 0.22) {
             body.userData.ldragoAbsorbImpact = false;
             delete body.userData.ldragoAbsorbImpactT;
           }
         }
 
-        if (inWindup) {
+        if (inWindup || phase === 'coil') {
           const windup = slotWindupTotal(spAbsorb, LDRAGO_ABSORB_WINDUP);
-          const t = clamp01(windup > 0 ? 1 - spAbsorb.windupRemaining / windup : 1);
-          if (opp && t > 0.2) pullTowardAbsorb(body, opp, LDRAGO_ABSORB_PULL_RATE * dt);
+          let t;
+          if (spAbsorb.windupRemaining > 0) {
+            t = clamp01(windup > 0 ? 1 - spAbsorb.windupRemaining / windup : 1);
+          } else {
+            // Post-logo coil beat — keep gathering before the rush launches.
+            const coilT = clamp01((body.userData.ldragoAbsorbPhaseT ?? 0) / LDRAGO_ABSORB_COIL_DUR);
+            t = 0.72 + 0.28 * easeOutQuad(coilT);
+          }
+          if (opp && t > 0.15) pullTowardAbsorb(body, opp, LDRAGO_ABSORB_PULL_RATE * dt);
           body.userData.flightLift = 0;
-          body.userData.ldragoAbsorbCoilTilt = 0.18 * easeOutQuad(t);
+          body.userData.ldragoAbsorbCoilTilt = 0.22 * easeOutQuad(t);
           body.userData.flightTilt = body.userData.ldragoAbsorbCoilTilt;
-          body.userData.flightRoll = Math.sin(t * Math.PI * 4) * 0.06;
-          body.userData.flightSquash = 1 - 0.16 * easeOutQuad(t);
+          body.userData.flightRoll = Math.sin(t * Math.PI * 5) * 0.08;
+          body.userData.flightSquash = 1 - 0.2 * easeOutQuad(t);
+          if (body.userData.ldragoAbsorbDashDone) {
+            delete body.userData.ldragoAbsorbDashDone;
+            body.userData.ldragoAbsorbRush = false;
+            finishLdragoAbsorb(state, side, spAbsorb, body, dt);
+          }
           continue;
         }
 
-        if (inActive) {
+        if (phase === 'rush' || phase === 'pierce' || inActive) {
           const phaseT = body.userData.ldragoAbsorbPhaseT ?? 0;
-          const coilTilt = body.userData.ldragoAbsorbCoilTilt ?? 0.18;
-          const lean = 0.36;
-          const build = easeOutCubic(clamp01(phaseT / 0.2));
-          body.userData.flightTilt = coilTilt + (lean - coilTilt) * build;
-          body.userData.flightSquash = 1 + 0.05 * build;
-          body.userData.flightRoll = (body.userData.ldragoAbsorbNz ?? 0) * 0.06 * build;
+          const coilTilt = body.userData.ldragoAbsorbCoilTilt ?? 0.22;
+          if (phase === 'pierce') {
+            const pierceT = clamp01(phaseT / LDRAGO_ABSORB_PIERCE_DUR);
+            body.userData.flightTilt = 0.34 * (1 - pierceT * 0.55);
+            body.userData.flightSquash = 1.08 - 0.08 * easeOutCubic(pierceT);
+            body.userData.flightRoll = (body.userData.ldragoAbsorbNz ?? 0) * 0.05 * (1 - pierceT);
+          } else {
+            const lean = 0.38;
+            const build = easeOutCubic(clamp01(phaseT / 0.32));
+            body.userData.flightTilt = coilTilt + (lean - coilTilt) * build;
+            body.userData.flightSquash = 1 + 0.08 * build;
+            body.userData.flightRoll = (body.userData.ldragoAbsorbNz ?? 0) * 0.07 * build;
+          }
           if (body.userData.ldragoAbsorbDashDone) {
             delete body.userData.ldragoAbsorbDashDone;
             body.userData.ldragoAbsorbRush = false;
@@ -3523,7 +3651,13 @@ export function tickAbilityTimers(state, dt) {
             const phase = body?.userData.ldragoAbsorbPhase;
             if (body && phase == null) {
               finishLdragoAbsorb(state, side, slot, body, dt);
-            } else if (body && (phase === 'rush' || body.userData.ldragoAbsorbDashDone)) {
+            } else if (
+              body &&
+              (phase === 'rush' ||
+                phase === 'pierce' ||
+                phase === 'coil' ||
+                body.userData.ldragoAbsorbDashDone)
+            ) {
               releaseLdragoAbsorbControl(body);
               finishLdragoAbsorb(state, side, slot, body, dt);
             }
@@ -3898,6 +4032,7 @@ export function clearAbilityFlags(body) {
   delete body.userData.ldragoAbsorbWindup;
   delete body.userData.ldragoAbsorbRush;
   delete body.userData.ldragoAbsorbImpact;
+  delete body.userData.ldragoAbsorbSpeed;
   body.userData.lionWallWindup = false;
   body.userData.ldragoFlightWindup = false;
   body.userData.sonicBusterWindup = false;
