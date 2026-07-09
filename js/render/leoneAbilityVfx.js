@@ -506,8 +506,8 @@ export function createLeoneAbilityVfx(scene) {
     innerShell.material.opacity = 0.14 * env;
     crownMist.material.opacity = 0.42 * env;
     crownMistOuter.material.opacity = 0.28 * env;
-    groundRing.material.opacity = 0.14 * env;
-    groundOuter.material.opacity = 0.08 * env;
+    groundRing.material.opacity = 0.05 * env;
+    groundOuter.material.opacity = 0.03 * env;
 
     for (let i = 0; i < ribbons.length; i++) {
       const r = ribbons[i];
