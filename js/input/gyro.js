@@ -8,6 +8,41 @@ function mediumTiltCurve(magnitude) {
   return m * (1 + 0.2 * (1 - m));
 }
 
+function needsIosMotionPermission() {
+  return (
+    (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') ||
+    (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function')
+  );
+}
+
+/**
+ * Ask iOS for motion/orientation access.
+ * MUST be called as the first await inside a real user-gesture handler
+ * (tap/click). Any prior await or screen.orientation.lock() burns the
+ * transient activation and Safari will not show the prompt.
+ */
+async function requestSensorPermission(EventCtor) {
+  if (
+    typeof EventCtor === 'undefined' ||
+    typeof EventCtor.requestPermission !== 'function'
+  ) {
+    return { ok: true, state: 'not-required' };
+  }
+  try {
+    const state = await EventCtor.requestPermission();
+    return { ok: state === 'granted', state: String(state) };
+  } catch (err) {
+    return {
+      ok: false,
+      state: 'error',
+      error: err?.name || 'Error',
+      message: err?.message || String(err),
+    };
+  }
+}
+
 export function createGyroInput(canvas) {
   let calibBeta = 0;
   let calibGamma = 0;
@@ -19,29 +54,39 @@ export function createGyroInput(canvas) {
   let usingMouse = false;
   let mouseSteerX = 0;
   let mouseSteerZ = 0;
+  let listening = false;
 
   function onDeviceOrientation(event) {
     if (event.beta == null || event.gamma == null) return;
     rawBeta = event.beta;
     rawGamma = event.gamma;
     hasOrientation = true;
+    usingMouse = false;
     gyroBeta = event.beta - calibBeta;
     gyroGamma = event.gamma - calibGamma;
   }
 
   async function requestMotionPermission() {
-    if (
-      typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function'
-    ) {
-      try {
-        const state = await DeviceOrientationEvent.requestPermission();
-        return state === 'granted';
-      } catch {
-        return false;
-      }
+    // Non-iOS browsers: orientation events work without a prompt.
+    if (!needsIosMotionPermission()) {
+      return { granted: true, reason: 'not-required' };
     }
-    return true;
+
+    // Request BOTH APIs when present — some iOS builds gate orientation
+    // behind the motion permission dialog (and vice versa).
+    // Call them back-to-back without intervening awaits that aren't the
+    // permission call itself; Safari still treats the second as part of
+    // the same gesture while the first prompt is resolving.
+    const orientation = await requestSensorPermission(DeviceOrientationEvent);
+    const motion = await requestSensorPermission(DeviceMotionEvent);
+
+    const granted = orientation.ok || motion.ok;
+    return {
+      granted,
+      reason: granted ? 'granted' : 'denied',
+      orientation,
+      motion,
+    };
   }
 
   function calibrateGyro(event) {
@@ -58,18 +103,26 @@ export function createGyroInput(canvas) {
   }
 
   async function calibrateOnce() {
-    if (calibrateNow()) return;
+    if (calibrateNow()) return true;
     return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('deviceorientation', handler, true);
+        resolve(ok);
+      };
       const handler = (e) => {
+        if (e.beta == null || e.gamma == null) return;
         calibrateGyro(e);
         hasOrientation = true;
         rawBeta = e.beta || 0;
         rawGamma = e.gamma || 0;
-        window.removeEventListener('deviceorientation', handler, true);
-        resolve();
+        finish(true);
       };
       window.addEventListener('deviceorientation', handler, true);
-      setTimeout(resolve, 300);
+      // Give sensors a moment after permission grant before giving up.
+      setTimeout(() => finish(hasOrientation), 800);
     });
   }
 
@@ -85,6 +138,8 @@ export function createGyroInput(canvas) {
   });
 
   function startListening() {
+    if (listening) return;
+    listening = true;
     window.addEventListener('deviceorientation', onDeviceOrientation, true);
   }
 
@@ -117,13 +172,18 @@ export function createGyroInput(canvas) {
   }
 
   return {
+    needsIosMotionPermission,
     requestMotionPermission,
     calibrateOnce,
     calibrateNow,
     startListening,
     applyGyroSteer,
+    hasOrientation: () => hasOrientation,
     setMouseFallback() {
       usingMouse = true;
+    },
+    clearMouseFallback() {
+      usingMouse = false;
     },
   };
 }
