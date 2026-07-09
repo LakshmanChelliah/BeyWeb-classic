@@ -75,17 +75,17 @@ export function createPegasusSpeedBoostVfx(scene) {
   root.add(core);
 
   const trail = createTrailSystem(scene, {
-    rate: 55,
-    startSize: [0.15, 0.45],
-    startLife: [0.15, 0.35],
-    colorA: new Vector4(0.4, 0.7, 1, 0.9),
+    rate: 80,
+    startSize: [0.18, 0.55],
+    startLife: [0.18, 0.4],
+    colorA: new Vector4(0.4, 0.7, 1, 0.95),
     colorB: new Vector4(0.8, 0.95, 1, 0),
   });
 
   const activateBurst = createBurstSystem(scene, {
     additive: true,
-    startSpeed: [5, 14],
-    startSize: [0.1, 0.4],
+    startSpeed: [6, 16],
+    startSize: [0.12, 0.48],
     gravity: -2,
     colorA: new Vector4(0.55, 0.8, 1, 1),
     colorB: new Vector4(0.9, 0.97, 1, 0),

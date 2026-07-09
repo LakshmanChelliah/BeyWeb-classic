@@ -145,18 +145,27 @@ export function createStarBlastVfx(scene) {
   core.renderOrder = 6;
   root.add(core);
 
-  // Soft spirit wing planes (Pegasus motif trailing the bey).
+  // Soft spirit wing planes (Pegasus motif trailing the bey — canon beast follow).
   const spiritWings = [];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 4; i++) {
     const wing = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.8, 1.6),
-      makeTrailMat(BLUE_PALE, 0)
+      new THREE.PlaneGeometry(i < 2 ? 3.1 : 2.2, i < 2 ? 1.75 : 1.2),
+      makeTrailMat(i < 2 ? BLUE_PALE : BLUE_LIGHT, 0)
     );
     wing.visible = false;
     wing.renderOrder = 3;
     root.add(wing);
     spiritWings.push(wing);
   }
+
+  // Soft blue body glow during dive (canon "Pegasus glows blue").
+  const blueGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.4, 2.4),
+    makeTrailMat(BLUE, 0)
+  );
+  blueGlow.visible = false;
+  blueGlow.renderOrder = 4;
+  root.add(blueGlow);
 
   const starTex = createFourRayStarTexture();
   const apexStar = new THREE.Mesh(
@@ -273,6 +282,8 @@ export function createStarBlastVfx(scene) {
       w.visible = false;
       w.material.opacity = 0;
     }
+    blueGlow.visible = false;
+    blueGlow.material.opacity = 0;
     ribbon.visible = false;
     core.visible = false;
     apexStar.visible = false;
@@ -444,21 +455,41 @@ export function createStarBlastVfx(scene) {
         billboard(ribbon, camera);
       }
 
-      // Spirit wings during ascend / dive.
+      // Spirit wings during ascend / dive — primary pair + trailing afterimages.
       const spiritOn = phase === 'ascend' || phase === 'dive';
       for (let i = 0; i < spiritWings.length; i++) {
         const wing = spiritWings[i];
         wing.visible = spiritOn;
         if (!spiritOn) continue;
-        const side = i === 0 ? -1 : 1;
+        const pair = i % 2;
+        const layer = Math.floor(i / 2);
+        const side = pair === 0 ? -1 : 1;
         const flap = Math.sin(performance.now() * 0.012 + i) * 0.35;
         wing.position.copy(_pos);
-        wing.position.addScaledVector(_right, side * (1.4 + flap * 0.2));
-        wing.position.addScaledVector(_smoothDir, -0.6);
-        wing.position.y += 0.4;
+        wing.position.addScaledVector(_right, side * (1.45 + flap * 0.22 + layer * 0.15));
+        wing.position.addScaledVector(_smoothDir, -0.55 - layer * 0.85);
+        wing.position.y += 0.45 - layer * 0.1;
         billboard(wing, camera);
-        wing.scale.set(1.1 + speedFactor * 0.4, 0.7 + Math.abs(flap) * 0.3, 1);
-        wing.material.opacity = 0.18 + intensity * 0.22;
+        const layerScale = 1 - layer * 0.18;
+        wing.scale.set(
+          (1.2 + speedFactor * 0.45) * layerScale,
+          (0.75 + Math.abs(flap) * 0.35) * layerScale,
+          1
+        );
+        wing.material.opacity = (0.22 + intensity * 0.28) * (1 - layer * 0.35);
+      }
+
+      // Blue glow body sheath on dive (and late ascend).
+      const glowOn = phase === 'dive' || (phase === 'ascend' && lift > 20);
+      blueGlow.visible = glowOn;
+      if (glowOn) {
+        blueGlow.position.copy(_pos);
+        billboard(blueGlow, camera);
+        const pulse = 1 + Math.sin(performance.now() * 0.01) * 0.06;
+        blueGlow.scale.setScalar(topGroup.scale.x * (1.1 + speedFactor * 0.4) * pulse);
+        blueGlow.material.opacity = phase === 'dive' ? 0.32 + intensity * 0.18 : 0.18;
+      } else {
+        blueGlow.material.opacity = 0;
       }
 
       core.visible = showTrail;
@@ -466,7 +497,7 @@ export function createStarBlastVfx(scene) {
         core.position.copy(_pos);
         billboard(core, camera);
         core.scale.setScalar(topGroup.scale.x * (0.55 + speedFactor * 0.35));
-        core.material.color.setHex(WHITE);
+        core.material.color.setHex(phase === 'dive' ? BLUE_PALE : WHITE);
         core.material.opacity = 0.16 + speedFactor * 0.35 * intensity;
       }
 

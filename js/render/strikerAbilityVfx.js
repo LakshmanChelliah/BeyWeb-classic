@@ -1,3 +1,8 @@
+/**
+ * Ray Striker — Blitz Charge + Lightning Sword Flash VFX.
+ * Canon Flash (紫電の一閃): purple lightning pierce; anime vanish as green light rays.
+ * Blitz Charge keeps teal speed trails. No vanish rings.
+ */
 import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
 import { CONFIG } from '../config.js';
@@ -8,11 +13,21 @@ import {
   ensureQuarksRuntime,
   Vector4,
 } from './vfx/quarksRuntime.js';
+import { createGreenRayBurst, createSparkBurst } from './vfx/presets.js';
 
 const TEAL = 0x14b8a6;
 const TEAL_LIGHT = 0x2dd4bf;
 const TEAL_PALE = 0x5eead4;
 const TEAL_WHITE = 0xccfbf1;
+
+const PURPLE = 0xa855f7;
+const PURPLE_LIGHT = 0xc084fc;
+const PURPLE_PALE = 0xe9d5ff;
+const PURPLE_HOT = 0xfaf5ff;
+
+const GREEN = 0x4ade80;
+const GREEN_LIGHT = 0x86efac;
+const GREEN_PALE = 0xdcfce7;
 
 const _pos = new THREE.Vector3();
 const _lastPos = new THREE.Vector3();
@@ -36,7 +51,6 @@ function makeMat(color, opacity, additive = true) {
   });
 }
 
-/** Teal Blitz Charge trails + Lightning Sword Flash vanish / reappear / dash. */
 export function createStrikerAbilityVfx(scene) {
   ensureQuarksRuntime(scene);
   const root = new THREE.Group();
@@ -49,22 +63,16 @@ export function createStrikerAbilityVfx(scene) {
     colorA: new Vector4(0.2, 0.95, 0.85, 0.95),
     colorB: new Vector4(0.75, 1, 0.95, 0),
   });
-  const flashBurst = createBurstSystem(scene, {
-    additive: true,
-    startSpeed: [8, 20],
-    startSize: [0.12, 0.5],
-    gravity: -2,
-    colorA: new Vector4(0.25, 1, 0.9, 1),
-    colorB: new Vector4(0.85, 1, 0.98, 0),
-  });
+  const purpleFlashBurst = createSparkBurst(scene, { tint: 'purple' });
+  const greenVanishBurst = createGreenRayBurst(scene);
   const bounceDust = createBurstSystem(scene, {
     additive: false,
-    dustyColor: 0x5eead4,
+    dustyColor: 0xc084fc,
     startSpeed: [4, 12],
     startSize: [0.15, 0.55],
     gravity: -12,
-    colorA: new Vector4(0.35, 0.9, 0.8, 0.9),
-    colorB: new Vector4(0.15, 0.4, 0.35, 0),
+    colorA: new Vector4(0.7, 0.45, 0.95, 0.9),
+    colorB: new Vector4(0.35, 0.15, 0.55, 0),
   });
 
   const blitzGroup = new THREE.Group();
@@ -74,7 +82,7 @@ export function createStrikerAbilityVfx(scene) {
   root.add(vanishGroup);
   root.add(dashGroup);
 
-  // --- Blitz Charge ---
+  // --- Blitz Charge (teal) ---
   const blitzStreaks = [];
   for (let i = 0; i < 6; i++) {
     const mesh = new THREE.Mesh(
@@ -104,50 +112,59 @@ export function createStrikerAbilityVfx(scene) {
   blitzCore.renderOrder = 7;
   blitzGroup.add(blitzCore);
 
-  // --- Lightning Sword Flash ---
+  // --- Lightning Sword Flash — green vanish rays ---
   const vanishCore = new THREE.Mesh(
     new THREE.PlaneGeometry(1.25, 1.25),
-    makeMat(TEAL_WHITE, 0)
+    makeMat(GREEN_PALE, 0)
   );
   vanishCore.renderOrder = 9;
   vanishGroup.add(vanishCore);
 
   const vanishStreaks = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.04, 1.55),
-      makeMat(TEAL_PALE, 0)
+      new THREE.PlaneGeometry(0.045, 1.85),
+      makeMat(i % 2 === 0 ? GREEN_LIGHT : GREEN, 0)
     );
     mesh.renderOrder = 7;
     vanishGroup.add(mesh);
-    vanishStreaks.push({ mesh, angle: (i / 8) * Math.PI * 2 });
+    vanishStreaks.push({ mesh, angle: (i / 10) * Math.PI * 2 });
   }
 
   const afterimage = new THREE.Mesh(
     new THREE.PlaneGeometry(1.2, 1.2),
-    makeMat(TEAL, 0, false)
+    makeMat(GREEN, 0, false)
   );
   afterimage.renderOrder = 4;
   vanishGroup.add(afterimage);
 
+  // Reappear / pierce — purple lightning sword motif.
   const reappearBurst = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.4, 1.4),
-    makeMat(TEAL_WHITE, 0)
+    new THREE.PlaneGeometry(1.5, 1.5),
+    makeMat(PURPLE_HOT, 0)
   );
   reappearBurst.renderOrder = 10;
   dashGroup.add(reappearBurst);
 
-  // Sword-motif dash streaks (elongated teal blades, not literal props).
+  // Sword-motif dash streaks — purple lightning blades.
   const dashStreaks = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.05, 2.0),
-      makeMat(i % 2 === 0 ? TEAL_WHITE : TEAL_PALE, 0)
+      new THREE.PlaneGeometry(0.055, 2.35),
+      makeMat(i % 2 === 0 ? PURPLE_HOT : PURPLE_LIGHT, 0)
     );
     mesh.renderOrder = 6;
     dashGroup.add(mesh);
-    dashStreaks.push({ mesh, offset: i / 6 });
+    dashStreaks.push({ mesh, offset: i / 7 });
   }
+
+  // Central pierce beam during dash (single-point purple lightning).
+  const pierceBeam = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.22, 3.4),
+    makeMat(PURPLE_PALE, 0)
+  );
+  pierceBeam.renderOrder = 8;
+  dashGroup.add(pierceBeam);
 
   const history = Array.from({ length: HISTORY_LEN }, () => new THREE.Vector3());
   let historyCount = 0;
@@ -181,6 +198,7 @@ export function createStrikerAbilityVfx(scene) {
     setOpacity(vanishCore, 0);
     setOpacity(afterimage, 0);
     setOpacity(reappearBurst, 0);
+    setOpacity(pierceBeam, 0);
     for (const s of vanishStreaks) setOpacity(s.mesh, 0);
     for (const s of dashStreaks) setOpacity(s.mesh, 0);
   }
@@ -289,8 +307,8 @@ export function createStrikerAbilityVfx(scene) {
         const yBase = body.position.y + (body.userData.visualYOffset ?? 0) * 0.4;
 
         if (boostT < 0.08 && !didVanishBurst) {
-          flashBurst.setPosition(_pos.x, yBase, _pos.z);
-          flashBurst.burst(22);
+          purpleFlashBurst.setPosition(_pos.x, yBase, _pos.z);
+          purpleFlashBurst.burst(18);
           didVanishBurst = true;
         }
         blitzTrail.follow(_pos.x, yBase, _pos.z, speedFactor > 0.08);
@@ -348,35 +366,38 @@ export function createStrikerAbilityVfx(scene) {
         const burst = 1 - t;
 
         if (!didVanishBurst) {
-          flashBurst.setPosition(vx, floorY + R * 0.3, vz);
-          flashBurst.burst(42);
+          greenVanishBurst.setPosition(vx, floorY + R * 0.3, vz);
+          greenVanishBurst.burst(48);
           didVanishBurst = true;
           didReappearBurst = false;
         }
 
         vanishCore.position.set(0, R * 0.42, 0);
         billboard(vanishCore, camera);
-        vanishCore.scale.setScalar(R * (1.0 - t * 0.5));
-        setOpacity(vanishCore, burst * 0.7);
+        vanishCore.scale.setScalar(R * (1.05 - t * 0.5));
+        setOpacity(vanishCore, burst * 0.75);
 
         afterimage.position.set(0, R * 0.4, 0);
         billboard(afterimage, camera);
         afterimage.scale.setScalar(R * 0.95);
-        setOpacity(afterimage, (1 - t) * 0.32);
+        setOpacity(afterimage, (1 - t) * 0.35);
 
+        // Green light rays shooting outward (anime teleport motif).
         for (const s of vanishStreaks) {
-          const len = R * (1.0 + t * 2.2);
+          const len = R * (1.15 + t * 2.6);
           s.mesh.position.set(
-            Math.cos(s.angle) * len * 0.45,
-            R * 0.32 + Math.sin(s.angle * 2) * 0.06,
-            Math.sin(s.angle) * len * 0.45
+            Math.cos(s.angle) * len * 0.5,
+            R * 0.35 + Math.sin(s.angle * 2) * 0.08,
+            Math.sin(s.angle) * len * 0.5
           );
           s.mesh.rotation.y = s.angle;
           billboard(s.mesh, camera);
-          setOpacity(s.mesh, burst * 0.4 * (0.7 + 0.3 * Math.sin(s.angle * 3)));
+          s.mesh.scale.set(1, 1.1 + burst * 0.6, 1);
+          setOpacity(s.mesh, burst * 0.5 * (0.7 + 0.3 * Math.sin(s.angle * 3)));
         }
 
         setOpacity(reappearBurst, 0);
+        setOpacity(pierceBeam, 0);
         for (const s of dashStreaks) setOpacity(s.mesh, 0);
         return;
       }
@@ -396,16 +417,16 @@ export function createStrikerAbilityVfx(scene) {
       if (reappearing) {
         const flash = phase === 'reappear' ? reappear : 0;
         if (!didReappearBurst) {
-          flashBurst.setPosition(body.position.x, floorY + R * 0.35, body.position.z);
-          flashBurst.burst(40);
+          purpleFlashBurst.setPosition(body.position.x, floorY + R * 0.35, body.position.z);
+          purpleFlashBurst.burst(44);
           didReappearBurst = true;
           didVanishBurst = false;
         }
 
         reappearBurst.position.set(0, R * 0.45, 0);
         billboard(reappearBurst, camera);
-        reappearBurst.scale.setScalar(R * (0.8 + (1 - flash) * 0.4));
-        setOpacity(reappearBurst, flash * 0.75);
+        reappearBurst.scale.setScalar(R * (0.85 + (1 - flash) * 0.45));
+        setOpacity(reappearBurst, flash * 0.8);
       } else {
         setOpacity(reappearBurst, 0);
       }
@@ -413,16 +434,25 @@ export function createStrikerAbilityVfx(scene) {
       if (inDash) {
         const nx = body.userData.strikerCoastNx ?? 0;
         const nz = body.userData.strikerCoastNz ?? 0;
+        const yaw = Math.atan2(nx, nz);
+
+        pierceBeam.position.set(-nx * R * 0.2, R * 0.4, -nz * R * 0.2);
+        pierceBeam.rotation.y = yaw;
+        billboard(pierceBeam, camera);
+        pierceBeam.scale.set(1.1, 1.25 + Math.sin(dashSpin * 4) * 0.1, 1);
+        setOpacity(pierceBeam, 0.55 + 0.2 * Math.sin(dashSpin * 5));
+
         for (let i = 0; i < dashStreaks.length; i++) {
           const s = dashStreaks[i];
-          const lag = s.offset * R * 1.6;
-          const side = (i - (dashStreaks.length - 1) * 0.5) * 0.08;
+          const lag = s.offset * R * 1.7;
+          const side = (i - (dashStreaks.length - 1) * 0.5) * 0.09;
           s.mesh.position.set(-nx * lag + nz * side, R * 0.38, -nz * lag - nx * side);
-          s.mesh.rotation.y = Math.atan2(nx, nz);
+          s.mesh.rotation.y = yaw;
           billboard(s.mesh, camera);
-          setOpacity(s.mesh, 0.32 + 0.18 * Math.sin(dashSpin * 3.5 + i));
+          setOpacity(s.mesh, 0.38 + 0.2 * Math.sin(dashSpin * 3.5 + i));
         }
       } else {
+        setOpacity(pierceBeam, 0);
         for (const s of dashStreaks) setOpacity(s.mesh, 0);
       }
     },

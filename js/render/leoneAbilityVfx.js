@@ -8,6 +8,7 @@ import {
   ensureQuarksRuntime,
   Vector4,
 } from './vfx/quarksRuntime.js';
+import { createWindDebris, createSparkBurst } from './vfx/presets.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -66,6 +67,7 @@ const RIBBON_COUNT = 6;
 const DEBRIS_COUNT = 36;
 const DUST_COUNT = 48;
 const STREAK_COUNT = 28;
+const LIGHTNING_VEIN_COUNT = 12;
 
 /**
  * Swirling green wind sheet — vertical streaks + soft horizontal bands
@@ -267,18 +269,12 @@ export function createLeoneAbilityVfx(scene) {
     colorB: new Vector4(0.2, 0.45, 0.25, 0),
   });
 
-  const galeDebris = createTrailSystem(scene, {
-    rate: 55,
-    startSize: [0.12, 0.4],
-    startLife: [0.3, 0.7],
-    startSpeed: [1, 4],
-    gravity: -2,
-    colorA: new Vector4(0.75, 0.85, 0.35, 0.7),
-    colorB: new Vector4(0.4, 0.45, 0.2, 0),
-  });
+  const galeDebris = createWindDebris(scene);
+  const trueWallLightning = createSparkBurst(scene, { tint: 'green' });
 
   let anchorShockT = 0;
   let wasAnchoring = false;
+  let lastLightningBurst = 0;
 
   // --- 3D Tornado funnel (Lion Gale Force Wall) --------------------------------
   const tornadoGroup = new THREE.Group();
@@ -399,6 +395,24 @@ export function createLeoneAbilityVfx(scene) {
   crownMistOuter.renderOrder = 9;
   funnelGroup.add(crownMistOuter);
 
+  // True Lion Gale Force Wall — green lightning veins laced through the funnel.
+  const lightningVeins = [];
+  for (let i = 0; i < LIGHTNING_VEIN_COUNT; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.06, 1.8 + (i % 3) * 0.4),
+      makeMat(i % 2 === 0 ? GALE_CORE : GALE_PALE, 0, { additive: true })
+    );
+    mesh.visible = false;
+    mesh.renderOrder = 12;
+    funnelGroup.add(mesh);
+    lightningVeins.push({
+      mesh,
+      phase: (i / LIGHTNING_VEIN_COUNT) * Math.PI * 2,
+      heightBias: 0.15 + (i % 5) * 0.15,
+      flicker: Math.random() * Math.PI * 2,
+    });
+  }
+
   // Orbiting debris / dust / wind streaks for volume and grit.
   function spawnOrbitPool(count, kind) {
     const pool = [];
@@ -452,8 +466,13 @@ export function createLeoneAbilityVfx(scene) {
       p.mesh.visible = false;
       p.mesh.material.opacity = 0;
     }
+    for (const v of lightningVeins) {
+      v.mesh.visible = false;
+      v.mesh.material.opacity = 0;
+    }
     funnelGroup.scale.setScalar(0.01);
     galeDebris.stop();
+    lastLightningBurst = 0;
   }
 
   function setParticleVisible(mesh, opacity) {
@@ -641,6 +660,10 @@ export function createLeoneAbilityVfx(scene) {
             billboard(p.mesh, camera);
             setParticleVisible(p.mesh, 0.28 * e * (p.kind === 'debris' ? 1 : 0.6));
           }
+          for (const v of lightningVeins) {
+            v.mesh.visible = false;
+            v.mesh.material.opacity = 0;
+          }
         } else {
           wallOrbitAngle += dt * 5.8;
           const fadeIn = clamp01(wallT / 0.22);
@@ -675,6 +698,27 @@ export function createLeoneAbilityVfx(scene) {
 
           for (const p of allParticles) {
             placeHelicalParticle(p, spin, reach, env, camera);
+          }
+
+          // True Wall green lightning veins laced through the funnel.
+          for (let i = 0; i < lightningVeins.length; i++) {
+            const v = lightningVeins[i];
+            v.flicker += dt * (8 + (i % 4));
+            const ang = v.phase + spin * 1.8;
+            const t = v.heightBias;
+            const r = tornadoRadiusAt(t, reach) * 0.92;
+            const h = t * TORNADO_HEIGHT;
+            v.mesh.position.set(Math.cos(ang) * r, h, Math.sin(ang) * r);
+            v.mesh.rotation.set(0.15, ang + Math.PI / 2, Math.sin(v.flicker) * 0.2);
+            const flash = 0.35 + 0.65 * Math.max(0, Math.sin(v.flicker * 1.7));
+            setParticleVisible(v.mesh, 0.45 * env * flash);
+          }
+
+          lastLightningBurst += dt;
+          if (lastLightningBurst > 0.45) {
+            lastLightningBurst = 0;
+            trueWallLightning.setPosition(bx, floorY + TORNADO_HEIGHT * 0.55, bz);
+            trueWallLightning.burst(18);
           }
         }
       } else {
