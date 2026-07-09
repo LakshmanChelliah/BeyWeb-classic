@@ -87,7 +87,7 @@ body.mobile {
   width: min(100%, 340px);
 }
 
-.boot-overlay .logo-ring {
+.boot-overlay .bey-icon {
   margin-bottom: 20px;
 }
 
@@ -291,17 +291,17 @@ body:not(.boot-ready) #select-overlay {
 
 /* Start-overlay brand mark: grey Storm Pegasus turntable */
 .bey-icon {
-  width: 112px;
-  height: 112px;
+  width: 120px;
+  height: 120px;
   margin: 0 auto 20px;
   border-radius: 50%;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
   background:
-    radial-gradient(circle at 50% 42%, rgba(160, 170, 185, 0.18) 0%, transparent 62%),
-    radial-gradient(circle at 50% 50%, rgba(20, 27, 48, 0.35) 0%, transparent 70%);
-  box-shadow: 0 0 28px rgba(120, 140, 170, 0.18);
+    radial-gradient(circle at 50% 40%, rgba(180, 190, 205, 0.22) 0%, transparent 58%),
+    radial-gradient(circle at 50% 55%, rgba(30, 38, 58, 0.45) 0%, transparent 72%);
+  box-shadow: 0 0 28px rgba(120, 140, 170, 0.2);
 }
 
 .bey-icon-canvas {

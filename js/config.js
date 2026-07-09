@@ -67,8 +67,8 @@ export const CONFIG = Object.freeze({
   COLLISION_SPARK_LIFE: 0.28,
   COLLISION_SPARK_COUNT_MIN: 22,
   COLLISION_SPARK_COUNT_MAX: 40,
-  COLLISION_SPARK_SPECIAL_SCALE: 1.55,
-  COLLISION_SPARK_SPECIAL_COUNT_BONUS: 10,
+  COLLISION_SPARK_SPECIAL_SCALE: 1.85,
+  COLLISION_SPARK_SPECIAL_COUNT_BONUS: 16,
   /** Seconds between spark bursts while beys stay in contact (grind / wall slide). */
   COLLISION_SPARK_SUSTAIN_INTERVAL: 0.035,
   /** Particle count multiplier for sustained-contact sparks vs impact bursts. */

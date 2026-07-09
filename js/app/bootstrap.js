@@ -8,6 +8,7 @@ import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
+import { mountBeyIcon } from '../ui/beyIcon.js';
 
 /**
  * Shared mobile/PC bootstrap: campaign, play setup, bey selection, and game wiring.
@@ -178,6 +179,17 @@ export function createAppBootstrap({
     isVsCpu: () => isVsCpu(gameMode),
     ui: queryGameUi(queryUiOptions),
     input,
+  });
+
+  // Mount after the game WebGL context exists so iOS can reuse it (no second context).
+  const getSharedRenderer = () => gameRef?.renderer ?? null;
+  mountBeyIcon(document.getElementById('boot-bey-icon'), {
+    overlayEl: document.getElementById('boot-overlay'),
+    getRenderer: getSharedRenderer,
+  });
+  mountBeyIcon(document.getElementById('start-bey-icon'), {
+    overlayEl: startOverlay,
+    getRenderer: getSharedRenderer,
   });
 
   ({ mode: gameMode, difficulty } = playSetup.getState());

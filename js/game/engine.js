@@ -62,6 +62,11 @@ import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
 import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
+import {
+  ensureQuarksRuntime,
+  updateQuarks,
+  resetQuarksRuntime,
+} from '../render/vfx/quarksRuntime.js';
 
 /**
  * Boots the shared game engine for PC (2-player) or mobile (gyro + AI).
@@ -74,6 +79,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   createArenaMesh(scene);
 
   const { playerGroup, aiGroup } = createTopGroups(scene);
+  ensureQuarksRuntime(scene);
   const starBlastVfx = {
     player: createStarBlastVfx(scene),
     ai: createStarBlastVfx(scene),
@@ -129,6 +135,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     strikerVfx.player.reset();
     strikerVfx.ai.reset();
     collisionSparksVfx.reset();
+    resetQuarksRuntime();
   }
 
   const contacts = setupContactHandlers(
@@ -280,7 +287,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
           return { color: sp.ability.glow, intensity: 2.4 };
         }
         const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.009);
-        return { color: sp.ability.glow, intensity: pulse * 1.45 };
+        return { color: sp.ability.glow, intensity: pulse * 1.85 };
       }
       if (sp.ability.id === 'leone_lion_wall') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
@@ -828,6 +835,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     strikerVfx.player.update(playerGroup, state.playerBody, camera, dt);
     strikerVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     collisionSparksVfx.update(camera, dt);
+    updateQuarks(dt);
 
     if (!state.gameFrozen) {
       updateCamera(camera, state, mode, getCameraCue(state, dt, mode));
@@ -842,5 +850,15 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
 
   gameLoop();
 
-  return { state, startGame, resetGame, returnToMenu, spawnTops, triggerAbility, playerGroup, aiGroup };
+  return {
+    state,
+    startGame,
+    resetGame,
+    returnToMenu,
+    spawnTops,
+    triggerAbility,
+    playerGroup,
+    aiGroup,
+    renderer,
+  };
 }

@@ -1,70 +1,140 @@
 import * as THREE from 'three';
-import { preloadTopModel, cloneTopModel } from '../render/modelCache.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { prepareTopModelHolder } from '../render/modelCache.js';
 
 const MODEL_URL = 'storm_pegasus.glb';
 /** Slow analysis spin — positive Y matches in-game Pegasus right-spin (spinSign +1). */
-const SPIN_RAD_PER_SEC = 0.6;
-const ICON_SIZE = 112;
-const GREY_BODY = new THREE.Color(0x9aa3ad);
-const GREY_METAL = new THREE.Color(0x6e7680);
+const SPIN_RAD_PER_SEC = 0.55;
+const ICON_CSS_PX = 120;
+const RT_SIZE = 384;
 
-/**
- * Recolor a cloned top for the monochrome “visual analysis” icon.
- * Mutates only this instance’s materials (cloned first).
- */
+const GREY_BODY = new THREE.Color(0xb0b8c2);
+const GREY_METAL = new THREE.Color(0x8e96a0);
+const GREY_ACCENT = new THREE.Color(0x5a616c);
+
+const gltfLoader = new GLTFLoader();
+
+/** Shared grey Pegasus template so boot + start icons load the GLB once. */
+let _greyTemplate = null;
+let _greyTemplatePromise = null;
+
 function applyGreyAnalysisMaterials(root) {
   root.traverse((child) => {
     if (!child.isMesh) return;
+    child.castShadow = false;
+    child.receiveShadow = false;
+    child.frustumCulled = false;
     const mats = Array.isArray(child.material) ? child.material : [child.material];
     const next = mats.map((mat) => {
       if (!mat) return mat;
-      const m = mat.clone();
-      const name = (m.name || '').toLowerCase();
-      const isMetal =
+      const name = (mat.name || '').toLowerCase();
+      const wasMetal =
         name.includes('045') ||
         name.includes('metal') ||
-        (typeof m.metalness === 'number' && m.metalness >= 0.7);
+        (typeof mat.metalness === 'number' && mat.metalness >= 0.3);
 
-      m.color?.copy(isMetal ? GREY_METAL : GREY_BODY);
-      if (m.map) {
-        m.map = null;
+      let color = wasMetal ? GREY_METAL : GREY_BODY;
+      if (mat.color) {
+        const lum = mat.color.r * 0.2126 + mat.color.g * 0.7152 + mat.color.b * 0.0722;
+        if (lum < 0.12) color = GREY_ACCENT;
+        else if (lum > 0.75) color = GREY_BODY;
       }
-      if (m.emissive) {
-        m.emissive.setHex(0x000000);
-        m.emissiveIntensity = 0;
-      }
-      if ('metalness' in m) m.metalness = isMetal ? 0.55 : 0.38;
-      if ('roughness' in m) m.roughness = isMetal ? 0.42 : 0.55;
-      if (m.transparent || m.opacity < 1) {
-        m.transparent = false;
-        m.opacity = 1;
-        m.depthWrite = true;
-      }
-      m.needsUpdate = true;
-      return m;
+
+      // Low metalness — high metal without env map reads black on mobile GPUs.
+      return new THREE.MeshStandardMaterial({
+        color: color.clone(),
+        metalness: 0.1,
+        roughness: wasMetal ? 0.42 : 0.55,
+        envMapIntensity: 0,
+        name: mat.name || 'bey-icon-grey',
+      });
     });
     child.material = Array.isArray(child.material) ? next : next[0];
   });
 }
 
-function fitModelInView(model) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
+function loadGreyPegasusTemplate() {
+  if (_greyTemplate) return Promise.resolve(_greyTemplate);
+  if (_greyTemplatePromise) return _greyTemplatePromise;
+
+  const modelUrl = new URL(MODEL_URL, window.location.href).href;
+  _greyTemplatePromise = new Promise((resolve, reject) => {
+    gltfLoader.load(
+      modelUrl,
+      (gltf) => {
+        try {
+          const holder = prepareTopModelHolder(gltf, MODEL_URL);
+          applyGreyAnalysisMaterials(holder);
+          _greyTemplate = holder;
+          resolve(holder);
+        } catch (err) {
+          reject(err);
+        }
+      },
+      undefined,
+      (err) => reject(err || new Error('Failed to load storm_pegasus.glb'))
+    );
+  }).finally(() => {
+    _greyTemplatePromise = null;
+  });
+
+  return _greyTemplatePromise;
+}
+
+function frameCameraToModel(root, camera) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  if (box.isEmpty()) return false;
+
   const center = box.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const scale = 1.15 / maxDim;
-  model.scale.multiplyScalar(scale);
+  root.position.x -= center.x;
+  root.position.y -= center.y;
+  root.position.z -= center.z;
+  root.updateMatrixWorld(true);
+
+  const fitted = new THREE.Box3().setFromObject(root);
+  const sphere = fitted.getBoundingSphere(new THREE.Sphere());
+  // Use horizontal disc radius so the face fills the circular icon.
+  const size = fitted.getSize(new THREE.Vector3());
+  const discR = Math.max(size.x, size.z, sphere.radius, 0.25) * 0.5;
+
+  const fov = THREE.MathUtils.degToRad(camera.fov);
+  // Fill ~80% of the viewport with the disc.
+  const dist = (discR * 1.15) / Math.tan(fov * 0.5);
+
+  camera.position.set(0, dist * 0.82, dist * 0.55);
+  camera.near = Math.max(0.01, dist / 250);
+  camera.far = Math.max(80, dist * 40);
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+  return true;
+}
+
+function showFallbackStatic(containerEl, canvas) {
+  containerEl.classList.add('bey-icon--fallback');
+  canvas?.remove();
+}
+
+function resolveWatchEl(containerEl, overlayEl) {
+  if (overlayEl) return overlayEl;
+  return (
+    containerEl.closest('#boot-overlay') ||
+    containerEl.closest('#start-overlay') ||
+    containerEl
+  );
 }
 
 /**
- * Mount a slowly spinning grey Storm Pegasus preview into a container.
- * Renders only while the start overlay (or container) is visible.
+ * Mount a slowly spinning grey Storm Pegasus (storm_pegasus.glb) into a container.
+ *
+ * Uses the shared game WebGLRenderer via a render target when available so iOS
+ * Safari does not lose a second WebGL context. Falls back to a dedicated
+ * renderer when no shared one is provided.
+ *
  * @param {HTMLElement | null} containerEl
- * @param {{ overlayEl?: HTMLElement | null }} [opts]
- * @returns {{ dispose: () => void, setActive: (active: boolean) => void } | null}
+ * @param {{ overlayEl?: HTMLElement | null, getRenderer?: () => import('three').WebGLRenderer | null }} [opts]
  */
-export function mountBeyIcon(containerEl, { overlayEl = null } = {}) {
+export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null } = {}) {
   if (!containerEl) return null;
 
   containerEl.classList.add('bey-icon');
@@ -72,35 +142,27 @@ export function mountBeyIcon(containerEl, { overlayEl = null } = {}) {
 
   const canvas = document.createElement('canvas');
   canvas.className = 'bey-icon-canvas';
+  canvas.width = RT_SIZE;
+  canvas.height = RT_SIZE;
   canvas.setAttribute('aria-hidden', 'true');
   containerEl.appendChild(canvas);
-
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: true,
-    powerPreference: 'low-power',
-  });
-  renderer.setClearColor(0x000000, 0);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  const ctx2d = canvas.getContext('2d');
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 20);
-  // Look down the spin axis (+Y = up) with a slight pitch so the disc reads in 3D.
-  camera.position.set(0, 2.35, 0.95);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
+  camera.position.set(0, 4, 2);
   camera.lookAt(0, 0, 0);
 
-  scene.add(new THREE.AmbientLight(0xc8d0dc, 0.85));
-  const key = new THREE.DirectionalLight(0xffffff, 1.35);
-  key.position.set(2.2, 4, 1.6);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x2a3344, 0.85));
+  const key = new THREE.DirectionalLight(0xffffff, 1.55);
+  key.position.set(2.8, 6.5, 2.4);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0xa8b4c8, 0.55);
-  fill.position.set(-2, 1.5, -1.5);
+  const fill = new THREE.DirectionalLight(0xb8c4d4, 0.75);
+  fill.position.set(-3.5, 2.8, -1.4);
   scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xd0d6e0, 0.4);
-  rim.position.set(0, 1.2, -2.5);
+  const rim = new THREE.DirectionalLight(0xe8eef8, 0.7);
+  rim.position.set(0.4, 2.8, -3.8);
   scene.add(rim);
 
   const pivot = new THREE.Group();
@@ -111,16 +173,86 @@ export function mountBeyIcon(containerEl, { overlayEl = null } = {}) {
   let raf = 0;
   let lastTs = 0;
   let modelReady = false;
-  const watchEl = overlayEl || containerEl.closest('#start-overlay') || containerEl;
+  let ownRenderer = null;
+  let renderTarget = null;
+  let pixelBuf = null;
+  let imageData = null;
+
+  const watchEl = resolveWatchEl(containerEl, overlayEl);
   let overlayVisible = !watchEl.classList.contains('hidden');
 
-  function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    const size = containerEl.clientWidth || ICON_SIZE;
-    renderer.setPixelRatio(dpr);
-    renderer.setSize(size, size, false);
-    camera.aspect = 1;
-    camera.updateProjectionMatrix();
+  function ensureOwnRenderer() {
+    if (ownRenderer) return ownRenderer;
+    try {
+      ownRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: 'low-power',
+        preserveDrawingBuffer: true,
+        failIfMajorPerformanceCaveat: false,
+      });
+      ownRenderer.setClearColor(0x000000, 0);
+      ownRenderer.outputColorSpace = THREE.SRGBColorSpace;
+      ownRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+      ownRenderer.toneMappingExposure = 1.15;
+      ownRenderer.setSize(RT_SIZE, RT_SIZE, false);
+      ownRenderer.setPixelRatio(1);
+    } catch {
+      ownRenderer = null;
+    }
+    return ownRenderer;
+  }
+
+  function ensureRenderTarget(renderer) {
+    if (renderTarget) return renderTarget;
+    renderTarget = new THREE.WebGLRenderTarget(RT_SIZE, RT_SIZE, {
+      type: THREE.UnsignedByteType,
+      format: THREE.RGBAFormat,
+      colorSpace: THREE.SRGBColorSpace,
+    });
+    pixelBuf = new Uint8Array(RT_SIZE * RT_SIZE * 4);
+    imageData = ctx2d.createImageData(RT_SIZE, RT_SIZE);
+    return renderTarget;
+  }
+
+  function blitToCanvas(renderer) {
+    if (!ctx2d || !pixelBuf || !imageData || !renderTarget) return;
+    renderer.readRenderTargetPixels(renderTarget, 0, 0, RT_SIZE, RT_SIZE, pixelBuf);
+    // WebGL is bottom-up; flip for 2D canvas.
+    const row = RT_SIZE * 4;
+    for (let y = 0; y < RT_SIZE; y++) {
+      const src = (RT_SIZE - 1 - y) * row;
+      imageData.data.set(pixelBuf.subarray(src, src + row), y * row);
+    }
+    ctx2d.putImageData(imageData, 0, 0);
+  }
+
+  function renderIconFrame() {
+    const shared = typeof getRenderer === 'function' ? getRenderer() : null;
+    const renderer = shared || ensureOwnRenderer();
+    if (!renderer) return;
+
+    const prevTarget = renderer.getRenderTarget();
+    const prevXr = renderer.xr?.enabled;
+    if (renderer.xr) renderer.xr.enabled = false;
+
+    const rt = ensureRenderTarget(renderer);
+    const prevTone = renderer.toneMappingExposure;
+    const prevClearAlpha = renderer.getClearAlpha();
+    const prevClearColor = new THREE.Color();
+    renderer.getClearColor(prevClearColor);
+
+    renderer.toneMappingExposure = 1.15;
+    renderer.setRenderTarget(rt);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear(true, true, true);
+    renderer.render(scene, camera);
+    blitToCanvas(renderer);
+
+    renderer.setRenderTarget(prevTarget);
+    renderer.setClearColor(prevClearColor, prevClearAlpha);
+    renderer.toneMappingExposure = prevTone;
+    if (renderer.xr) renderer.xr.enabled = prevXr;
   }
 
   function syncOverlayVisible() {
@@ -141,7 +273,11 @@ export function mountBeyIcon(containerEl, { overlayEl = null } = {}) {
     lastTs = ts;
     // Positive Y = same direction as in-game Pegasus (right-spin / spinSign +1).
     pivot.rotation.y += SPIN_RAD_PER_SEC * dt;
-    renderer.render(scene, camera);
+    try {
+      renderIconFrame();
+    } catch {
+      // Shared renderer may be mid-frame; skip this tick.
+    }
   }
 
   function setActive(next) {
@@ -149,58 +285,64 @@ export function mountBeyIcon(containerEl, { overlayEl = null } = {}) {
     if (active) lastTs = 0;
   }
 
-  function showFallback() {
-    containerEl.classList.add('bey-icon--fallback');
-    canvas.remove();
-  }
-
-  resize();
   raf = requestAnimationFrame(tick);
-
-  const ro = typeof ResizeObserver !== 'undefined'
-    ? new ResizeObserver(() => {
-        if (!disposed) resize();
-      })
-    : null;
-  ro?.observe(containerEl);
 
   const mo = typeof MutationObserver !== 'undefined'
     ? new MutationObserver(() => {
         if (disposed) return;
         if (syncOverlayVisible() && modelReady) {
-          renderer.render(scene, camera);
+          try {
+            renderIconFrame();
+          } catch {
+            /* ignore */
+          }
         }
       })
     : null;
   mo?.observe(watchEl, { attributes: true, attributeFilter: ['class'] });
 
-  preloadTopModel(MODEL_URL)
+  loadGreyPegasusTemplate()
     .then((template) => {
       if (disposed) return;
       if (!template) {
-        showFallback();
+        showFallbackStatic(containerEl, canvas);
         return;
       }
-      const instance = cloneTopModel(template);
-      applyGreyAnalysisMaterials(instance);
-      fitModelInView(instance);
+      const instance = template.clone(true);
+      // Clone shares materials with the template; re-clone materials so instances stay independent.
+      instance.traverse((child) => {
+        if (!child.isMesh) return;
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        const next = mats.map((m) => (m ? m.clone() : m));
+        child.material = Array.isArray(child.material) ? next : next[0];
+      });
+      pivot.clear();
       pivot.add(instance);
+      if (!frameCameraToModel(instance, camera)) {
+        showFallbackStatic(containerEl, canvas);
+        return;
+      }
       modelReady = true;
       syncOverlayVisible();
-      if (overlayVisible) renderer.render(scene, camera);
+      if (overlayVisible) renderIconFrame();
     })
     .catch(() => {
-      if (!disposed) showFallback();
+      if (!disposed) showFallbackStatic(containerEl, canvas);
     });
 
   function dispose() {
     if (disposed) return;
     disposed = true;
     cancelAnimationFrame(raf);
-    ro?.disconnect();
     mo?.disconnect();
+    pivot.traverse((child) => {
+      if (!child.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const m of mats) m?.dispose?.();
+    });
     pivot.clear();
-    renderer.dispose();
+    renderTarget?.dispose();
+    ownRenderer?.dispose();
     containerEl.replaceChildren();
   }
 
