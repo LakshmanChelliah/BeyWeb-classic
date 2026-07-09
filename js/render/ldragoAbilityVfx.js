@@ -382,39 +382,23 @@ export function createLdragoAbilityVfx(scene) {
   stealCore.renderOrder = 7;
   stealGroup.add(stealCore);
 
-  // Upper Mode — restrained purple rim aura (no cartoon dragon mascot).
-  const upperRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.9, 1.08, 40),
-    getMat(CRIMSON, true)
-  );
-  upperRing.rotation.x = -Math.PI / 2;
-  upperRing.renderOrder = 4;
-  upperGroup.add(upperRing);
-
-  const upperInner = new THREE.Mesh(
-    new THREE.RingGeometry(0.62, 0.82, 32),
-    getMat(ORANGE, true)
-  );
-  upperInner.rotation.x = -Math.PI / 2;
-  upperInner.renderOrder = 5;
-  upperGroup.add(upperInner);
-
+  // Upper Mode — orbiting sparks + core glow (no floor range rings).
   const upperCore = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.05, 1.05),
+    new THREE.PlaneGeometry(1.25, 1.25),
     getMat(PALE, true)
   );
   upperCore.renderOrder = 6;
   upperGroup.add(upperCore);
 
   const upperSparks = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.08, 0.08),
+      new THREE.PlaneGeometry(0.1, 0.28),
       getMat(i % 2 === 0 ? WHITE_HOT : PALE, true)
     );
     mesh.renderOrder = 6;
     upperGroup.add(mesh);
-    upperSparks.push({ mesh, phase: (i / 6) * Math.PI * 2 });
+    upperSparks.push({ mesh, phase: (i / 10) * Math.PI * 2 });
   }
 
   const dragonWings = [];
@@ -497,13 +481,13 @@ export function createLdragoAbilityVfx(scene) {
   pillarInner.renderOrder = 2;
   flightGroup.add(pillarInner);
 
-  const hoverAura = new THREE.Mesh(
-    new THREE.RingGeometry(0.75, 1.35, 24),
+  // Soft hover glow disc (billboard) — not a ground range ring.
+  const hoverGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.2, 2.2),
     getMat(CRIMSON, true)
   );
-  hoverAura.rotation.x = -Math.PI / 2;
-  hoverAura.renderOrder = 5;
-  flightGroup.add(hoverAura);
+  hoverGlow.renderOrder = 5;
+  flightGroup.add(hoverGlow);
 
   const dragonBackdrop = new THREE.Mesh(
     new THREE.PlaneGeometry(2.8, 2.2),
@@ -604,8 +588,6 @@ export function createLdragoAbilityVfx(scene) {
   }
 
   function hideUpper() {
-    upperRing.material.opacity = 0;
-    upperInner.material.opacity = 0;
     upperCore.material.opacity = 0;
     for (const s of upperSparks) s.mesh.material.opacity = 0;
   }
@@ -620,13 +602,13 @@ export function createLdragoAbilityVfx(scene) {
     windupPillar.visible = false;
     pillarOuter.visible = false;
     pillarInner.visible = false;
-    hoverAura.visible = false;
+    hoverGlow.visible = false;
     dragonBackdrop.visible = false;
     windupCrater.material.opacity = 0;
     windupPillar.material.opacity = 0;
     pillarOuter.material.opacity = 0;
     pillarInner.material.opacity = 0;
-    hoverAura.material.opacity = 0;
+    hoverGlow.material.opacity = 0;
     dragonBackdrop.material.opacity = 0;
     for (const r of repulseRings) { r.mesh.visible = false; r.mesh.material.opacity = 0; }
     for (const s of repulseSparks) { s.mesh.visible = false; s.mesh.material.opacity = 0; }
@@ -705,31 +687,22 @@ export function createLdragoAbilityVfx(scene) {
         const pulse = 0.7 + 0.3 * Math.sin(upperSpin * 2.4);
         upperGroup.position.set(bx, floorY, bz);
 
-        upperRing.position.set(0, 0.05, 0);
-        upperRing.scale.setScalar(R * (1.05 + pulse * 0.06));
-        upperRing.material.opacity = 0.22 + pulse * 0.14;
-        upperRing.rotation.z -= dt * 2.4;
-
-        upperInner.position.set(0, 0.07, 0);
-        upperInner.scale.setScalar(R * (0.95 + pulse * 0.04));
-        upperInner.material.opacity = 0.12 + pulse * 0.1;
-        upperInner.rotation.z += dt * 1.8;
-
-        upperCore.position.set(0, R * 0.35, 0);
+        upperCore.position.set(0, R * 0.4, 0);
         billboard(upperCore, camera);
-        upperCore.scale.setScalar(topGroup.scale.x * (0.4 + pulse * 0.08));
-        upperCore.material.opacity = 0.1 + pulse * 0.08;
+        upperCore.scale.setScalar(topGroup.scale.x * (0.55 + pulse * 0.12));
+        upperCore.material.opacity = 0.18 + pulse * 0.14;
 
         for (const s of upperSparks) {
-          s.phase += dt * 4;
-          const orbitR = R * (1.12 + 0.06 * Math.sin(s.phase * 2));
+          s.phase += dt * 4.5;
+          const orbitR = R * (1.15 + 0.12 * Math.sin(s.phase * 2));
+          const h = 0.2 + Math.abs(Math.sin(s.phase * 1.5)) * 0.55;
           s.mesh.position.set(
             Math.cos(s.phase + upperSpin) * orbitR,
-            0.15 + Math.sin(s.phase * 1.5) * 0.08,
+            h,
             Math.sin(s.phase + upperSpin) * orbitR
           );
           billboard(s.mesh, camera);
-          s.mesh.material.opacity = 0.14 + pulse * 0.1;
+          s.mesh.material.opacity = 0.22 + pulse * 0.16;
         }
         return;
       }
@@ -858,7 +831,7 @@ export function createLdragoAbilityVfx(scene) {
           for (const em of orbitEmbers) em.mesh.material.opacity = 0;
           pillarOuter.material.opacity = 0;
           pillarInner.material.opacity = 0;
-          hoverAura.material.opacity = 0;
+          hoverGlow.material.opacity = 0;
           dragonBackdrop.material.opacity = 0;
           for (const r of repulseRings) r.mesh.material.opacity = 0;
           for (const s of repulseSparks) s.mesh.material.opacity = 0;
@@ -948,11 +921,12 @@ export function createLdragoAbilityVfx(scene) {
           );
           dragonBackdrop.material.opacity = 0.38 * env * wingReveal;
 
-          // Pulsing hover halo at flight altitude.
+          // Soft billboard glow at hover height (not a floor range ring).
           const auraPulse = 0.85 + 0.15 * Math.sin(flightSpin * 4);
-          hoverAura.position.set(0, hoverY - 0.08, 0);
-          hoverAura.scale.set(R * auraPulse * 1.55, R * auraPulse * 1.55, 1);
-          hoverAura.material.opacity = 0.34 * env * wingReveal;
+          hoverGlow.position.set(0, hoverY, 0);
+          billboard(hoverGlow, camera);
+          hoverGlow.scale.setScalar(R * auraPulse * 1.35);
+          hoverGlow.material.opacity = 0.28 * env * wingReveal;
 
           // Orbiting embers at hover height.
           for (const em of orbitEmbers) {

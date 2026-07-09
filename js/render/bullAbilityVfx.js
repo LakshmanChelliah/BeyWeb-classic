@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
 import { CONFIG } from '../config.js';
 import { BULL_STAMPEDE_DURATION, BULL_UPPERCUT_WINDUP, BULL_DASH_BUILD_DUR } from '../game/abilities.js';
+import {
+  createBurstSystem,
+  createTrailSystem,
+  ensureQuarksRuntime,
+  Vector4,
+} from './vfx/quarksRuntime.js';
 
 const _pos = new THREE.Vector3();
 const _lastPos = new THREE.Vector3();
@@ -30,8 +36,37 @@ function makeMat(color, opacity, additive = true) {
 
 /** Red stampede dust, uppercut gather, dash streak, and victim flip burst. */
 export function createBullAbilityVfx(scene) {
+  ensureQuarksRuntime(scene);
   const root = new THREE.Group();
   scene.add(root);
+
+  const dirtTrail = createTrailSystem(scene, {
+    rate: 40,
+    startSize: [0.15, 0.5],
+    startLife: [0.2, 0.5],
+    gravity: -8,
+    colorA: new Vector4(0.75, 0.35, 0.15, 0.85),
+    colorB: new Vector4(0.4, 0.2, 0.1, 0),
+  });
+  const impactGeyser = createBurstSystem(scene, {
+    additive: false,
+    dustyColor: 0xb45309,
+    startSpeed: [5, 14],
+    startSize: [0.2, 0.7],
+    gravity: -16,
+    coneAngle: 1.2,
+    colorA: new Vector4(0.85, 0.45, 0.15, 0.95),
+    colorB: new Vector4(0.45, 0.2, 0.08, 0),
+  });
+  const bounceDust = createBurstSystem(scene, {
+    additive: false,
+    dustyColor: 0xd6a15c,
+    startSpeed: [3, 9],
+    startSize: [0.15, 0.5],
+    gravity: -12,
+    colorA: new Vector4(0.8, 0.55, 0.3, 0.9),
+    colorB: new Vector4(0.45, 0.3, 0.15, 0),
+  });
 
   const dustStreaks = [];
   for (let i = 0; i < 6; i++) {
@@ -56,14 +91,6 @@ export function createBullAbilityVfx(scene) {
     hoofSparks.push({ mesh, phase: (i / 5) * Math.PI * 2 });
   }
 
-  const emberRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.88, 1.0, 36),
-    makeMat(RED_BRIGHT, 0)
-  );
-  emberRing.rotation.x = -Math.PI / 2;
-  emberRing.renderOrder = 3;
-  root.add(emberRing);
-
   const gatherPool = [];
   for (let i = 0; i < 10; i++) {
     const mesh = new THREE.Mesh(
@@ -81,14 +108,6 @@ export function createBullAbilityVfx(scene) {
   );
   hornGlow.renderOrder = 6;
   root.add(hornGlow);
-
-  const impactRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.5, 0.72, 40),
-    makeMat(AMBER, 0)
-  );
-  impactRing.rotation.x = -Math.PI / 2;
-  impactRing.renderOrder = 8;
-  root.add(impactRing);
 
   const debrisPool = [];
   for (let i = 0; i < 8; i++) {
@@ -113,6 +132,7 @@ export function createBullAbilityVfx(scene) {
   let impactT = 0;
   let wasStampede = false;
   let wasUpper = false;
+  let lastBouncePulse = -1;
 
   function billboard(mesh, camera) {
     mesh.quaternion.copy(camera.quaternion);
@@ -125,16 +145,16 @@ export function createBullAbilityVfx(scene) {
     impactT = 0;
     wasStampede = false;
     wasUpper = false;
+    lastBouncePulse = -1;
     _smoothVel.set(0, 0, 0);
     _smoothDir.set(0, 0, -1);
     for (const s of dustStreaks) s.visible = false;
     for (const sp of hoofSparks) sp.mesh.material.opacity = 0;
-    emberRing.material.opacity = 0;
-    impactRing.material.opacity = 0;
     hornGlow.material.opacity = 0;
     for (const g of gatherPool) g.mesh.material.opacity = 0;
     for (const d of debrisPool) d.mesh.material.opacity = 0;
     flipBurst.material.opacity = 0;
+    dirtTrail.stop();
   }
 
   reset();
@@ -149,9 +169,11 @@ export function createBullAbilityVfx(scene) {
       const stampeding = !!body.userData.stampeding;
       const phase = body.userData.bullUpperPhase;
       const inUpper = phase === 'windup' || phase === 'dash';
-      const flipBurstT = body.userData.bullFlipBurstT ?? 0;
+      const flipBurstT = body.userData.bullFlipBurstT ?? body.userData.launchBounceBurstT ?? 0;
+      const isBullVictim =
+        body.userData.launchBounceSource === 'bull' && body.userData.launchBouncePhase != null;
 
-      if (!stampeding && !inUpper && flipBurstT <= 0 && impactT <= 0) {
+      if (!stampeding && !inUpper && flipBurstT <= 0 && impactT <= 0 && !isBullVictim) {
         reset();
         return;
       }
@@ -192,11 +214,7 @@ export function createBullAbilityVfx(scene) {
         const life = clamp01(1 - t / BULL_STAMPEDE_DURATION);
         const speedFactor = clamp01(smoothSpeed / 16);
         const intensity = (0.45 + speedFactor * 0.45) * (0.4 + life * 0.6);
-
-        const pulse = 0.55 + 0.45 * Math.sin(t * 6.5);
-        emberRing.position.set(_pos.x, yBase + 0.04, _pos.z);
-        emberRing.scale.setScalar(R * (1.1 + pulse * 0.28));
-        emberRing.material.opacity = 0.22 * intensity * pulse;
+        dirtTrail.follow(_pos.x, CONFIG.FLOOR_Y + 0.12, _pos.z, speedFactor > 0.08);
 
         const streakLen = 0.7 + speedFactor * 1.7;
         const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
@@ -229,8 +247,8 @@ export function createBullAbilityVfx(scene) {
         }
         hornGlow.material.opacity = 0;
       } else if (wasStampede) {
-        emberRing.material.opacity *= 0.85;
-        if (emberRing.material.opacity < 0.02) wasStampede = false;
+        dirtTrail.stop();
+        wasStampede = false;
       }
 
       if (inUpper) {
@@ -278,31 +296,28 @@ export function createBullAbilityVfx(scene) {
             streak.scale.set(1, streakLen, 1);
             streak.material.opacity = Math.max(0.05, (0.28 - i * 0.025) * intensity);
           }
-          emberRing.position.set(_pos.x, yBase + 0.04, _pos.z);
-          emberRing.scale.setScalar(R * (1.05 + build * 0.18));
-          emberRing.material.opacity = 0.15 * intensity;
           hornGlow.position.copy(_pos);
           hornGlow.position.y = yBase + 0.3;
           billboard(hornGlow, camera);
           hornGlow.material.opacity = 0.2 + build * 0.2;
+          dirtTrail.follow(_pos.x, yBase, _pos.z, true);
         } else {
           for (const g of gatherPool) g.mesh.material.opacity = 0;
           for (const s of dustStreaks) s.visible = false;
           hornGlow.material.opacity = 0;
         }
       } else if (wasUpper && !stampeding) {
-        emberRing.material.opacity *= 0.88;
         hornGlow.material.opacity *= 0.85;
-        if (emberRing.material.opacity < 0.02) wasUpper = false;
+        if (hornGlow.material.opacity < 0.02) wasUpper = false;
       }
 
       if (body.userData.bullImpactFlash) {
         impactT = 0.2;
         const ix = body.userData.bullImpactX ?? _pos.x;
         const iz = body.userData.bullImpactZ ?? _pos.z;
-        impactRing.position.set(ix, yBase + 0.08, iz);
-        impactRing.scale.setScalar(R * 2.0);
-        impactRing.material.opacity = 0.6;
+        impactGeyser.setPosition(ix, CONFIG.FLOOR_Y + 0.15, iz);
+        impactGeyser.burst(40);
+        body.userData.bullImpactFlash = false;
 
         for (const d of debrisPool) {
           const spread = R * 1.45;
@@ -319,10 +334,19 @@ export function createBullAbilityVfx(scene) {
       if (impactT > 0) {
         impactT -= dt;
         const fade = clamp01(impactT / 0.2);
-        impactRing.material.opacity = Math.max(impactRing.material.opacity, 0) * fade;
         for (const d of debrisPool) {
           d.mesh.material.opacity *= fade;
         }
+      }
+
+      // Victim bounce hops after uppercut launch.
+      if (isBullVictim && body.userData.launchBouncePhase === 'bounce') {
+        const pulse = body.userData.launchBouncePulseT ?? 0;
+        if (pulse < 0.05 && lastBouncePulse > 0.1) {
+          bounceDust.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.12, _pos.z);
+          bounceDust.burst(18);
+        }
+        lastBouncePulse = pulse;
       }
 
       if (flipBurstT > 0) {
