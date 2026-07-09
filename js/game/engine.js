@@ -293,11 +293,11 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       if (sp.ability.id === 'leone_lion_wall') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
         const burst = body?.userData.lionWallBurstT ?? 0;
-        const pulse = 0.65 + 0.35 * Math.sin(performance.now() * 0.009);
-        const base = pulse * 0.55;
-        const intensity = burst > 0 ? Math.max(base, 0.7 + burst * 0.45) : base;
-        // Warm stone / wind haze — not saturated green.
-        return { color: '#c4bfb6', intensity };
+        const pulse = 0.55 + 0.25 * Math.sin(performance.now() * 0.007);
+        const base = pulse * 0.28;
+        const intensity = burst > 0 ? Math.max(base, 0.35 + burst * 0.25) : base;
+        // Dusty wind haze — keep glow subdued so the funnel reads as wind, not light.
+        return { color: '#8a857c', intensity };
       }
       if (sp.ability.id === 'ldrago_absorb_break') {
         const body = side === 'player' ? state.playerBody : state.aiBody;

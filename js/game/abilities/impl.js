@@ -143,6 +143,13 @@ export const LEONE_WALL_REACH_MULT = 5.5; // reach = (rSelf + rOpp) * this — f
 const LEONE_WALL_HOVER_BASE = 2.75; // disc center height — above ground bey reach
 const LEONE_WALL_HOVER_BOB = 0.2;
 export const LEONE_WALL_DURATION = 5.55;  // active tornado time (3× original 1.85s)
+/** Loose-spin beys (≤7%) get sucked into the Gale Force Wall and carried. */
+const LEONE_GALE_CARRY_SPIN = 0.07;
+const LEONE_GALE_CARRY_LIFT = 3.4;
+const LEONE_GALE_CARRY_ORBIT = 1.15;
+const LEONE_GALE_CARRY_SPIN_RATE = 4.8;
+const LEONE_GALE_CARRY_RISE_DUR = 0.55;
+const LEONE_GALE_CARRY_WOBBLE = 0.42;
 /** Leone takes 15% less spin loss from bey-vs-bey hits and slams. */
 const LEONE_SPIN_LOSS_TAKEN = 0.85;
 
@@ -1495,6 +1502,116 @@ function pinBullFlipPhysics(body) {
   body.position.y = groundY(body);
 }
 
+/** True when a rival is loose enough to be sucked into Gale Force Wall. */
+function canGaleCarryVictim(state, oppSide, host, victim, dist, reach) {
+  if (!host?.userData?.lionWall || !victim) return false;
+  if (victim.userData.galeCarried) return false;
+  if (victim.userData.lionWall || victim.userData.lionWallWindup) return false;
+  if (victim.userData.invulnerable || victim.userData.guarding) return false;
+  if (victim.userData.bullFlipPhase || victim.userData.airborne) return false;
+  if (victim.userData.starPhase != null || victim.userData.eagleDivePhase != null) return false;
+  if (victim.userData.strikerFlashPhase != null || victim.userData.bullUpperPhase != null) return false;
+  if (dist >= reach * 0.92) return false;
+  const spin = state[spinKey(oppSide)] ?? 1;
+  return spin > CONFIG.SPIN_STOPPED && spin <= LEONE_GALE_CARRY_SPIN;
+}
+
+function tryBeginGaleCarry(state, oppSide, host, victim, dist, reach) {
+  if (!canGaleCarryVictim(state, oppSide, host, victim, dist, reach)) return false;
+
+  const dx = victim.position.x - host.position.x;
+  const dz = victim.position.z - host.position.z;
+  const ang = Math.atan2(dz, dx);
+
+  victim.userData.galeCarried = true;
+  victim.userData.galeCarryT = 0;
+  victim.userData.galeCarryAngle = ang;
+  victim.userData.galeCarryHost = host;
+  victim.userData.controlLocked = true;
+  victim.userData.airborne = true;
+  victim.userData.flightLift = 0;
+  victim.userData.flightTilt = 0.12;
+  victim.userData.flightRoll = 0;
+  victim.userData.flightSquash = 0.92;
+  victim.velocity.set(0, 0, 0);
+  victim.angularVelocity.set(0, 0, 0);
+  setBodyCollisions(victim, false);
+  setAirborneKinematic(victim);
+  victim.position.y = groundY(victim);
+  return true;
+}
+
+function releaseGaleCarryVictim(victim, dropToFloor = true) {
+  if (!victim?.userData?.galeCarried) return;
+  delete victim.userData.galeCarried;
+  delete victim.userData.galeCarryT;
+  delete victim.userData.galeCarryAngle;
+  delete victim.userData.galeCarryHost;
+  victim.userData.controlLocked = false;
+  victim.userData.airborne = false;
+  victim.userData.flightLift = 0;
+  victim.userData.flightTilt = 0;
+  victim.userData.flightRoll = 0;
+  victim.userData.flightSquash = 1;
+  setBodyCollisions(victim, true);
+  if (victim.type === CANNON.Body.KINEMATIC) restoreDynamicBody(victim);
+  if (dropToFloor) victim.position.y = groundY(victim);
+  victim.velocity.set(0, 0, 0);
+  victim.angularVelocity.set(0, 0, 0);
+}
+
+/**
+ * Anime-style Gale Force Wall carry: loose-spin bey orbits inside the funnel,
+ * rising and tumbling until the wall ends or spin recovers.
+ */
+function tickGaleCarry(state, dt) {
+  for (const side of ['player', 'ai']) {
+    const victim = side === 'player' ? state.playerBody : state.aiBody;
+    if (!victim?.userData?.galeCarried) continue;
+
+    const host = victim.userData.galeCarryHost;
+    const hostAlive = !!(host?.userData?.lionWall);
+    const spin = state[spinKey(side)] ?? 0;
+
+    if (!hostAlive || spin > LEONE_GALE_CARRY_SPIN || spin <= CONFIG.SPIN_STOPPED) {
+      releaseGaleCarryVictim(victim, true);
+      continue;
+    }
+
+    if (victim.type !== CANNON.Body.KINEMATIC) setAirborneKinematic(victim);
+    setBodyCollisions(victim, false);
+    victim.velocity.set(0, 0, 0);
+    victim.angularVelocity.set(0, 0, 0);
+    victim.position.y = groundY(victim);
+    victim.userData.airborne = true;
+    victim.userData.controlLocked = true;
+
+    const t = (victim.userData.galeCarryT ?? 0) + dt;
+    victim.userData.galeCarryT = t;
+
+    const rise = easeOutCubic(clamp01(t / LEONE_GALE_CARRY_RISE_DUR));
+    const ang = (victim.userData.galeCarryAngle ?? 0) + dt * LEONE_GALE_CARRY_SPIN_RATE;
+    victim.userData.galeCarryAngle = ang;
+
+    const rHost = host.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+    // Orbit inside the funnel wall — tight helix like the show.
+    const orbitR = rHost * LEONE_GALE_CARRY_ORBIT * (0.85 + 0.2 * Math.sin(t * 2.4));
+    const bob = Math.sin(t * 5.2) * 0.18 * rise;
+    const lift = LEONE_GALE_CARRY_LIFT * rise + bob;
+
+    victim.position.x = host.position.x + Math.cos(ang) * orbitR;
+    victim.position.z = host.position.z + Math.sin(ang) * orbitR;
+    syncBodyPosition(victim);
+
+    victim.userData.flightLift = lift;
+    // Tumbling / loose-spin wobble while carried.
+    const wobble = LEONE_GALE_CARRY_WOBBLE * rise;
+    victim.userData.flightTilt = wobble * Math.sin(t * 7.5) + 0.18 * rise;
+    victim.userData.flightRoll = wobble * Math.cos(t * 6.2 + 0.8);
+    victim.userData.flightSquash = 0.88 + 0.08 * Math.sin(t * 9.1);
+  }
+}
+
 function tickBullFlipDecay(body, dt) {
   // Shared system drives motion; keep legacy burst fade for VFX.
   if (body.userData.bullFlipBurstT != null) {
@@ -1898,6 +2015,13 @@ export const ABILITY_REGISTRY = {
       const dist = Math.hypot(dx, dz) || 1;
       const reach = (rA + rB) * LEONE_WALL_REACH_MULT;
       b.userData.lionWallReach = reach;
+
+      // Loose-spin rivals are sucked into the cyclone (anime Gale Force Wall carry).
+      if (tryBeginGaleCarry(ctx.state, ctx.oppSide, b, opp, dist, reach)) {
+        return;
+      }
+      if (opp.userData.galeCarried) return;
+
       if (dist >= reach) return;
 
       const nx = dx / dist;
@@ -1927,6 +2051,7 @@ export const ABILITY_REGISTRY = {
     },
     onEnd(ctx) {
       const b = ctx.body;
+      releaseGaleCarryVictim(ctx.opponentBody, true);
       b.userData.guarding = false;
       b.userData.lionWall = false;
       b.userData.lionWallWindup = false;
@@ -2475,6 +2600,7 @@ export function stepAbilities(state, dt) {
   if (!state.abilities) return;
   tickBullFlipDecay(state.playerBody, dt);
   tickBullFlipDecay(state.aiBody, dt);
+  tickGaleCarry(state, dt);
   tickLaunchBounceBodies(state, dt);
   stepBullUppercutDash(state, dt);
   stepStrikerFlashPhases(state, dt);
@@ -3973,6 +4099,7 @@ export function isBodyInSpecialMove(body, state) {
     ud.guarding ||
     ud.anchoring ||
     ud.lionWall ||
+    ud.galeCarried ||
     ud.starPhase != null ||
     (state && isLibraBusterChannelingBody(state, body))
   );
@@ -4025,6 +4152,9 @@ export function clearAbilityFlags(body) {
   body.userData.stampeding = false;
   body.userData.counterStance = false;
   body.userData.invulnerable = false;
+  if (body.userData.galeCarried) {
+    releaseGaleCarryVictim(body, false);
+  }
   body.userData.flightLift = 0;
   body.userData.flightTilt = 0;
   body.userData.flightRoll = 0;
