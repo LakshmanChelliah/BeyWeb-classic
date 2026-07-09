@@ -48,9 +48,10 @@ const DUST_TAN = 0xb5aea4;
 const DUST_DARK = 0x7a7268;
 const DEBRIS_TAN = 0x9a8b78;
 
-const TORNADO_HEIGHT = 8.4;
-const TORNADO_BASE_R = 0.55;
-const TORNADO_TOP_R = 2.85;
+// Keep the same relative size as the previous Gale Force Wall VFX.
+const TORNADO_HEIGHT = 7.2;
+const TORNADO_BASE_R = 1.1;
+const TORNADO_TOP_R = 2.9;
 const WALL_ACTIVE_DUR = LEONE_WALL_DURATION;
 
 const FUNNEL_SEGMENTS = 48;
@@ -365,9 +366,9 @@ export function createLeoneAbilityVfx(scene) {
     });
   }
 
-  // Ground debris / suction ring.
+  // Ground debris / suction ring — sized relative to funnel base.
   const groundRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.35, 1.55, 40),
+    new THREE.RingGeometry(TORNADO_BASE_R * 0.35, TORNADO_BASE_R * 1.35, 40),
     getMat(GALE_MID, true)
   );
   groundRing.rotation.x = -Math.PI / 2;
@@ -376,7 +377,7 @@ export function createLeoneAbilityVfx(scene) {
   tornadoGroup.add(groundRing);
 
   const groundOuter = new THREE.Mesh(
-    new THREE.RingGeometry(1.2, 2.4, 40),
+    new THREE.RingGeometry(TORNADO_BASE_R * 1.05, TORNADO_BASE_R * 2.15, 40),
     getMat(DUST_TAN, true)
   );
   groundOuter.rotation.x = -Math.PI / 2;
@@ -534,9 +535,10 @@ export function createLeoneAbilityVfx(scene) {
       r.mesh.material.opacity = (0.28 + (i % 3) * 0.08) * env;
     }
 
-    const crownR = TORNADO_TOP_R * 2.4 * g;
+    // Crown sits just above the funnel mouth (~2× top radius).
+    const crownR = TORNADO_TOP_R * 1.85 * g;
     crownMist.scale.setScalar(crownR);
-    crownMistOuter.scale.setScalar(crownR * 1.45);
+    crownMistOuter.scale.setScalar(crownR * 1.35);
   }
 
   function reset() {
@@ -626,8 +628,8 @@ export function createLeoneAbilityVfx(scene) {
         wallT += dt;
         tornadoGroup.position.set(bx, floorY, bz);
 
-        // Scale funnel to ability reach so the wall matches gameplay radius.
-        const funnelXZ = Math.max(0.55, R * reachScale * 1.05);
+        // Match prior particle tornado: world radius = R * TORNADO_*_R * reachScale.
+        const funnelXZ = R * reachScale;
 
         if (lionWindup) {
           const growT = clamp01(wallT / 0.45);
