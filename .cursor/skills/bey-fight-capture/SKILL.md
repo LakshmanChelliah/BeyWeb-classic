@@ -1,7 +1,7 @@
 ---
 name: bey-fight-capture
 description: >-
-  Capture Spin Sumo (BeyWeb-classic) ability VFX with Playwright: boot pc.html?capture=1,
+  Capture Bey Web (BeyWeb-classic) ability VFX with Playwright: boot pc.html?capture=1,
   start a Casual fight, fire power/special moves, dump canvas frames + phase JSON, then
   review frames for flat rings / anime fidelity. Use when QA-ing bey specials, recording
   fight clips, cycling frames for visual review, or recycling the fight-capture pipeline.

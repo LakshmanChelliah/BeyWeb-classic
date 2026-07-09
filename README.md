@@ -1,4 +1,4 @@
-# Spin Sumo (Classic)
+# Bey Web (Classic)
 
 Static snapshot of [BeyWeb](https://github.com/LakshmanChelliah/BeyWeb) at commit **`e08af1c`** — the last version before online multiplayer and Railway deployment.
 
