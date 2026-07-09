@@ -23,6 +23,7 @@ export function createAppBootstrap({
   queryUiOptions = {},
   applyPlatformModeUi,
   onSelectionComplete,
+  syncStartButtonLabel,
   initStartOverlayHidden = true,
 }) {
   let gameMode = GAME_MODES.TOURNAMENT;
@@ -77,7 +78,8 @@ export function createAppBootstrap({
     beysChosen = false;
     btnStart.disabled = true;
     if (platform === 'mobile') {
-      btnStart.textContent = 'Calibrate & Start';
+      if (syncStartButtonLabel) syncStartButtonLabel();
+      else btnStart.textContent = 'Calibrate & Start';
     }
   }
 
@@ -151,7 +153,8 @@ export function createAppBootstrap({
 
       selection?.setRivalLabel(getRivalLabel());
       if (platform === 'mobile') {
-        btnStart.textContent = 'Calibrate & Start';
+        if (syncStartButtonLabel) syncStartButtonLabel();
+        else btnStart.textContent = 'Calibrate & Start';
         startOverlay.classList.add('hidden');
       }
     },

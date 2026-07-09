@@ -590,12 +590,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     dom.startOverlay.classList.remove('hidden');
     dom.btnStart.disabled = false;
     input.clearKeys?.();
+    input.resetControls?.({ leavePlay: true });
   }
 
   async function resetGame() {
     state.gameFrozen = false;
     dom.gameoverOverlay.classList.remove('visible');
     input.clearKeys?.();
+    input.resetControls?.();
     await ensureMatchModelsReady(state.playerBey, state.aiBey);
     spawnTops();
     state.gameRunning = true;
