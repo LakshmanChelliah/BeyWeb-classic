@@ -24,6 +24,8 @@ const startOverlay = document.getElementById('start-overlay');
 const startBlurb = document.getElementById('start-blurb');
 const playSetupEl = document.getElementById('play-setup');
 const useJoystickEl = document.getElementById('use-joystick');
+const steerTiltEl = document.getElementById('steer-tilt');
+const controlModeCards = document.querySelectorAll('.control-mode-card');
 const tiltHint = document.getElementById('tilt-hint');
 const gyro = createGyroInput(document.getElementById('game-canvas'));
 const joystick = createJoystickInput(document.getElementById('virtual-joystick'));
@@ -31,7 +33,7 @@ const joystick = createJoystickInput(document.getElementById('virtual-joystick')
 const TILT_PERMISSION_HINT =
   'Requires motion sensor access on iOS. Hold phone flat when starting.';
 const JOYSTICK_PERMISSION_HINT =
-  'Steer with the on-screen joystick. No motion sensor needed.';
+  'Steer with the on-screen stick. No motion sensor needed.';
 const TILT_HINT = 'Tilt phone to steer · Tap a move button to unleash a gimmick';
 const JOYSTICK_HINT = 'Drag the joystick to steer · Tap a move button to unleash a gimmick';
 
@@ -41,6 +43,10 @@ function useJoystickChecked() {
 
 function syncControlModeUi() {
   const joy = useJoystickChecked();
+  controlModeCards.forEach((card) => {
+    const input = card.querySelector('input[type="radio"]');
+    card.classList.toggle('is-selected', Boolean(input?.checked));
+  });
   if (btnStart && !btnStart.disabled) {
     btnStart.textContent = joy ? 'Start Game' : 'Calibrate & Start';
   } else if (btnStart && joy) {
@@ -58,6 +64,15 @@ function syncControlModeUi() {
 }
 
 useJoystickEl?.addEventListener('change', syncControlModeUi);
+steerTiltEl?.addEventListener('change', syncControlModeUi);
+controlModeCards.forEach((card) => {
+  card.addEventListener('click', () => {
+    const input = card.querySelector('input[type="radio"]');
+    if (!input || input.checked) return;
+    input.checked = true;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+});
 syncControlModeUi();
 
 createAppBootstrap({
