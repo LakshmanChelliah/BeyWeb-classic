@@ -78,14 +78,15 @@ const SAND_DARK = 0xa88455;
 const SAND_DUST = 0xd9bf98;
 const SAND_DEEP = 0x8f6f45;
 
-const PILLAR_HEIGHT = 24;
-const PILLAR_OUTER_R = 1.75;
-const PILLAR_MID_R = 1.1;
-const PILLAR_CORE_R = 0.58;
-const PILLAR_STREAK_COUNT = 52;
+const PILLAR_HEIGHT = 22;
+const PILLAR_OUTER_R = 1.55;
+const PILLAR_MID_R = 0.95;
+const PILLAR_CORE_R = 0.48;
+const PILLAR_STREAK_COUNT = 36;
 
-const PIT_PARTICLE_COUNT = 48;
-const SHIELD_WISP_COUNT = 8;
+const PIT_PARTICLE_COUNT = 36;
+const SHIELD_WISP_COUNT = 6;
+const SAND_DUST_COUNT = 18;
 
 function rand(seed) {
   const x = Math.sin(seed * 127.1 + seed * 311.7) * 43758.5453;
@@ -111,7 +112,7 @@ export function createLibraAbilityVfx(scene) {
   root.add(pitGroup);
 
   const shieldAura = new THREE.Mesh(
-    new THREE.RingGeometry(0.72, 1.08, 28),
+    new THREE.RingGeometry(0.78, 1.12, 36),
     getMat(SHIELD_GREEN, true)
   );
   shieldAura.rotation.x = -Math.PI / 2;
@@ -119,17 +120,25 @@ export function createLibraAbilityVfx(scene) {
   shieldGroup.add(shieldAura);
 
   const shieldDome = new THREE.Mesh(
-    new THREE.RingGeometry(0.55, 0.95, 24),
+    new THREE.RingGeometry(0.58, 0.92, 28),
     getMat(SHIELD_LIME, true)
   );
   shieldDome.rotation.x = -Math.PI / 2;
   shieldDome.renderOrder = 5;
   shieldGroup.add(shieldDome);
 
+  const shieldPulse = new THREE.Mesh(
+    new THREE.RingGeometry(0.95, 1.05, 40),
+    getMat(SHIELD_PALE, true)
+  );
+  shieldPulse.rotation.x = -Math.PI / 2;
+  shieldPulse.renderOrder = 5;
+  shieldGroup.add(shieldPulse);
+
   const shieldWisps = [];
   for (let i = 0; i < SHIELD_WISP_COUNT; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.18, 0.5),
+      new THREE.PlaneGeometry(0.14, 0.42),
       getMat(i % 2 === 0 ? SHIELD_PALE : SHIELD_GREEN, true)
     );
     mesh.renderOrder = 6;
@@ -246,6 +255,25 @@ export function createLibraAbilityVfx(scene) {
     });
   }
 
+  // Low sandstorm haze — readable field, not particle spam.
+  const sandDust = [];
+  for (let i = 0; i < SAND_DUST_COUNT; i++) {
+    const s = i + 91;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.35 + rand(s) * 0.55, 0.12 + rand(s + 1) * 0.18),
+      getMat(sandColors[Math.floor(rand(s + 2) * sandColors.length)])
+    );
+    mesh.renderOrder = 2;
+    pitGroup.add(mesh);
+    sandDust.push({
+      mesh,
+      phase: rand(s + 3) * Math.PI * 2,
+      radius: 0.35 + rand(s + 4) * 0.65,
+      speed: 0.35 + rand(s + 5) * 0.7,
+      height: 0.08 + rand(s + 6) * 0.35,
+    });
+  }
+
   let shieldSpin = 0;
   let pitSpin = 0;
   let pitT = 0;
@@ -254,6 +282,7 @@ export function createLibraAbilityVfx(scene) {
   function hideShield() {
     shieldAura.material.opacity = 0;
     shieldDome.material.opacity = 0;
+    shieldPulse.material.opacity = 0;
     for (const w of shieldWisps) w.mesh.material.opacity = 0;
   }
 
@@ -272,6 +301,7 @@ export function createLibraAbilityVfx(scene) {
     sandWave.material.opacity = 0;
     pitInner.material.opacity = 0;
     for (const p of pitParticles) p.mesh.material.opacity = 0;
+    for (const d of sandDust) d.mesh.material.opacity = 0;
   }
 
   function billboard(mesh, camera) {
@@ -310,9 +340,21 @@ export function createLibraAbilityVfx(scene) {
         Math.sin(p.phase + pitSpin) * pr
       );
       billboard(p.mesh, camera);
-      const atFront = band > 0.72 ? 1.12 : 0.85;
+      const atFront = band > 0.72 ? 1.05 : 0.8;
       const flicker = 0.55 + 0.45 * Math.sin(p.phase * 3 + pitSpin);
-      p.mesh.material.opacity = 0.38 * flicker * env * atFront;
+      p.mesh.material.opacity = 0.32 * flicker * env * atFront;
+    }
+
+    for (const d of sandDust) {
+      d.phase += dt * d.speed;
+      const pr = pitR * d.radius;
+      d.mesh.position.set(
+        Math.cos(d.phase + pitSpin * 0.4) * pr,
+        d.height * (0.7 + 0.3 * Math.sin(d.phase * 2)),
+        Math.sin(d.phase + pitSpin * 0.4) * pr
+      );
+      billboard(d.mesh, camera);
+      d.mesh.material.opacity = 0.16 * env * (0.6 + 0.4 * Math.sin(d.phase));
     }
   }
 
@@ -327,17 +369,22 @@ export function createLibraAbilityVfx(scene) {
     pillarScroll += dt * 0.75;
     pillarStreakTex.offset.y = pillarScroll;
 
-    const pulse = 0.88 + 0.12 * Math.sin(pitT * 6);
-    const shellOp = 0.2 * env * pulse;
-    const midOp = 0.1 * env * pulse;
-    const coreOp = 0.16 * env;
-    const baseOp = 0.48 * env * (0.92 + 0.08 * Math.sin(pitT * 8));
+    // Vibration wobble on the pillar — sells the sonic shriek without chaos.
+    const vib = Math.sin(pitT * 42) * 0.012 * env;
+    pillarGroup.position.x += vib;
+    pillarGroup.position.z += Math.sin(pitT * 37) * 0.01 * env;
+
+    const pulse = 0.9 + 0.1 * Math.sin(pitT * 5);
+    const shellOp = 0.16 * env * pulse;
+    const midOp = 0.08 * env * pulse;
+    const coreOp = 0.14 * env;
+    const baseOp = 0.4 * env * (0.92 + 0.08 * Math.sin(pitT * 7));
 
     pillarShell.material.opacity = shellOp;
     pillarMid.material.opacity = midOp;
     pillarCore.material.opacity = coreOp;
     pillarSandFill.material.opacity = baseOp;
-    pillarBase.material.opacity = baseOp * 0.85;
+    pillarBase.material.opacity = baseOp * 0.8;
 
     for (const s of pillarStreaks) {
       s.phase = (s.phase + s.speed * dt) % PILLAR_HEIGHT;
@@ -349,7 +396,7 @@ export function createLibraAbilityVfx(scene) {
       );
       s.mesh.rotation.y = s.angle;
       const streakEnv = env * clamp01(1 - Math.abs(y - PILLAR_HEIGHT * 0.45) / (PILLAR_HEIGHT * 0.55));
-      s.mesh.material.opacity = (0.14 + 0.1 * Math.sin(pitT * 5 + s.angle * 3)) * streakEnv;
+      s.mesh.material.opacity = (0.1 + 0.08 * Math.sin(pitT * 4 + s.angle * 3)) * streakEnv;
     }
   }
 
@@ -398,29 +445,33 @@ export function createLibraAbilityVfx(scene) {
         const t = body.userData.sonicShieldT ?? 0;
         const life = clamp01(1 - t / LIBRA_SHIELD_DURATION);
         const burst = body.userData.sonicShieldBurstT ?? 0;
-        const pulse = 0.72 + 0.28 * Math.sin(shieldSpin * 2.2);
+        const pulse = 0.75 + 0.25 * Math.sin(shieldSpin * 2.0);
         const reach = body.userData.sonicShieldReach ?? R * 2.75;
-        const scale = (reach / (R * 2.75)) * R * (1.05 + burst * 0.18);
+        const scale = (reach / (R * 2.75)) * R * (1.04 + burst * 0.14);
 
         shieldAura.position.set(0, 0.04, 0);
         shieldAura.scale.set(scale, scale, 1);
-        shieldAura.material.opacity = (0.28 + pulse * 0.22 + burst * 0.2) * life;
+        shieldAura.material.opacity = (0.24 + pulse * 0.18 + burst * 0.16) * life;
 
         shieldDome.position.set(0, 0.06, 0);
-        shieldDome.scale.set(scale * 0.92, scale * 0.92, 1);
-        shieldDome.material.opacity = (0.18 + pulse * 0.14) * life;
+        shieldDome.scale.set(scale * 0.9, scale * 0.9, 1);
+        shieldDome.material.opacity = (0.14 + pulse * 0.12) * life;
+
+        shieldPulse.position.set(0, 0.05, 0);
+        shieldPulse.scale.set(scale * (1.05 + burst * 0.2), scale * (1.05 + burst * 0.2), 1);
+        shieldPulse.material.opacity = (0.08 + burst * 0.22) * life;
 
         for (const w of shieldWisps) {
-          w.phase += dt * (2.2 + w.band * 0.4);
-          const orbitR = scale * (0.75 + w.band * 0.12);
-          const h = 0.2 + w.band * 0.14 + Math.sin(w.phase * 2) * 0.08;
+          w.phase += dt * (1.8 + w.band * 0.35);
+          const orbitR = scale * (0.72 + w.band * 0.1);
+          const h = 0.18 + w.band * 0.12 + Math.sin(w.phase * 2) * 0.06;
           w.mesh.position.set(
             Math.cos(w.phase + shieldSpin) * orbitR,
             h,
             Math.sin(w.phase + shieldSpin) * orbitR
           );
           billboard(w.mesh, camera);
-          w.mesh.material.opacity = (0.32 + burst * 0.25) * life;
+          w.mesh.material.opacity = (0.26 + burst * 0.2) * life;
         }
       }
 

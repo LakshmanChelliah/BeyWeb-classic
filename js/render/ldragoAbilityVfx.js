@@ -327,8 +327,10 @@ export function createLdragoAbilityVfx(scene) {
 
   const stealGroup = new THREE.Group();
   const flightGroup = new THREE.Group();
+  const upperGroup = new THREE.Group();
   root.add(stealGroup);
   root.add(flightGroup);
+  root.add(upperGroup);
 
   function setVisible(mesh, opacity) {
     const show = opacity > 0.02;
@@ -379,6 +381,41 @@ export function createLdragoAbilityVfx(scene) {
   );
   stealCore.renderOrder = 7;
   stealGroup.add(stealCore);
+
+  // Upper Mode — restrained purple rim aura (no cartoon dragon mascot).
+  const upperRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.9, 1.08, 40),
+    getMat(CRIMSON, true)
+  );
+  upperRing.rotation.x = -Math.PI / 2;
+  upperRing.renderOrder = 4;
+  upperGroup.add(upperRing);
+
+  const upperInner = new THREE.Mesh(
+    new THREE.RingGeometry(0.62, 0.82, 32),
+    getMat(ORANGE, true)
+  );
+  upperInner.rotation.x = -Math.PI / 2;
+  upperInner.renderOrder = 5;
+  upperGroup.add(upperInner);
+
+  const upperCore = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.05, 1.05),
+    getMat(PALE, true)
+  );
+  upperCore.renderOrder = 6;
+  upperGroup.add(upperCore);
+
+  const upperSparks = [];
+  for (let i = 0; i < 6; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08, 0.08),
+      getMat(i % 2 === 0 ? WHITE_HOT : PALE, true)
+    );
+    mesh.renderOrder = 6;
+    upperGroup.add(mesh);
+    upperSparks.push({ mesh, phase: (i / 6) * Math.PI * 2 });
+  }
 
   const dragonWings = [];
   for (let i = 0; i < DRAGON_WING_COUNT; i++) {
@@ -556,6 +593,7 @@ export function createLdragoAbilityVfx(scene) {
   let stealSpin = 0;
   let flightSpin = 0;
   let flightT = 0;
+  let upperSpin = 0;
 
   function hideSteal() {
     for (const p of drainPool) { p.mesh.visible = false; p.mesh.material.opacity = 0; }
@@ -563,6 +601,13 @@ export function createLdragoAbilityVfx(scene) {
     for (const b of stealBeams) { b.mesh.visible = false; b.mesh.material.opacity = 0; }
     stealCore.visible = false;
     stealCore.material.opacity = 0;
+  }
+
+  function hideUpper() {
+    upperRing.material.opacity = 0;
+    upperInner.material.opacity = 0;
+    upperCore.material.opacity = 0;
+    for (const s of upperSparks) s.mesh.material.opacity = 0;
   }
 
   function hideFlight() {
@@ -616,9 +661,11 @@ export function createLdragoAbilityVfx(scene) {
     hideSteal();
     hideFlight();
     hideLightning();
+    hideUpper();
     stealSpin = 0;
     flightSpin = 0;
     flightT = 0;
+    upperSpin = 0;
   }
 
   reset();
@@ -631,12 +678,13 @@ export function createLdragoAbilityVfx(scene) {
       }
 
       const spinStealing = !!body.userData.spinStealing;
+      const upperMode = !!body.userData.ldragoUpperMode;
       const flightWindup = !!body.userData.ldragoFlightWindup;
       const absorbWindup = !!body.userData.ldragoAbsorbWindup;
       const absorbRush = !!body.userData.ldragoAbsorbRush;
       const inFlight = !!body.userData.airborne && !!body.userData.invulnerable;
 
-      if (!spinStealing && !flightWindup && !absorbWindup && !absorbRush && !inFlight) {
+      if (!spinStealing && !upperMode && !flightWindup && !absorbWindup && !absorbRush && !inFlight) {
         reset();
         return;
       }
@@ -649,6 +697,44 @@ export function createLdragoAbilityVfx(scene) {
       const R = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
       const yBase = body.position.y + (body.userData.visualYOffset ?? 0)
         + (body.userData.flightLift ?? 0);
+
+      if (upperMode && !spinStealing && !absorbWindup && !absorbRush && !flightWindup && !inFlight) {
+        hideSteal();
+        hideFlight();
+        upperSpin += dt * 3.2;
+        const pulse = 0.7 + 0.3 * Math.sin(upperSpin * 2.4);
+        upperGroup.position.set(bx, floorY, bz);
+
+        upperRing.position.set(0, 0.05, 0);
+        upperRing.scale.setScalar(R * (1.05 + pulse * 0.06));
+        upperRing.material.opacity = 0.22 + pulse * 0.14;
+        upperRing.rotation.z -= dt * 2.4;
+
+        upperInner.position.set(0, 0.07, 0);
+        upperInner.scale.setScalar(R * (0.95 + pulse * 0.04));
+        upperInner.material.opacity = 0.12 + pulse * 0.1;
+        upperInner.rotation.z += dt * 1.8;
+
+        upperCore.position.set(0, R * 0.35, 0);
+        billboard(upperCore, camera);
+        upperCore.scale.setScalar(topGroup.scale.x * (0.4 + pulse * 0.08));
+        upperCore.material.opacity = 0.1 + pulse * 0.08;
+
+        for (const s of upperSparks) {
+          s.phase += dt * 4;
+          const orbitR = R * (1.12 + 0.06 * Math.sin(s.phase * 2));
+          s.mesh.position.set(
+            Math.cos(s.phase + upperSpin) * orbitR,
+            0.15 + Math.sin(s.phase * 1.5) * 0.08,
+            Math.sin(s.phase + upperSpin) * orbitR
+          );
+          billboard(s.mesh, camera);
+          s.mesh.material.opacity = 0.14 + pulse * 0.1;
+        }
+        return;
+      }
+
+      hideUpper();
 
       if (spinStealing || absorbWindup || absorbRush) {
         hideFlight();
