@@ -116,7 +116,7 @@ const LDRAGO_ABSORB_DASH_SPEED = 21;
 const LDRAGO_ABSORB_DASH_ACCEL_DUR = 0.32;
 const LDRAGO_ABSORB_DASH_AIM_TRACK = 0.48;
 const LDRAGO_ABSORB_COAST_ARRIVE = 0.4;
-const LDRAGO_ABSORB_HIT_KB = 7.4;
+const LDRAGO_ABSORB_HIT_KB = STAR_BLAST_HIT_KNOCKBACK; // same slam kickback as Star Blast
 const LDRAGO_ABSORB_HIT_SPIN = 0.24;
 const LDRAGO_ABSORB_STEAL_GAIN = 0.1;
 const LDRAGO_ABSORB_MISS_SELF = 0.04;
@@ -631,14 +631,9 @@ function applyLdragoAbsorbHit(state, side, body, opp) {
   // Brief hitch so the devour reads before pierce continues.
   body.userData.ldragoAbsorbPhase = 'impact';
   body.userData.ldragoAbsorbPhaseT = 0;
-  if (!isLaunchBounceActive(opp)) {
-    opp.userData.launchBounceSource = 'ldrago';
-    startLaunchBounce(opp, nx, nz, LDRAGO_ABSORB_HIT_KB, 'ldrago', 1.15);
-  } else {
-    // Already airborne — still shove hard.
-    opp.userData.launchBounceSource = 'ldrago';
-    startLaunchBounce(opp, nx, nz, LDRAGO_ABSORB_HIT_KB * 0.85, 'ldrago', 1);
-  }
+  // Same slam kickback as Star Blast dive connect (shared bounce hops + Star Blast KB mag).
+  opp.userData.launchBounceSource = 'ldrago';
+  startLaunchBounce(opp, nx, nz, LDRAGO_ABSORB_HIT_KB, 'ldrago', 1);
 }
 
 function releaseLdragoAbsorbControl(body) {
