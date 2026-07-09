@@ -9,7 +9,22 @@ import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
 import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
-import { installCaptureApi } from '../debug/captureApi.js';
+
+/** Capture API is optional QA tooling — never block boot if it fails to load. */
+function installCaptureApiLazy(app) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('capture');
+    if (raw == null) return;
+    const v = String(raw).trim().toLowerCase();
+    if (!(v === '' || v === '1' || v === 'true' || v === 'yes' || v === 'on')) return;
+  } catch {
+    return;
+  }
+  import('../debug/captureApi.js')
+    .then((m) => m.installCaptureApi?.(app))
+    .catch((err) => console.warn('[bey-capture] failed to load', err));
+}
 
 /**
  * Shared mobile/PC bootstrap: campaign, play setup, bey selection, and game wiring.
@@ -174,25 +189,33 @@ export function createAppBootstrap({
     resetAIController,
   });
 
-  gameRef = createGame({
-    mode: platform === 'mobile' ? 'mobile' : 'pc',
-    canvas,
-    isVsCpu: () => isVsCpu(gameMode),
-    ui: queryGameUi(queryUiOptions),
-    input,
-  });
+  // Arm HTML-independent failsafe as early as possible (covers createGame throws).
+  const earlyBootSafety = setTimeout(() => {
+    if (!document.body.classList.contains('boot-ready')) {
+      document.body.classList.add('boot-ready');
+      document.getElementById('boot-overlay')?.classList.add('hidden');
+      const st = document.getElementById('boot-status');
+      if (st) st.textContent = 'Almost ready…';
+    }
+  }, 12000);
 
-  // Start grey Pegasus GLB immediately, then mount icons on the shared renderer.
-  const getSharedRenderer = () => gameRef?.renderer ?? null;
-  preloadGreyPegasusIcon();
-  mountBeyIcon(document.getElementById('boot-bey-icon'), {
-    overlayEl: document.getElementById('boot-overlay'),
-    getRenderer: getSharedRenderer,
-  });
-  mountBeyIcon(document.getElementById('start-bey-icon'), {
-    overlayEl: startOverlay,
-    getRenderer: getSharedRenderer,
-  });
+  try {
+    gameRef = createGame({
+      mode: platform === 'mobile' ? 'mobile' : 'pc',
+      canvas,
+      isVsCpu: () => isVsCpu(gameMode),
+      ui: queryGameUi(queryUiOptions),
+      input,
+    });
+  } catch (err) {
+    console.error('[boot] createGame failed', err);
+    clearTimeout(earlyBootSafety);
+    document.body.classList.add('boot-ready');
+    document.getElementById('boot-overlay')?.classList.add('hidden');
+    const st = document.getElementById('boot-status');
+    if (st) st.textContent = 'Load error — try refresh';
+    // Do not rethrow: keep selection UI usable when possible.
+  }
 
   ({ mode: gameMode, difficulty } = playSetup.getState());
   applyModeUi();
@@ -216,6 +239,7 @@ export function createAppBootstrap({
   });
   let tipIndex = -1;
   let tipRotateTimer = null;
+  let bootFinished = false;
 
   function renderBootTip(entry) {
     if (!bootTip || !entry) return;
@@ -228,18 +252,22 @@ export function createAppBootstrap({
   }
 
   function showBootTip(fade = false) {
-    const entry = pickLoadingTip(tipIndex);
-    if (!bootTip) return;
-    if (!fade || !bootTip.textContent) {
-      renderBootTip(entry);
-      return;
+    try {
+      const entry = pickLoadingTip(tipIndex);
+      if (!bootTip) return;
+      if (!fade || !bootTip.textContent) {
+        renderBootTip(entry);
+        return;
+      }
+      bootTip.classList.add('boot-tip-fade');
+      window.setTimeout(() => {
+        if (!bootTip || document.body.classList.contains('boot-ready')) return;
+        renderBootTip(entry);
+        bootTip.classList.remove('boot-tip-fade');
+      }, 280);
+    } catch (err) {
+      console.warn('[boot] tip rotate failed', err);
     }
-    bootTip.classList.add('boot-tip-fade');
-    window.setTimeout(() => {
-      if (!bootTip || document.body.classList.contains('boot-ready')) return;
-      renderBootTip(entry);
-      bootTip.classList.remove('boot-tip-fade');
-    }, 280);
   }
 
   function setBootProgress(done, total, bey) {
@@ -255,6 +283,8 @@ export function createAppBootstrap({
   }
 
   function finishBoot() {
+    if (bootFinished) return;
+    bootFinished = true;
     if (tipRotateTimer != null) {
       clearInterval(tipRotateTimer);
       tipRotateTimer = null;
@@ -266,25 +296,46 @@ export function createAppBootstrap({
     }
   }
 
-  if (bootStatus) bootStatus.textContent = 'Loading beys…';
-  showBootTip(false);
-  tipRotateTimer = setInterval(() => showBootTip(true), 4500);
-
+  // Arm the failsafe BEFORE any icon / tip / preload work so a throw cannot
+  // leave the overlay stuck at 0% forever.
+  clearTimeout(earlyBootSafety);
   const bootSafety = setTimeout(() => {
     if (!document.body.classList.contains('boot-ready')) {
       if (bootStatus) bootStatus.textContent = 'Almost ready…';
       finishBoot();
     }
-  }, 20000);
+  }, 12000);
+
+  // Start grey Pegasus GLB immediately, then mount icons on the shared renderer.
+  const getSharedRenderer = () => gameRef?.renderer ?? null;
+  try {
+    preloadGreyPegasusIcon();
+    mountBeyIcon(document.getElementById('boot-bey-icon'), {
+      overlayEl: document.getElementById('boot-overlay'),
+      getRenderer: getSharedRenderer,
+    });
+    mountBeyIcon(document.getElementById('start-bey-icon'), {
+      overlayEl: startOverlay,
+      getRenderer: getSharedRenderer,
+    });
+  } catch (err) {
+    console.warn('[boot] bey icon mount failed', err);
+  }
+
+  if (bootStatus) bootStatus.textContent = 'Loading beys…';
+  showBootTip(false);
+  tipRotateTimer = setInterval(() => showBootTip(true), 4500);
 
   preloadPlayableModels(playable, { onProgress: setBootProgress })
-    .catch(() => {})
+    .catch((err) => {
+      console.warn('[boot] model preload failed', err);
+    })
     .finally(() => {
       clearTimeout(bootSafety);
       finishBoot();
     });
 
   const app = { gameRef, selection, campaignCtrl, playSetup, get gameMode() { return gameMode; } };
-  installCaptureApi(app);
+  installCaptureApiLazy(app);
   return app;
 }

@@ -44,6 +44,16 @@
         location.replace(target);
       }
     })();
+    // Escape hatch: if modules never finish, dismiss the boot overlay.
+    setTimeout(function () {
+      if (!document.body.classList.contains('boot-ready')) {
+        document.body.classList.add('boot-ready');
+        var el = document.getElementById('boot-overlay');
+        if (el) el.classList.add('hidden');
+        var st = document.getElementById('boot-status');
+        if (st) st.textContent = 'Almost ready…';
+      }
+    }, 15000);
   </script>
 </head>
 <body class="mobile">
@@ -178,6 +188,6 @@
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=24"></script>
+  <script type="module" src="js/main-mobile.js?v=25"></script>
 </body>
 </html>
