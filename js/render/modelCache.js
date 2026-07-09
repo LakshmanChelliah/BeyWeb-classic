@@ -158,6 +158,33 @@ export function preloadTopModel(url, fallbackColor = 0x888888) {
   return promise;
 }
 
+/**
+ * Preload a list of bey models with completion progress.
+ * @param {Array<{ model?: string }>} beys
+ * @param {{ onProgress?: (done: number, total: number, bey?: object) => void }} [opts]
+ */
+export function preloadPlayableModels(beys, { onProgress } = {}) {
+  const list = (beys || []).filter((b) => b?.model);
+  const total = list.length;
+  if (total === 0) {
+    onProgress?.(0, 0);
+    return Promise.resolve([]);
+  }
+
+  let done = 0;
+  onProgress?.(0, total);
+
+  return Promise.all(
+    list.map((bey) =>
+      preloadTopModel(bey.model).then((result) => {
+        done += 1;
+        onProgress?.(done, total, bey);
+        return result;
+      })
+    )
+  );
+}
+
 /** Awaits both match beys being cached before spawn. */
 export async function ensureMatchModelsReady(playerBey, aiBey) {
   await Promise.all([

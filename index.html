@@ -10,7 +10,16 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Spin Sumo | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=27" />
+  <link rel="stylesheet" href="css/game.css?v=28" />
+  <style>
+    #boot-overlay {
+      position: fixed; inset: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 30%, #1a2548 0%, #0a0e1a 70%);
+      color: #c8d4f0; text-align: center;
+    }
+    #boot-overlay.hidden { opacity: 0; pointer-events: none; }
+  </style>
   <script>
     (function () {
       var desktop =
@@ -24,6 +33,18 @@
   </script>
 </head>
 <body class="mobile">
+
+  <div id="boot-overlay" class="boot-overlay" aria-live="polite" aria-busy="true">
+    <div class="boot-overlay-card">
+      <div class="logo-ring" aria-hidden="true"></div>
+      <p class="boot-overlay-title">Spin Sumo</p>
+      <p class="boot-overlay-status" id="boot-status">Loading arena…</p>
+      <div class="boot-overlay-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="boot-progress">
+        <div class="boot-overlay-bar-fill" id="boot-progress-fill"></div>
+      </div>
+      <p class="boot-overlay-pct" id="boot-pct">0%</p>
+    </div>
+  </div>
 
   <div id="orientation-lock" class="orientation-lock" aria-live="polite">
     <div class="orientation-lock-card">
@@ -136,6 +157,6 @@
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=18"></script>
+  <script type="module" src="js/main-mobile.js?v=19"></script>
 </body>
 </html>

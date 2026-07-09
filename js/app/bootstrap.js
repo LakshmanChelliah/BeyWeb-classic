@@ -6,7 +6,7 @@ import { queryGameUi } from '../ui/domRefs.js';
 import { createCampaignController } from '../game/campaignController.js';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
-import { preloadTopModel } from '../render/modelCache.js';
+import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
 
 /**
  * Shared mobile/PC bootstrap: campaign, play setup, bey selection, and game wiring.
@@ -179,10 +179,6 @@ export function createAppBootstrap({
     input,
   });
 
-  BEYS.filter(isBeyPlayable).forEach((b) => {
-    if (b.model) preloadTopModel(b.model);
-  });
-
   ({ mode: gameMode, difficulty } = playSetup.getState());
   applyModeUi();
   selection?.setRivalLabel(getRivalLabel());
@@ -190,6 +186,48 @@ export function createAppBootstrap({
   if (initStartOverlayHidden) {
     startOverlay.classList.add('hidden');
   }
+
+  const bootOverlay = document.getElementById('boot-overlay');
+  const bootStatus = document.getElementById('boot-status');
+  const bootFill = document.getElementById('boot-progress-fill');
+  const bootProgress = document.getElementById('boot-progress');
+  const bootPct = document.getElementById('boot-pct');
+  const playable = BEYS.filter(isBeyPlayable);
+
+  function setBootProgress(done, total, bey) {
+    const pct = total > 0 ? Math.round((done / total) * 100) : 100;
+    if (bootFill) bootFill.style.width = `${pct}%`;
+    if (bootProgress) bootProgress.setAttribute('aria-valuenow', String(pct));
+    if (bootPct) bootPct.textContent = `${pct}%`;
+    if (bootStatus) {
+      if (done >= total) bootStatus.textContent = 'Ready';
+      else if (bey?.name) bootStatus.textContent = `Loading ${bey.name}…`;
+      else bootStatus.textContent = 'Loading beys…';
+    }
+  }
+
+  function finishBoot() {
+    document.body.classList.add('boot-ready');
+    if (bootOverlay) {
+      bootOverlay.classList.add('hidden');
+      bootOverlay.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  if (bootStatus) bootStatus.textContent = 'Loading beys…';
+  const bootSafety = setTimeout(() => {
+    if (!document.body.classList.contains('boot-ready')) {
+      if (bootStatus) bootStatus.textContent = 'Almost ready…';
+      finishBoot();
+    }
+  }, 20000);
+
+  preloadPlayableModels(playable, { onProgress: setBootProgress })
+    .catch(() => {})
+    .finally(() => {
+      clearTimeout(bootSafety);
+      finishBoot();
+    });
 
   return { gameRef, selection, campaignCtrl, playSetup, get gameMode() { return gameMode; } };
 }
