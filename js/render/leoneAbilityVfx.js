@@ -2,13 +2,6 @@ import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
 import { CONFIG } from '../config.js';
 import { LEONE_WALL_DURATION, LEONE_WALL_REACH_MULT } from '../game/abilities.js';
-import {
-  createBurstSystem,
-  createTrailSystem,
-  ensureQuarksRuntime,
-  Vector4,
-} from './vfx/quarksRuntime.js';
-import { createWindDebris, createSparkBurst } from './vfx/presets.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -44,37 +37,32 @@ function easeOut(t) {
 // Anchor — still a subtle green dig-in cue (power move only).
 const ANCHOR_GREEN = 0x4ade80;
 
-// Anime Gale Force Wall — pale / dark green cyclone (Metal Fusion / Fury).
-const GALE_PALE = 0xd9f99d;
-const GALE_LIME = 0xa3e635;
-const GALE_MID = 0x65a30d;
-const GALE_DEEP = 0x3f6212;
-const GALE_CORE = 0xecfccb;
-const GALE_WHITE = 0xf7fee7;
+// Gale Force Wall — dusty green wind (not neon / light-show).
+const GALE_PALE = 0xb8c99a;
+const GALE_LIME = 0x7a9a45;
+const GALE_MID = 0x556b2f;
+const GALE_DEEP = 0x3a4a22;
+const GALE_HAZE = 0x9aab78;
 const DUST_TAN = 0xb5aea4;
 const DUST_DARK = 0x7a7268;
 const DEBRIS_TAN = 0x9a8b78;
+const DEBRIS_DARK = 0x5c5348;
 
-// Funnel unit radius maps 1:1 to physics `lionWallReach` after XZ scale.
-// Keep the silhouette columnar so the visual never outruns the effectable range.
+// Narrower vertical funnel — same height, tighter radii than the prior wide cone.
 const TORNADO_HEIGHT = 7.2;
-const TORNADO_BASE_R = 1.0;
-/** Top flare as a fraction of base — must stay ≤ 1 so world radius ≤ reach. */
-const TORNADO_TOP_FRAC = 0.92;
-const TORNADO_TOP_R = TORNADO_BASE_R * TORNADO_TOP_FRAC;
+const TORNADO_BASE_R = 0.78;
+const TORNADO_TOP_R = 2.05;
 const WALL_ACTIVE_DUR = LEONE_WALL_DURATION;
 
 const FUNNEL_SEGMENTS = 48;
 const FUNNEL_HEIGHT_SEGS = 28;
-const RIBBON_COUNT = 6;
-const DEBRIS_COUNT = 36;
-const DUST_COUNT = 48;
-const STREAK_COUNT = 28;
-const LIGHTNING_VEIN_COUNT = 12;
+const RIBBON_COUNT = 8;
+const DEBRIS_COUNT = 42;
+const DUST_COUNT = 64;
+const STREAK_COUNT = 40;
 
 /**
- * Swirling green wind sheet — vertical streaks + soft horizontal bands
- * so cylinder UVs read as a spinning cyclone wall (show-accurate).
+ * Dense swirling wind sheet — dusty green bands, not bright neon wash.
  */
 function createGaleWindTexture() {
   const c = document.createElement('canvas');
@@ -83,46 +71,46 @@ function createGaleWindTexture() {
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, 256, 512);
 
-  // Soft vertical body wash.
+  // Soft dusty body — muted, translucent wind volume.
   const body = ctx.createLinearGradient(0, 0, 0, 512);
-  body.addColorStop(0, 'rgba(236,252,203,0)');
-  body.addColorStop(0.08, 'rgba(217,249,157,0.18)');
-  body.addColorStop(0.35, 'rgba(163,230,53,0.42)');
-  body.addColorStop(0.7, 'rgba(101,163,13,0.55)');
-  body.addColorStop(0.92, 'rgba(63,98,18,0.35)');
-  body.addColorStop(1, 'rgba(63,98,18,0)');
+  body.addColorStop(0, 'rgba(184,201,154,0)');
+  body.addColorStop(0.1, 'rgba(154,171,120,0.22)');
+  body.addColorStop(0.4, 'rgba(85,107,47,0.48)');
+  body.addColorStop(0.75, 'rgba(58,74,34,0.58)');
+  body.addColorStop(0.94, 'rgba(58,74,34,0.28)');
+  body.addColorStop(1, 'rgba(58,74,34,0)');
   ctx.fillStyle = body;
   ctx.fillRect(0, 0, 256, 512);
 
-  // Helical wind streaks (diagonal bands).
-  for (let i = 0; i < 28; i++) {
-    const x0 = (i / 28) * 256 + rand(i + 1) * 18;
-    const w = 3 + rand(i + 2) * 10;
-    const peak = 0.18 + rand(i + 3) * 0.45;
+  // Dense helical wind streaks (diagonal bands).
+  for (let i = 0; i < 42; i++) {
+    const x0 = (i / 42) * 256 + rand(i + 1) * 14;
+    const w = 2 + rand(i + 2) * 8;
+    const peak = 0.22 + rand(i + 3) * 0.4;
     ctx.save();
     ctx.translate(x0, 0);
-    ctx.transform(1, 0, 0.55 + rand(i + 4) * 0.35, 1, 0, 0);
+    ctx.transform(1, 0, 0.65 + rand(i + 4) * 0.4, 1, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, 512);
-    g.addColorStop(0, 'rgba(247,254,231,0)');
-    g.addColorStop(0.12, `rgba(236,252,203,${peak * 0.55})`);
-    g.addColorStop(0.45, `rgba(163,230,53,${peak})`);
-    g.addColorStop(0.78, `rgba(101,163,13,${peak * 0.7})`);
-    g.addColorStop(1, 'rgba(63,98,18,0)');
+    g.addColorStop(0, 'rgba(184,201,154,0)');
+    g.addColorStop(0.15, `rgba(154,171,120,${peak * 0.45})`);
+    g.addColorStop(0.5, `rgba(85,107,47,${peak})`);
+    g.addColorStop(0.85, `rgba(58,74,34,${peak * 0.65})`);
+    g.addColorStop(1, 'rgba(58,74,34,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, 512);
     ctx.restore();
   }
 
-  // Thin bright filaments for spinning detail.
-  for (let i = 0; i < 40; i++) {
+  // Fine grit filaments — wind texture, not light beams.
+  for (let i = 0; i < 55; i++) {
     const x = rand(i + 50) * 256;
-    const w = 0.6 + rand(i + 51) * 1.8;
-    const peak = 0.08 + rand(i + 52) * 0.22;
+    const w = 0.5 + rand(i + 51) * 1.6;
+    const peak = 0.1 + rand(i + 52) * 0.2;
     const g = ctx.createLinearGradient(x, 0, x, 512);
-    g.addColorStop(0, 'rgba(255,255,255,0)');
-    g.addColorStop(0.2, `rgba(247,254,231,${peak})`);
-    g.addColorStop(0.55, `rgba(217,249,157,${peak * 0.65})`);
-    g.addColorStop(1, 'rgba(255,255,255,0)');
+    g.addColorStop(0, 'rgba(181,174,164,0)');
+    g.addColorStop(0.25, `rgba(154,171,120,${peak})`);
+    g.addColorStop(0.6, `rgba(122,154,69,${peak * 0.55})`);
+    g.addColorStop(1, 'rgba(92,83,72,0)');
     ctx.fillStyle = g;
     ctx.fillRect(x, 0, w, 512);
   }
@@ -130,22 +118,22 @@ function createGaleWindTexture() {
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3.2, 1.15);
+  tex.repeat.set(3.6, 1.25);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
-/** Soft mist / cloud cap for the tornado crown. */
+/** Soft dusty mist / debris cloud for the tornado crown. */
 function createGaleMistTexture() {
   const c = document.createElement('canvas');
   c.width = 128;
   c.height = 128;
   const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
-  g.addColorStop(0, 'rgba(247,254,231,0.85)');
-  g.addColorStop(0.35, 'rgba(217,249,157,0.45)');
-  g.addColorStop(0.7, 'rgba(163,230,53,0.18)');
-  g.addColorStop(1, 'rgba(101,163,13,0)');
+  const g = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+  g.addColorStop(0, 'rgba(181,174,164,0.55)');
+  g.addColorStop(0.3, 'rgba(154,171,120,0.32)');
+  g.addColorStop(0.65, 'rgba(85,107,47,0.14)');
+  g.addColorStop(1, 'rgba(58,74,34,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 128, 128);
   const tex = new THREE.CanvasTexture(c);
@@ -154,8 +142,7 @@ function createGaleMistTexture() {
 }
 
 /**
- * Columnar gale funnel: slight mid pinch, no crown overshoot past max(baseR, topR).
- * After XZ scale by `reach / TORNADO_BASE_R`, world radius stays ≤ physics reach.
+ * Classic 3D funnel: pinched base, modest crown flare, mid waist.
  */
 function buildFunnelGeometry(baseR, topR, height, radialSegs, heightSegs) {
   const geo = new THREE.CylinderGeometry(
@@ -166,22 +153,15 @@ function buildFunnelGeometry(baseR, topR, height, radialSegs, heightSegs) {
     heightSegs,
     true
   );
-  const maxR = Math.max(baseR, topR);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
     const t = clamp01((v.y + height * 0.5) / height);
-    // Soft waist only — never expand past the shell's design radius.
-    const waist = 1 - Math.sin(t * Math.PI) * 0.1;
-    v.x *= waist;
-    v.z *= waist;
-    const len = Math.hypot(v.x, v.z);
-    if (len > maxR && len > 1e-6) {
-      const s = maxR / len;
-      v.x *= s;
-      v.z *= s;
-    }
+    const waist = 1 - Math.sin(t * Math.PI) * 0.16;
+    const crown = 1 + Math.pow(t, 2.6) * 0.12;
+    v.x *= waist * crown;
+    v.z *= waist * crown;
     pos.setXYZ(i, v.x, v.y, v.z);
   }
   pos.needsUpdate = true;
@@ -190,24 +170,21 @@ function buildFunnelGeometry(baseR, topR, height, radialSegs, heightSegs) {
 }
 
 /** Helical ribbon strip that wraps the funnel for solid 3D wind sheets. */
-function buildRibbonGeometry(turns, height, baseR, topR, width, segs = 96) {
+function buildRibbonGeometry(turns, height, baseR, topR, width, segs = 110) {
   const positions = [];
   const uvs = [];
   const indices = [];
-  const maxR = Math.max(baseR, topR);
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
     const ang = t * turns * Math.PI * 2;
     const y = t * height;
     const r = baseR + (topR - baseR) * t;
-    const waist = 1 - Math.sin(t * Math.PI) * 0.1;
-    const rr = Math.min(maxR, r * waist);
+    const waist = 1 - Math.sin(t * Math.PI) * 0.14;
+    const rr = r * waist;
     const c = Math.cos(ang);
     const s = Math.sin(ang);
-    // Keep both ribbon edges inside the effect radius.
-    const half = Math.min(width * 0.45, rr * 0.12);
-    const rIn = Math.max(0.05, rr - half);
-    const rOut = Math.min(maxR, rr + half * 0.35);
+    const rIn = rr * (1 - width * 0.5);
+    const rOut = rr * (1 + width * 0.5);
     positions.push(c * rIn, y, s * rIn);
     positions.push(c * rOut, y, s * rOut);
     uvs.push(0, t);
@@ -226,65 +203,65 @@ function buildRibbonGeometry(turns, height, baseR, topR, width, segs = 96) {
 }
 
 const DUST_GEOS = [
-  new THREE.PlaneGeometry(0.04, 0.036),
-  new THREE.PlaneGeometry(0.055, 0.048),
-  new THREE.PlaneGeometry(0.07, 0.06),
+  new THREE.PlaneGeometry(0.045, 0.04),
+  new THREE.PlaneGeometry(0.06, 0.052),
+  new THREE.PlaneGeometry(0.08, 0.068),
 ];
 const DEBRIS_GEOS = [
-  new THREE.PlaneGeometry(0.045, 0.035),
-  new THREE.PlaneGeometry(0.065, 0.05),
-  new THREE.PlaneGeometry(0.085, 0.065),
+  new THREE.PlaneGeometry(0.05, 0.038),
+  new THREE.PlaneGeometry(0.07, 0.055),
+  new THREE.PlaneGeometry(0.095, 0.07),
 ];
 const STREAK_GEOS = [
-  new THREE.PlaneGeometry(0.025, 0.14),
-  new THREE.PlaneGeometry(0.032, 0.2),
-  new THREE.PlaneGeometry(0.04, 0.26),
+  new THREE.PlaneGeometry(0.018, 0.18),
+  new THREE.PlaneGeometry(0.024, 0.26),
+  new THREE.PlaneGeometry(0.03, 0.34),
 ];
 
 /**
  * Per-bey Three.js VFX for Rock Leone's two abilities.
- * Gale Force Wall is a solid 3D green tornado funnel (anime Lion Gale Force Wall).
+ * Gale Force Wall is a dusty green 3D wind tornado (anime Lion Gale Force Wall).
  */
 export function createLeoneAbilityVfx(scene) {
-  ensureQuarksRuntime(scene);
   const root = new THREE.Group();
   scene.add(root);
   const getMat = createMatCache();
   const windTex = createGaleWindTexture();
   const mistTex = createGaleMistTexture();
   const windTexFast = createGaleWindTexture();
-  windTexFast.repeat.set(4.2, 1.35);
+  windTexFast.repeat.set(4.5, 1.4);
   const windTexSlow = createGaleWindTexture();
-  windTexSlow.repeat.set(2.4, 0.95);
+  windTexSlow.repeat.set(2.6, 1.0);
 
-  // --- Anchor: rising dust wisps only (no floor range rings) -------------------
+  // --- Anchor (unchanged green dig-in) ----------------------------------------
+  const anchorRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.8, 1.1, 24),
+    getMat(ANCHOR_GREEN, true)
+  );
+  anchorRing.rotation.x = -Math.PI / 2;
+  anchorRing.renderOrder = 3;
+  root.add(anchorRing);
+
+  const shockRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.9, 1.05, 24),
+    getMat(ANCHOR_GREEN, true)
+  );
+  shockRing.rotation.x = -Math.PI / 2;
+  shockRing.renderOrder = 2;
+  root.add(shockRing);
+
   const wisps = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 4; i++) {
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(0.22, 0.55),
       getMat(ANCHOR_GREEN, true)
     );
     m.renderOrder = 4;
     root.add(m);
-    wisps.push({ mesh: m, phase: (i / 8) * Math.PI * 2, speed: 0.9 + i * 0.12 });
+    wisps.push({ mesh: m, phase: (i / 4) * Math.PI * 2, speed: 0.9 + i * 0.15 });
   }
 
-  const anchorDust = createBurstSystem(scene, {
-    additive: false,
-    dustyColor: 0x6ee7b7,
-    startSpeed: [1.5, 5],
-    startSize: [0.15, 0.45],
-    gravity: -6,
-    colorA: new Vector4(0.3, 0.85, 0.5, 0.85),
-    colorB: new Vector4(0.2, 0.45, 0.25, 0),
-  });
-
-  const galeDebris = createWindDebris(scene);
-  const trueWallLightning = createSparkBurst(scene, { tint: 'green' });
-
   let anchorShockT = 0;
-  let wasAnchoring = false;
-  let lastLightningBurst = 0;
 
   // --- 3D Tornado funnel (Lion Gale Force Wall) --------------------------------
   const tornadoGroup = new THREE.Group();
@@ -293,150 +270,135 @@ export function createLeoneAbilityVfx(scene) {
   const funnelGroup = new THREE.Group();
   tornadoGroup.add(funnelGroup);
 
-  // Outer shell — dark green wall of wind (unit radius = physics reach after scale).
+  // Outer shell — dusty green wind wall (normal blend = solid volume, not glow).
   const outerShell = new THREE.Mesh(
     buildFunnelGeometry(
-      TORNADO_BASE_R,
-      TORNADO_TOP_R,
+      TORNADO_BASE_R * 1.08,
+      TORNADO_TOP_R * 1.02,
       TORNADO_HEIGHT,
       FUNNEL_SEGMENTS,
       FUNNEL_HEIGHT_SEGS
     ),
-    makeMat(GALE_DEEP, 0, { additive: true, doubleSide: true, map: windTexSlow })
+    makeMat(GALE_DEEP, 0, { additive: false, doubleSide: true, map: windTexSlow })
   );
   outerShell.position.y = TORNADO_HEIGHT * 0.5;
   outerShell.renderOrder = 5;
   funnelGroup.add(outerShell);
 
-  // Mid shell — brighter lime cyclone body (inside the effect radius).
+  // Mid shell — denser swirling wind body.
   const midShell = new THREE.Mesh(
     buildFunnelGeometry(
-      TORNADO_BASE_R * 0.82,
-      TORNADO_TOP_R * 0.82,
+      TORNADO_BASE_R * 0.88,
+      TORNADO_TOP_R * 0.86,
       TORNADO_HEIGHT * 0.96,
       FUNNEL_SEGMENTS,
       FUNNEL_HEIGHT_SEGS
     ),
-    makeMat(GALE_LIME, 0, { additive: true, doubleSide: true, map: windTex })
+    makeMat(GALE_MID, 0, { additive: false, doubleSide: true, map: windTex })
   );
   midShell.position.y = TORNADO_HEIGHT * 0.48;
   midShell.renderOrder = 6;
   funnelGroup.add(midShell);
 
-  // Inner core — pale green eye wall.
+  // Inner eye wall — slight haze only (kept subtle).
   const innerShell = new THREE.Mesh(
     buildFunnelGeometry(
       TORNADO_BASE_R * 0.48,
       TORNADO_TOP_R * 0.48,
-      TORNADO_HEIGHT * 0.9,
+      TORNADO_HEIGHT * 0.88,
       36,
       FUNNEL_HEIGHT_SEGS
     ),
-    makeMat(GALE_CORE, 0, { additive: true, doubleSide: true, map: windTexFast })
+    makeMat(GALE_HAZE, 0, { additive: true, doubleSide: true, map: windTexFast })
   );
-  innerShell.position.y = TORNADO_HEIGHT * 0.45;
+  innerShell.position.y = TORNADO_HEIGHT * 0.44;
   innerShell.renderOrder = 7;
   funnelGroup.add(innerShell);
 
-  // Bright axial core column (eye of the storm).
-  const coreColumn = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      TORNADO_BASE_R * 0.1,
-      TORNADO_BASE_R * 0.18,
-      TORNADO_HEIGHT * 0.85,
-      20,
-      1,
-      true
-    ),
-    makeMat(GALE_WHITE, 0, { additive: true, doubleSide: true })
-  );
-  coreColumn.position.y = TORNADO_HEIGHT * 0.42;
-  coreColumn.renderOrder = 8;
-  funnelGroup.add(coreColumn);
-
-  // Helical wind ribbons — solid 3D sheets wrapping the funnel (stay inside reach).
+  // Helical wind ribbons — primary "tornado" read.
   const ribbons = [];
   for (let i = 0; i < RIBBON_COUNT; i++) {
-    const turns = 2.2 + (i % 3) * 0.35;
-    const baseScale = 0.62 + i * 0.05;
-    const topScale = 0.58 + i * 0.05;
-    const width = 0.07 + (i % 3) * 0.03;
+    const turns = 2.6 + (i % 3) * 0.4;
+    const baseScale = 0.72 + i * 0.045;
+    const topScale = 0.76 + i * 0.05;
+    const width = 0.1 + (i % 3) * 0.045;
     const mesh = new THREE.Mesh(
       buildRibbonGeometry(
         turns,
-        TORNADO_HEIGHT * (0.88 + (i % 2) * 0.08),
-        TORNADO_BASE_R * Math.min(0.92, baseScale),
-        TORNADO_TOP_R * Math.min(0.92, topScale),
+        TORNADO_HEIGHT * (0.9 + (i % 2) * 0.06),
+        TORNADO_BASE_R * baseScale,
+        TORNADO_TOP_R * topScale,
         width
       ),
-      makeMat(i % 2 === 0 ? GALE_PALE : GALE_LIME, 0, {
-        additive: true,
+      makeMat(i % 2 === 0 ? GALE_HAZE : GALE_LIME, 0, {
+        additive: false,
         doubleSide: true,
         map: windTex,
       })
     );
-    mesh.renderOrder = 9;
+    mesh.renderOrder = 8;
     funnelGroup.add(mesh);
     ribbons.push({
       mesh,
-      spin: (i % 2 === 0 ? 1 : -1) * (1.8 + i * 0.35),
+      spin: (i % 2 === 0 ? 1 : -1) * (2.0 + i * 0.32),
       phase: (i / RIBBON_COUNT) * Math.PI * 2,
     });
   }
 
-  // No ground range rings — suction is sold by orbiting dust + funnel volume.
+  // Ground debris / suction ring — sized relative to funnel base.
+  const groundRing = new THREE.Mesh(
+    new THREE.RingGeometry(TORNADO_BASE_R * 0.3, TORNADO_BASE_R * 1.25, 40),
+    getMat(DUST_DARK)
+  );
+  groundRing.rotation.x = -Math.PI / 2;
+  groundRing.position.y = 0.04;
+  groundRing.renderOrder = 4;
+  tornadoGroup.add(groundRing);
 
-  // Crown mist disks — tornado cloud top.
+  const groundOuter = new THREE.Mesh(
+    new THREE.RingGeometry(TORNADO_BASE_R * 0.95, TORNADO_BASE_R * 2.0, 40),
+    getMat(DUST_TAN)
+  );
+  groundOuter.rotation.x = -Math.PI / 2;
+  groundOuter.position.y = 0.03;
+  groundOuter.renderOrder = 3;
+  tornadoGroup.add(groundOuter);
+
+  // Crown debris cloud — dusty, not glowing.
   const crownMist = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
-    makeMat(GALE_PALE, 0, { additive: true, map: mistTex })
+    makeMat(DUST_TAN, 0, { additive: false, map: mistTex })
   );
   crownMist.rotation.x = -Math.PI / 2;
   crownMist.position.y = TORNADO_HEIGHT * 0.96;
-  crownMist.renderOrder = 10;
+  crownMist.renderOrder = 9;
   funnelGroup.add(crownMist);
 
   const crownMistOuter = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
-    makeMat(GALE_LIME, 0, { additive: true, map: mistTex })
+    makeMat(GALE_HAZE, 0, { additive: false, map: mistTex })
   );
   crownMistOuter.rotation.x = -Math.PI / 2;
   crownMistOuter.position.y = TORNADO_HEIGHT * 0.9;
-  crownMistOuter.renderOrder = 9;
+  crownMistOuter.renderOrder = 8;
   funnelGroup.add(crownMistOuter);
 
-  // True Lion Gale Force Wall — green lightning veins laced through the funnel.
-  const lightningVeins = [];
-  for (let i = 0; i < LIGHTNING_VEIN_COUNT; i++) {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.06, 1.8 + (i % 3) * 0.4),
-      makeMat(i % 2 === 0 ? GALE_CORE : GALE_PALE, 0, { additive: true })
-    );
-    mesh.visible = false;
-    mesh.renderOrder = 12;
-    funnelGroup.add(mesh);
-    lightningVeins.push({
-      mesh,
-      phase: (i / LIGHTNING_VEIN_COUNT) * Math.PI * 2,
-      heightBias: 0.15 + (i % 5) * 0.15,
-      flicker: Math.random() * Math.PI * 2,
-    });
-  }
-
-  // Orbiting debris / dust / wind streaks for volume and grit.
   function spawnOrbitPool(count, kind) {
     const pool = [];
     const geos = kind === 'debris' ? DEBRIS_GEOS : kind === 'streak' ? STREAK_GEOS : DUST_GEOS;
     const colors = kind === 'debris'
-      ? [DEBRIS_TAN, DUST_DARK, GALE_DEEP]
+      ? [DEBRIS_TAN, DUST_DARK, DEBRIS_DARK, GALE_DEEP]
       : kind === 'streak'
-        ? [GALE_PALE, GALE_LIME, GALE_CORE]
-        : [DUST_TAN, DUST_DARK, GALE_MID, DEBRIS_TAN];
+        ? [GALE_HAZE, GALE_LIME, DUST_TAN, GALE_MID]
+        : [DUST_TAN, DUST_DARK, GALE_MID, DEBRIS_TAN, GALE_DEEP];
     for (let i = 0; i < count; i++) {
       const s = i + kind.charCodeAt(0) * 13;
-      const mat = getMat(colors[Math.floor(rand(s + 9) * colors.length)], kind !== 'debris').clone();
+      const mat = getMat(
+        colors[Math.floor(rand(s + 9) * colors.length)],
+        kind === 'streak'
+      ).clone();
       const mesh = new THREE.Mesh(geos[Math.floor(rand(s + 6) * geos.length)], mat);
-      mesh.renderOrder = kind === 'streak' ? 11 : 5;
+      mesh.renderOrder = kind === 'streak' ? 10 : 5;
       mesh.visible = false;
       tornadoGroup.add(mesh);
       pool.push({
@@ -444,9 +406,9 @@ export function createLeoneAbilityVfx(scene) {
         kind,
         heightBias: rand(s + 1),
         orbitPhase: rand(s + 2) * Math.PI * 2,
-        orbitSpeed: 0.85 + rand(s + 3) * 1.6,
-        radiusJitter: 0.72 + rand(s + 4) * 0.22,
-        riseSpeed: 0.4 + rand(s + 5) * 0.95,
+        orbitSpeed: 0.9 + rand(s + 3) * 1.7,
+        radiusJitter: 0.75 + rand(s + 4) * 0.42,
+        riseSpeed: 0.45 + rand(s + 5) * 1.0,
         tumble: rand(s + 7) * Math.PI * 2,
         tumbleRate: (rand(s + 8) - 0.5) * 5,
         layer: rand(s + 10),
@@ -464,7 +426,7 @@ export function createLeoneAbilityVfx(scene) {
   let wallT = 0;
 
   function hideTornado() {
-    for (const shell of [outerShell, midShell, innerShell, coreColumn, crownMist, crownMistOuter]) {
+    for (const shell of [outerShell, midShell, innerShell, crownMist, crownMistOuter, groundRing, groundOuter]) {
       shell.material.opacity = 0;
       shell.visible = false;
     }
@@ -476,13 +438,7 @@ export function createLeoneAbilityVfx(scene) {
       p.mesh.visible = false;
       p.mesh.material.opacity = 0;
     }
-    for (const v of lightningVeins) {
-      v.mesh.visible = false;
-      v.mesh.material.opacity = 0;
-    }
     funnelGroup.scale.setScalar(0.01);
-    galeDebris.stop();
-    lastLightningBurst = 0;
   }
 
   function setParticleVisible(mesh, opacity) {
@@ -495,82 +451,82 @@ export function createLeoneAbilityVfx(scene) {
     mesh.quaternion.copy(camera.quaternion);
   }
 
-  /** World-space radius along funnel height — max equals physics reach (effectable range). */
-  function tornadoRadiusAt(t, reach) {
-    const base = reach;
-    const top = reach * TORNADO_TOP_FRAC;
-    const pinch = 1 - Math.sin(t * Math.PI) * 0.08;
+  function tornadoRadiusAt(t, R, reachScale) {
+    const base = R * TORNADO_BASE_R * reachScale;
+    const top = R * TORNADO_TOP_R * reachScale;
+    const pinch = 1 - Math.sin(t * Math.PI) * 0.14;
     return (base + (top - base) * t) * pinch;
   }
 
-  function placeHelicalParticle(p, spin, reach, env, camera) {
+  function placeHelicalParticle(p, spin, R, reachScale, env, camera) {
     const { mesh, kind } = p;
     const cycle = (p.orbitPhase + spin * p.orbitSpeed * 0.15) % 1;
     const hNorm = (p.heightBias * 0.35 + cycle * p.riseSpeed) % 1;
     const h = hNorm * TORNADO_HEIGHT;
     const t = clamp01(h / TORNADO_HEIGHT);
-    // Keep grit inside the effect radius (no outward overshoot past reach).
-    const jitter = 0.72 + Math.min(0.22, (p.radiusJitter - 0.78) * 0.55);
-    const r = tornadoRadiusAt(t, reach) * jitter;
+    const r = tornadoRadiusAt(t, R, reachScale) * p.radiusJitter;
 
-    const helix = spin * (1.5 + t * 2.0) + p.orbitPhase + t * Math.PI * 4.5;
-    const turbAmp = r * 0.06;
-    const turb = Math.sin(spin * 3.1 + p.layer * 9) * turbAmp
-      + Math.cos(spin * 2.3 + p.tumble) * turbAmp * 0.7;
-    const rr = Math.min(reach * 0.98, r + turb);
-    mesh.position.set(Math.cos(helix) * rr, h, Math.sin(helix) * rr);
+    const helix = spin * (1.6 + t * 2.2) + p.orbitPhase + t * Math.PI * 5;
+    const turb = Math.sin(spin * 3.1 + p.layer * 9) * r * 0.13
+      + Math.cos(spin * 2.3 + p.tumble) * r * 0.09;
+    mesh.position.set(Math.cos(helix) * (r + turb), h, Math.sin(helix) * (r + turb));
 
     if (kind === 'streak') {
-      mesh.rotation.set(0.2, helix + Math.PI / 2, 0.35);
+      mesh.rotation.set(0.25, helix + Math.PI / 2, 0.4);
     } else {
       billboard(mesh, camera);
       mesh.rotation.z = p.tumble + spin * p.tumbleRate * 0.14;
     }
 
     const baseFade = kind === 'debris'
-      ? 0.4 * (1 - t * 0.7)
+      ? 0.48 * (1 - t * 0.65)
       : kind === 'streak'
-        ? 0.16 + 0.28 * (1 - Math.abs(t - 0.4))
-        : 0.18 + 0.32 * (1 - Math.abs(t - 0.3));
-    const flicker = 0.78 + 0.22 * Math.sin(spin * 4.2 + p.orbitPhase);
+        ? 0.2 + 0.32 * (1 - Math.abs(t - 0.42))
+        : 0.22 + 0.38 * (1 - Math.abs(t - 0.28));
+    const flicker = 0.8 + 0.2 * Math.sin(spin * 4.2 + p.orbitPhase);
     setParticleVisible(mesh, baseFade * flicker * env);
   }
 
   function setFunnelVisible(env, grow) {
     const g = Math.max(0.01, grow);
+    funnelGroup.scale.set(g, g, g);
+
     const show = env > 0.02;
     outerShell.visible = show;
     midShell.visible = show;
     innerShell.visible = show;
-    coreColumn.visible = show;
     crownMist.visible = show;
     crownMistOuter.visible = show;
+    groundRing.visible = show;
+    groundOuter.visible = show;
 
-    // Normal-blend dusty wind — avoid additive light-show.
-    outerShell.material.opacity = 0.55 * env;
-    midShell.material.opacity = 0.48 * env;
-    innerShell.material.opacity = 0.32 * env;
-    coreColumn.material.opacity = 0.14 * env;
+    // Solid wind volume — higher normal-blend opacity, soft inner haze only.
+    outerShell.material.opacity = 0.62 * env;
+    midShell.material.opacity = 0.55 * env;
+    innerShell.material.opacity = 0.14 * env;
     crownMist.material.opacity = 0.42 * env;
-    crownMistOuter.material.opacity = 0.22 * env;
+    crownMistOuter.material.opacity = 0.28 * env;
+    groundRing.material.opacity = 0.14 * env;
+    groundOuter.material.opacity = 0.08 * env;
 
     for (let i = 0; i < ribbons.length; i++) {
       const r = ribbons[i];
       r.mesh.visible = show;
-      r.mesh.material.opacity = (0.22 + (i % 3) * 0.06) * env;
+      r.mesh.material.opacity = (0.38 + (i % 3) * 0.1) * env;
     }
 
-    const crownR = TORNADO_BASE_R * 1.05 * g;
+    const crownR = TORNADO_TOP_R * 1.7 * g;
     crownMist.scale.setScalar(crownR);
-    crownMistOuter.scale.setScalar(crownR * 1.12);
+    crownMistOuter.scale.setScalar(crownR * 1.3);
   }
 
   function reset() {
     root.visible = false;
+    anchorRing.material.opacity = 0;
+    shockRing.material.opacity = 0;
     for (const w of wisps) w.mesh.material.opacity = 0;
     hideTornado();
     anchorShockT = 0;
-    wasAnchoring = false;
     wallOrbitAngle = 0;
     wallT = 0;
   }
@@ -600,8 +556,7 @@ export function createLeoneAbilityVfx(scene) {
       const floorY = CONFIG.FLOOR_Y + 0.02;
       const R = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
       const reach = body.userData.lionWallReach ?? R * LEONE_WALL_REACH_MULT;
-      // Scale funnel so outer shell world radius == physics reach (effectable range).
-      const funnelXZ = reach / TORNADO_BASE_R;
+      const reachScale = reach / (R * LEONE_WALL_REACH_MULT);
 
       if (anchoring) {
         wallT = 0;
@@ -609,16 +564,27 @@ export function createLeoneAbilityVfx(scene) {
         hideTornado();
         anchorShockT += dt;
 
-        if (!wasAnchoring) {
-          anchorDust.setPosition(bx, floorY + 0.1, bz);
-          anchorDust.burst(22);
-          wasAnchoring = true;
+        anchorRing.position.set(bx, floorY, bz);
+        shockRing.position.set(bx, floorY, bz);
+
+        if (anchorShockT < 0.35) {
+          const t = anchorShockT / 0.35;
+          const e = 1 - (1 - t) * (1 - t);
+          anchorRing.scale.setScalar(R * (1 + e * 1.8));
+          anchorRing.material.opacity = 0.55 * (1 - t);
+          shockRing.scale.setScalar(R * (1 + e * 2.8));
+          shockRing.material.opacity = 0.35 * (1 - t * t);
+        } else {
+          const pulse = 0.5 + 0.5 * Math.sin(anchorShockT * 6);
+          anchorRing.scale.setScalar(R * 1.35);
+          anchorRing.material.opacity = 0.18 + 0.12 * pulse;
+          shockRing.material.opacity = 0;
         }
 
         for (const w of wisps) {
           w.phase += dt * w.speed * 1.4;
           const angle = w.phase;
-          const orbitR = R * (1.0 + 0.35 * Math.sin(w.phase * 0.5));
+          const orbitR = R * 1.1;
           const riseAmt = (w.phase * 0.18) % 1.6;
           w.mesh.position.set(
             bx + Math.cos(angle) * orbitR,
@@ -628,39 +594,45 @@ export function createLeoneAbilityVfx(scene) {
           billboard(w.mesh, camera);
           const fadeOut = 1 - riseAmt / 1.6;
           const fadeIn = clamp01(anchorShockT / 0.4);
-          w.mesh.material.opacity = 0.32 * fadeIn * fadeOut;
+          w.mesh.material.opacity = 0.28 * fadeIn * fadeOut;
         }
-      } else {
-        wasAnchoring = false;
       }
 
       if (lionWall || lionWindup) {
         anchorShockT = 0;
+        anchorRing.material.opacity = 0;
+        shockRing.material.opacity = 0;
         for (const w of wisps) w.mesh.material.opacity = 0;
 
         wallT += dt;
         tornadoGroup.position.set(bx, floorY, bz);
-        galeDebris.follow(bx, floorY + TORNADO_HEIGHT * 0.35, bz, true);
+
+        // Match prior particle tornado footprint: world radius = R * TORNADO_*_R * reachScale.
+        const funnelXZ = R * reachScale;
 
         if (lionWindup) {
           const growT = clamp01(wallT / 0.45);
           const e = easeOut(growT);
-          const preSpin = wallT * 3.2;
+          const preSpin = wallT * 3.4;
 
-          setFunnelVisible(0.55 * e, e);
+          setFunnelVisible(0.5 * e, e);
           funnelGroup.scale.set(funnelXZ * e, e, funnelXZ * e);
-          funnelGroup.rotation.y = preSpin * 1.6;
-          outerShell.rotation.y = -preSpin * 0.8;
-          midShell.rotation.y = preSpin * 1.4;
-          innerShell.rotation.y = -preSpin * 2.1;
-          coreColumn.rotation.y = preSpin * 2.8;
-          windTex.offset.x = (windTex.offset.x + dt * 1.4) % 1;
-          windTexFast.offset.x = (windTexFast.offset.x - dt * 2.2) % 1;
-          windTexSlow.offset.x = (windTexSlow.offset.x + dt * 0.7) % 1;
+          funnelGroup.rotation.y = preSpin * 1.7;
+          outerShell.rotation.y = -preSpin * 0.9;
+          midShell.rotation.y = preSpin * 1.5;
+          innerShell.rotation.y = -preSpin * 2.2;
+          windTex.offset.x = (windTex.offset.x + dt * 1.6) % 1;
+          windTexFast.offset.x = (windTexFast.offset.x - dt * 2.4) % 1;
+          windTexSlow.offset.x = (windTexSlow.offset.x + dt * 0.8) % 1;
 
           for (const r of ribbons) {
-            r.mesh.rotation.y = r.phase + preSpin * r.spin * 0.35;
+            r.mesh.rotation.y = r.phase + preSpin * r.spin * 0.4;
           }
+
+          groundRing.scale.setScalar(funnelXZ * (0.55 + e * 0.85));
+          groundOuter.scale.setScalar(funnelXZ * (0.75 + e * 1.05));
+          groundRing.rotation.z = -preSpin * 0.65;
+          groundOuter.rotation.z = preSpin * 0.38;
 
           for (const p of allParticles) {
             if (p.kind === 'streak') {
@@ -669,17 +641,13 @@ export function createLeoneAbilityVfx(scene) {
               continue;
             }
             const ang = p.orbitPhase + preSpin;
-            const r = reach * (0.2 + e * 0.72) * Math.min(1, p.radiusJitter);
-            p.mesh.position.set(Math.cos(ang) * r, 0.06 + e * 0.7, Math.sin(ang) * r);
+            const r = R * (0.35 + e * 0.95) * p.radiusJitter;
+            p.mesh.position.set(Math.cos(ang) * r, 0.06 + e * 0.65, Math.sin(ang) * r);
             billboard(p.mesh, camera);
-            setParticleVisible(p.mesh, 0.28 * e * (p.kind === 'debris' ? 1 : 0.6));
-          }
-          for (const v of lightningVeins) {
-            v.mesh.visible = false;
-            v.mesh.material.opacity = 0;
+            setParticleVisible(p.mesh, 0.32 * e * (p.kind === 'debris' ? 1 : 0.65));
           }
         } else {
-          wallOrbitAngle += dt * 5.8;
+          wallOrbitAngle += dt * 6.0;
           const fadeIn = clamp01(wallT / 0.22);
           const fadeOut = clamp01((WALL_ACTIVE_DUR - wallT) / 0.32);
           const env = fadeIn * fadeOut;
@@ -688,57 +656,36 @@ export function createLeoneAbilityVfx(scene) {
           setFunnelVisible(env, 1);
           funnelGroup.scale.set(funnelXZ, 1, funnelXZ);
 
-          funnelGroup.rotation.y = spin * 0.55;
-          outerShell.rotation.y = -spin * 0.95;
-          midShell.rotation.y = spin * 1.55;
-          innerShell.rotation.y = -spin * 2.4;
-          coreColumn.rotation.y = spin * 3.1;
+          funnelGroup.rotation.y = spin * 0.6;
+          outerShell.rotation.y = -spin * 1.05;
+          midShell.rotation.y = spin * 1.7;
+          innerShell.rotation.y = -spin * 2.5;
 
-          windTex.offset.x = (windTex.offset.x + dt * 1.85) % 1;
-          windTexFast.offset.x = (windTexFast.offset.x - dt * 2.8) % 1;
-          windTexSlow.offset.x = (windTexSlow.offset.x + dt * 0.95) % 1;
-          windTex.offset.y = (windTex.offset.y + dt * 0.12) % 1;
+          windTex.offset.x = (windTex.offset.x + dt * 2.1) % 1;
+          windTexFast.offset.x = (windTexFast.offset.x - dt * 3.0) % 1;
+          windTexSlow.offset.x = (windTexSlow.offset.x + dt * 1.05) % 1;
+          windTex.offset.y = (windTex.offset.y + dt * 0.15) % 1;
 
           for (const r of ribbons) {
-            r.mesh.rotation.y = r.phase + spin * r.spin * 0.22;
+            r.mesh.rotation.y = r.phase + spin * r.spin * 0.26;
           }
 
-          // Soft breath on inner shells only — outer wall stays locked to physics reach.
-          const breath = 1 + Math.sin(spin * 0.7) * 0.02;
-          outerShell.scale.set(1, 1, 1);
-          midShell.scale.set(breath, 1, breath);
-          innerShell.scale.set(1 / Math.max(0.92, breath), 1, 1 / Math.max(0.92, breath));
+          const breath = 1 + Math.sin(spin * 0.75) * 0.025;
+          outerShell.scale.set(breath, 1, breath);
+          midShell.scale.set(1 / breath, 1, 1 / breath);
 
-          crownMist.rotation.z = spin * 0.4;
-          crownMistOuter.rotation.z = -spin * 0.25;
+          groundRing.scale.setScalar(funnelXZ * (1.05 + Math.sin(spin * 1.2) * 0.05));
+          groundOuter.scale.setScalar(funnelXZ * (1.4 + Math.sin(spin * 0.9) * 0.07));
+          groundRing.rotation.z = -spin * 0.9;
+          groundOuter.rotation.z = spin * 0.48;
+
+          crownMist.rotation.z = spin * 0.45;
+          crownMistOuter.rotation.z = -spin * 0.28;
 
           for (const p of allParticles) {
-            placeHelicalParticle(p, spin, reach, env, camera);
-          }
-
-          // True Wall green lightning veins laced through the funnel.
-          for (let i = 0; i < lightningVeins.length; i++) {
-            const v = lightningVeins[i];
-            v.flicker += dt * (8 + (i % 4));
-            const ang = v.phase + spin * 1.8;
-            const t = v.heightBias;
-            const r = Math.min(reach * 0.95, tornadoRadiusAt(t, reach) * 0.88);
-            const h = t * TORNADO_HEIGHT;
-            v.mesh.position.set(Math.cos(ang) * r, h, Math.sin(ang) * r);
-            v.mesh.rotation.set(0.15, ang + Math.PI / 2, Math.sin(v.flicker) * 0.2);
-            const flash = 0.35 + 0.65 * Math.max(0, Math.sin(v.flicker * 1.7));
-            setParticleVisible(v.mesh, 0.45 * env * flash);
-          }
-
-          lastLightningBurst += dt;
-          if (lastLightningBurst > 0.45) {
-            lastLightningBurst = 0;
-            trueWallLightning.setPosition(bx, floorY + TORNADO_HEIGHT * 0.55, bz);
-            trueWallLightning.burst(18);
+            placeHelicalParticle(p, spin, R, reachScale, env, camera);
           }
         }
-      } else {
-        galeDebris.stop();
       }
     },
     reset,
