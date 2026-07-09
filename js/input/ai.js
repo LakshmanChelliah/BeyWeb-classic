@@ -26,13 +26,13 @@ const AI_TIERS = [
 export const AI_TIER_MAX = AI_TIERS.length - 1;
 
 export const AI_DIFFICULTIES = Object.freeze([
-  { tier: 0, label: 'Beginner' },
-  { tier: 1, label: 'Amateur' },
-  { tier: 2, label: 'Intermediate' },
-  { tier: 3, label: 'Advanced' },
-  { tier: 4, label: 'Pro' },
-  { tier: 5, label: 'Master' },
-  { tier: 6, label: 'Bot' },
+  { tier: 0, label: 'Beginner', short: 'Beg' },
+  { tier: 1, label: 'Amateur', short: 'Am' },
+  { tier: 2, label: 'Intermediate', short: 'Mid' },
+  { tier: 3, label: 'Advanced', short: 'Adv' },
+  { tier: 4, label: 'Pro', short: 'Pro' },
+  { tier: 5, label: 'Master', short: 'Mst' },
+  { tier: 6, label: 'Bot', short: 'Bot' },
 ]);
 
 export function getDifficultyLabel(tier) {

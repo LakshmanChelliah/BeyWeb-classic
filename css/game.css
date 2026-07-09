@@ -1636,18 +1636,21 @@ body.mobile .play-setup-diff-label {
 }
 
 body.mobile .play-setup-diff-btns {
-  gap: 5px;
+  gap: 4px;
   width: 100%;
+  max-width: 100%;
   flex-wrap: nowrap;
+  padding: 3px;
+  box-sizing: border-box;
 }
 
 body.mobile .play-setup-diff-btn {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 42px;
-  padding: 10px 4px;
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
+  min-height: 36px;
+  padding: 8px 2px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
 }
 
 body.mobile .play-setup-hint {
@@ -1949,8 +1952,9 @@ body.mobile .pick-bey {
 
   body.mobile .play-setup-diff-btn {
     font-size: 9px;
-    min-height: 38px;
-    padding: 8px 2px;
+    min-height: 32px;
+    padding: 6px 1px;
+    letter-spacing: 0;
   }
 
   body.mobile .select-mount {

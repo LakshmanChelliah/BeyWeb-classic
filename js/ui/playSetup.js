@@ -48,7 +48,9 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
     btn.type = 'button';
     btn.className = 'play-setup-diff-btn';
     btn.dataset.tier = String(d.tier);
-    btn.textContent = d.label;
+    btn.textContent = d.short || d.label;
+    btn.title = d.label;
+    btn.setAttribute('aria-label', d.label);
     btn.addEventListener('click', () => setDifficulty(d.tier));
     diffBtns.appendChild(btn);
   }
