@@ -95,6 +95,7 @@ async function captureClip(page, {
   side,
   seconds,
   fps,
+  liveSeconds = 1.15,
 }) {
   const clipDir = path.join(outDir, `${bey}-${label || slot}`);
   fs.mkdirSync(clipDir, { recursive: true });
@@ -116,35 +117,50 @@ async function captureClip(page, {
   const fired = await page.evaluate(({ sideName, slotName }) => {
     const api = window.__beyCapture;
     const ability = api.trigger(sideName, slotName);
+    const snapshot = api.snapshot();
+    const slotState = snapshot?.abilities?.[sideName]?.[slotName];
     return {
-      fired: Boolean(ability),
-      abilityId: ability?.id ?? null,
-      abilityName: ability?.name ?? null,
-      snapshot: api.snapshot(),
+      fired: Boolean(ability) || Boolean(slotState?.active || slotState?.windupRemaining > 0),
+      abilityId: ability?.id ?? slotState?.id ?? null,
+      abilityName: ability?.name ?? slotState?.name ?? null,
+      snapshot,
     };
   }, { sideName: side, slotName: slot });
 
   const intervalMs = Math.max(16, Math.round(1000 / fps));
-  const totalFrames = Math.max(1, Math.round((seconds * 1000) / intervalMs));
+  const liveMs = Math.min(seconds * 1000, Math.max(200, liveSeconds * 1000));
+  const liveFrames = Math.max(1, Math.round(liveMs / intervalMs));
+  const freezeFrames = Math.max(0, Math.round((seconds * 1000 - liveMs) / intervalMs));
   const frames = [];
+  let index = 0;
 
-  for (let i = 0; i < totalFrames; i++) {
+  for (let i = 0; i < liveFrames; i++) {
     const meta = await page.evaluate((frameIndex) => {
       const snap = window.__beyCapture.snapshot();
-      return { frameIndex, ...snap };
-    }, i);
-    const png = await dumpFrame(page, clipDir, i, meta);
-    frames.push({ index: i, png: path.basename(png), t: meta.t });
-    if (i < totalFrames - 1) await page.waitForTimeout(intervalMs);
+      return { frameIndex, phase: 'live', ...snap };
+    }, index);
+    const png = await dumpFrame(page, clipDir, index, meta);
+    frames.push({ index, png: path.basename(png), t: meta.t, phase: 'live' });
+    index += 1;
+    if (i < liveFrames - 1) await page.waitForTimeout(intervalMs);
   }
 
-  // Mid-clip freeze sample for still review
-  await page.evaluate(() => window.__beyCapture.freeze(true));
-  const freezeMeta = await page.evaluate(() => ({
-    frozen: true,
-    ...window.__beyCapture.snapshot(),
-  }));
-  await dumpFrame(page, clipDir, totalFrames, freezeMeta);
+  // Freeze mid-special so late frames stay on the VFX instead of KO camera flyaway
+  await page.evaluate(() => {
+    window.__beyCapture.freeze(true);
+  });
+
+  for (let i = 0; i < freezeFrames; i++) {
+    const meta = await page.evaluate((frameIndex) => {
+      const snap = window.__beyCapture.snapshot();
+      return { frameIndex, phase: 'freeze', ...snap };
+    }, index);
+    const png = await dumpFrame(page, clipDir, index, meta);
+    frames.push({ index, png: path.basename(png), t: meta.t, phase: 'freeze' });
+    index += 1;
+    if (i < freezeFrames - 1) await page.waitForTimeout(intervalMs);
+  }
+
   await page.evaluate(() => window.__beyCapture.freeze(false));
 
   const manifest = {
@@ -154,14 +170,15 @@ async function captureClip(page, {
     side,
     seconds,
     fps,
+    liveSeconds,
     fired,
     boot: snap0,
-    frames: frames.length + 1,
+    frames: frames.length,
     dir: clipDir,
     createdAt: new Date().toISOString(),
   };
   fs.writeFileSync(path.join(clipDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  console.log(`OK ${bey}/${slot}: ${frames.length + 1} frames → ${clipDir}`);
+  console.log(`OK ${bey}/${slot}: ${frames.length} frames → ${clipDir} (fired=${fired.fired})`);
   return manifest;
 }
 
@@ -206,7 +223,8 @@ async function main() {
     : [
         {
           bey: args.bey,
-          label: args.bey,
+          label:
+            PLAYABLE_SPECIALS.find((j) => j.bey === args.bey)?.label || args.bey,
           slot: args.slot,
           side: args.side,
           seconds: args.seconds,

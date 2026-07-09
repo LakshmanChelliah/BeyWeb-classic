@@ -183,7 +183,10 @@ export function installCaptureApi(app) {
   }
 
   function trigger(side = 'player', slot = 'special') {
-    return gameRef?.triggerAbility(side, slot) ?? null;
+    const ability = gameRef?.triggerAbility(side, slot) ?? null;
+    return ability
+      ? { id: ability.id, name: ability.name, glow: ability.glow ?? null }
+      : null;
   }
 
   async function pickBey(beyId) {

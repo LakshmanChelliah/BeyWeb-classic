@@ -457,12 +457,13 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   }
 
   function triggerAbility(side, slot) {
-    if (!state.gameRunning || state.gameFrozen || state.launchGrace > 0 || state.pendingKo) return;
+    if (!state.gameRunning || state.gameFrozen || state.launchGrace > 0 || state.pendingKo) return null;
     const ability = triggerAbilityCore(state, side, slot);
     if (ability && slot === 'special') {
       const bey = side === 'player' ? state.playerBey : state.aiBey;
       playSpecialFlash(bey, ability.glow);
     }
+    return ability ?? null;
   }
 
   function updateHud() {

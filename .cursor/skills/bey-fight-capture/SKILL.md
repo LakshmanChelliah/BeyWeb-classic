@@ -60,6 +60,9 @@ node scripts/capture-fight.mjs \
 
 Useful flags: `--power`, `--headed`, `--side ai`, `--bey bull`.
 
+Clips record **live** frames for ~1.15s (special impact window), then **freeze**
+remaining frames so the camera does not fly away on KO.
+
 ### 3. Review frames
 
 Each clip lands in:
