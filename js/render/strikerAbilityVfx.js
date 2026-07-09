@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
 import { CONFIG } from '../config.js';
 import { STRIKER_VANISH_DUR } from '../game/abilities.js';
+import {
+  createBurstSystem,
+  createTrailSystem,
+  ensureQuarksRuntime,
+  Vector4,
+} from './vfx/quarksRuntime.js';
 
 const TEAL = 0x14b8a6;
 const TEAL_LIGHT = 0x2dd4bf;
@@ -32,8 +38,34 @@ function makeMat(color, opacity, additive = true) {
 
 /** Teal Blitz Charge trails + Lightning Sword Flash vanish / reappear / dash. */
 export function createStrikerAbilityVfx(scene) {
+  ensureQuarksRuntime(scene);
   const root = new THREE.Group();
   scene.add(root);
+
+  const blitzTrail = createTrailSystem(scene, {
+    rate: 50,
+    startSize: [0.12, 0.4],
+    startLife: [0.15, 0.35],
+    colorA: new Vector4(0.15, 0.85, 0.75, 0.9),
+    colorB: new Vector4(0.7, 0.98, 0.92, 0),
+  });
+  const flashBurst = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [6, 16],
+    startSize: [0.1, 0.4],
+    gravity: -2,
+    colorA: new Vector4(0.2, 0.95, 0.85, 1),
+    colorB: new Vector4(0.8, 1, 0.95, 0),
+  });
+  const bounceDust = createBurstSystem(scene, {
+    additive: false,
+    dustyColor: 0x5eead4,
+    startSpeed: [3, 9],
+    startSize: [0.12, 0.4],
+    gravity: -10,
+    colorA: new Vector4(0.3, 0.85, 0.75, 0.85),
+    colorB: new Vector4(0.15, 0.4, 0.35, 0),
+  });
 
   const blitzGroup = new THREE.Group();
   const vanishGroup = new THREE.Group();
@@ -65,14 +97,6 @@ export function createStrikerAbilityVfx(scene) {
     blitzSparks.push({ mesh, phase: (i / 4) * Math.PI * 2 });
   }
 
-  const blitzRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.85, 0.98, 32),
-    makeMat(TEAL, 0)
-  );
-  blitzRing.rotation.x = -Math.PI / 2;
-  blitzRing.renderOrder = 3;
-  blitzGroup.add(blitzRing);
-
   const blitzCore = new THREE.Mesh(
     new THREE.PlaneGeometry(0.95, 0.95),
     makeMat(TEAL_WHITE, 0)
@@ -81,14 +105,6 @@ export function createStrikerAbilityVfx(scene) {
   blitzGroup.add(blitzCore);
 
   // --- Lightning Sword Flash ---
-  const vanishRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.4, 0.95, 32),
-    makeMat(TEAL_LIGHT, 0)
-  );
-  vanishRing.rotation.x = -Math.PI / 2;
-  vanishRing.renderOrder = 8;
-  vanishGroup.add(vanishRing);
-
   const vanishCore = new THREE.Mesh(
     new THREE.PlaneGeometry(1.25, 1.25),
     makeMat(TEAL_WHITE, 0)
@@ -113,14 +129,6 @@ export function createStrikerAbilityVfx(scene) {
   );
   afterimage.renderOrder = 4;
   vanishGroup.add(afterimage);
-
-  const reappearRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.2, 1.05, 36),
-    makeMat(TEAL_WHITE, 0)
-  );
-  reappearRing.rotation.x = -Math.PI / 2;
-  reappearRing.renderOrder = 9;
-  dashGroup.add(reappearRing);
 
   const reappearBurst = new THREE.Mesh(
     new THREE.PlaneGeometry(1.4, 1.4),
@@ -158,18 +166,20 @@ export function createStrikerAbilityVfx(scene) {
     mesh.material.opacity = show ? opacity : 0;
   }
 
+  let lastBouncePulse = -1;
+  let didVanishBurst = false;
+  let didReappearBurst = false;
+
   function hideBlitz() {
     for (const s of blitzStreaks) setOpacity(s, 0);
     for (const sp of blitzSparks) setOpacity(sp.mesh, 0);
-    setOpacity(blitzRing, 0);
     setOpacity(blitzCore, 0);
+    blitzTrail.stop();
   }
 
   function hideFlash() {
-    setOpacity(vanishRing, 0);
     setOpacity(vanishCore, 0);
     setOpacity(afterimage, 0);
-    setOpacity(reappearRing, 0);
     setOpacity(reappearBurst, 0);
     for (const s of vanishStreaks) setOpacity(s.mesh, 0);
     for (const s of dashStreaks) setOpacity(s.mesh, 0);
@@ -182,6 +192,9 @@ export function createStrikerAbilityVfx(scene) {
     smoothSpeed = 0;
     dashSpin = 0;
     wasBlitz = false;
+    lastBouncePulse = -1;
+    didVanishBurst = false;
+    didReappearBurst = false;
     _smoothVel.set(0, 0, 0);
     _smoothDir.set(0, 0, -1);
     hideBlitz();
@@ -205,10 +218,27 @@ export function createStrikerAbilityVfx(scene) {
       const vanishing = phase === 'vanish' || vanish > 0.02;
       const reappearing = phase === 'reappear' || reappear > 0.02;
       const inFlash = vanishing || reappearing || inDash;
+      const isStrikerVictim =
+        body.userData.launchBounceSource === 'striker' &&
+        body.userData.launchBouncePhase != null;
 
-      if (!blitzing && !inFlash) {
+      if (!blitzing && !inFlash && !isStrikerVictim) {
         reset();
         return;
+      }
+
+      if (isStrikerVictim && body.userData.launchBouncePhase === 'bounce') {
+        topGroup?.getWorldPosition(_pos);
+        const pulse = body.userData.launchBouncePulseT ?? 0;
+        if (pulse < 0.05 && lastBouncePulse > 0.1) {
+          bounceDust.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.12, _pos.z);
+          bounceDust.burst(14);
+        }
+        lastBouncePulse = pulse;
+        if (!blitzing && !inFlash) {
+          root.visible = true;
+          return;
+        }
       }
 
       root.visible = true;
@@ -258,14 +288,12 @@ export function createStrikerAbilityVfx(scene) {
         const intensity = (0.45 + speedFactor * 0.4) * (0.4 + life * 0.6);
         const yBase = body.position.y + (body.userData.visualYOffset ?? 0) * 0.4;
 
-        if (boostT < 0.26) {
-          const t = boostT / 0.26;
-          blitzRing.position.set(_pos.x, yBase + 0.04, _pos.z);
-          blitzRing.scale.setScalar(R * (1 + t * 1.5));
-          setOpacity(blitzRing, 0.28 * (1 - t));
-        } else {
-          setOpacity(blitzRing, 0);
+        if (boostT < 0.08 && !didVanishBurst) {
+          flashBurst.setPosition(_pos.x, yBase, _pos.z);
+          flashBurst.burst(22);
+          didVanishBurst = true;
         }
+        blitzTrail.follow(_pos.x, yBase, _pos.z, speedFactor > 0.08);
 
         const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
         const streakLen = 0.5 + speedFactor * 1.6;
@@ -319,8 +347,12 @@ export function createStrikerAbilityVfx(scene) {
         const t = clamp01((body.userData.strikerFlashPhaseT ?? 0) / STRIKER_VANISH_DUR);
         const burst = 1 - t;
 
-        vanishRing.scale.setScalar(R * (0.75 + t * 2.0));
-        setOpacity(vanishRing, burst * 0.55);
+        if (!didVanishBurst) {
+          flashBurst.setPosition(vx, floorY + R * 0.3, vz);
+          flashBurst.burst(30);
+          didVanishBurst = true;
+          didReappearBurst = false;
+        }
 
         vanishCore.position.set(0, R * 0.42, 0);
         billboard(vanishCore, camera);
@@ -344,7 +376,6 @@ export function createStrikerAbilityVfx(scene) {
           setOpacity(s.mesh, burst * 0.4 * (0.7 + 0.3 * Math.sin(s.angle * 3)));
         }
 
-        setOpacity(reappearRing, 0);
         setOpacity(reappearBurst, 0);
         for (const s of dashStreaks) setOpacity(s.mesh, 0);
         return;
@@ -356,7 +387,6 @@ export function createStrikerAbilityVfx(scene) {
         body.userData.strikerVanishZ ?? body.position.z
       );
       setOpacity(vanishCore, 0);
-      setOpacity(vanishRing, 0);
       setOpacity(afterimage, 0);
       for (const s of vanishStreaks) setOpacity(s.mesh, 0);
 
@@ -365,15 +395,18 @@ export function createStrikerAbilityVfx(scene) {
 
       if (reappearing) {
         const flash = phase === 'reappear' ? reappear : 0;
-        reappearRing.scale.setScalar(R * (1.25 + (1 - flash) * 1.35));
-        setOpacity(reappearRing, flash * 0.65);
+        if (!didReappearBurst) {
+          flashBurst.setPosition(body.position.x, floorY + R * 0.35, body.position.z);
+          flashBurst.burst(28);
+          didReappearBurst = true;
+          didVanishBurst = false;
+        }
 
         reappearBurst.position.set(0, R * 0.45, 0);
         billboard(reappearBurst, camera);
         reappearBurst.scale.setScalar(R * (0.8 + (1 - flash) * 0.4));
         setOpacity(reappearBurst, flash * 0.75);
       } else {
-        setOpacity(reappearRing, 0);
         setOpacity(reappearBurst, 0);
       }
 

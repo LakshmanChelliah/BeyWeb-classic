@@ -23,6 +23,13 @@ import { CONFIG } from '../../config.js';
 import { setBodyCollisions } from '../../physics/top.js';
 import { isAtPocketAngle } from '../../physics/arena.js';
 import { clamp01 } from '../../utils/math.js';
+import {
+  startLaunchBounce,
+  tickLaunchBounceBodies,
+  isLaunchBounceActive,
+  clearLaunchBounce,
+  LAUNCH_PRESETS,
+} from './launchBounce.js';
 
 /** Special-move logo flash and windup are 50% longer than base ability.windup values. */
 export const SPECIAL_WINDUP_MULT = 1.5;
@@ -72,9 +79,9 @@ const STAR_SETTLE_WOBBLE_AMP = 0.08; // radians, kept subtle
 const STAR_BLAST_HIT_SPIN = 0.24;    // opponent spin loss on a connected slam
 const STAR_BLAST_MISS_SELF = 0.05;   // self spin loss when the dive whiffs
 // Star Blast camera: full stadium in frame at normal FOV, walls + a little sky above.
-const STAR_BLAST_CAM_Y = 28;
-const STAR_BLAST_CAM_Z = 24;
-const STAR_BLAST_CAM_LOOK_Y = 1.5;
+const STAR_BLAST_CAM_Y = 30;
+const STAR_BLAST_CAM_Z = 26;
+const STAR_BLAST_CAM_LOOK_Y = 2.0;
 const SLAM_IMPULSE_MULT = 2.6;
 const SLAM_SPIN_MULT = 2.4;
 const SLAM_SELF_IMPULSE = 0.25;
@@ -179,7 +186,11 @@ const BULL_AIR_WOBBLE_RATE = 7.8;
 export const BULL_FLIP_DUR = BULL_AIR_RISE_DUR + 1.5;
 
 export function isBullFlipActive(body) {
-  return body?.userData?.bullFlipPhase != null;
+  // Legacy flag or shared launch bounce started by Red Horn Uppercut.
+  return (
+    body?.userData?.bullFlipPhase != null ||
+    (isLaunchBounceActive(body) && body?.userData?.launchBounceSource === 'bull')
+  );
 }
 const BULL_UPPERCUT_SLAM_MULT = 1.2;
 const BULL_UPPERCUT_LIFT = 14;
@@ -492,10 +503,13 @@ function applyStrikerFlashHit(state, side, body, opp) {
   const d = Math.hypot(nx, nz) || 1;
   nx /= d;
   nz /= d;
-  applyPhysicsKnockback(opp, nx, nz, STRIKER_FLASH_KB);
   const victimSpinKey = side === 'player' ? 'aiSpin' : 'playerSpin';
   state[victimSpinKey] = Math.max(0, state[victimSpinKey] - STRIKER_FLASH_SPIN);
   body.userData.strikerImpactFlash = true;
+  if (!isLaunchBounceActive(opp) && !opp.userData.invulnerable) {
+    opp.userData.launchBounceSource = 'striker';
+    startLaunchBounce(opp, nx, nz, STRIKER_FLASH_KB * 0.85, 'striker', 1);
+  }
 }
 
 function pinStrikerFlashPhysics(body) {
@@ -596,7 +610,6 @@ function applyLdragoAbsorbHit(state, side, body, opp) {
   const d = Math.hypot(nx, nz) || 1;
   nx /= d;
   nz /= d;
-  applyPhysicsKnockback(opp, nx, nz, LDRAGO_ABSORB_HIT_KB);
   const victimSpinKey = side === 'player' ? 'aiSpin' : 'playerSpin';
   const attackerSpinKey = spinKey(side);
   const stolen = Math.min(state[victimSpinKey], LDRAGO_ABSORB_HIT_SPIN);
@@ -607,6 +620,10 @@ function applyLdragoAbsorbHit(state, side, body, opp) {
   body.userData.spinStealFromZ = opp.position.z;
   body.userData.ldragoAbsorbImpact = true;
   body.userData.ldragoAbsorbImpactT = 0;
+  if (!isLaunchBounceActive(opp)) {
+    opp.userData.launchBounceSource = 'ldrago';
+    startLaunchBounce(opp, nx, nz, LDRAGO_ABSORB_HIT_KB * 0.9, 'ldrago', 1);
+  }
 }
 
 function releaseLdragoAbsorbControl(body) {
@@ -853,9 +870,18 @@ function applyLightningStrike(state, casterBody, spot) {
 
     const k = spinKey(side);
     state[k] = Math.max(0, state[k] - STAR_BLAST_HIT_SPIN);
-    // Star Blast-style connect: launch the victim away from L-Drago (the caster),
-    // not radially from the strike point. Matches Pegasus Star Blast feel.
-    applyStarBlastHitKnockback(casterBody, body);
+    // Launch the victim away from L-Drago with shared bounce hops.
+    let nx = body.position.x - casterBody.position.x;
+    let nz = body.position.z - casterBody.position.z;
+    const d = Math.hypot(nx, nz) || 1;
+    nx /= d;
+    nz /= d;
+    if (!isLaunchBounceActive(body)) {
+      body.userData.launchBounceSource = 'ldrago';
+      startLaunchBounce(body, nx, nz, LDRAGO_LIGHTNING_HIT_KNOCKBACK, 'ldrago', 1);
+    } else {
+      applyStarBlastHitKnockback(casterBody, body);
+    }
   }
 }
 
@@ -1168,7 +1194,7 @@ function leoneWallContactLift(state, body) {
 function bullUppercutVictimImmune(state, attacker, victim) {
   if (!victim) return true;
   if (victim.userData.invulnerable) return true;
-  if (victim.userData.bullFlipPhase) return true;
+  if (victim.userData.bullFlipPhase || isLaunchBounceActive(victim)) return true;
   if (victim.userData.lionWall || victim.userData.lionWallWindup || victim.userData.guarding) {
     return true;
   }
@@ -1198,29 +1224,12 @@ function applyBullUppercutHit(state, attackerSide, attacker, victim) {
 
   const posScale = bullUppercutKbScale(victim);
 
-  victim.userData.bullFlipFromX = victim.position.x;
-  victim.userData.bullFlipFromZ = victim.position.z;
-  victim.userData.bullFlipKbNx = nx;
-  victim.userData.bullFlipKbNz = nz;
-  victim.userData.bullFlipKbMag = kb;
+  // Shared launch → bounce → settle (replaces flat bullFlip land).
+  victim.userData.launchBounceSource = 'bull';
+  // Keep legacy flag for VFX / immunity that still read bullFlipPhase.
   victim.userData.bullFlipPhase = 'air';
-  victim.userData.bullFlipPhaseT = 0;
-  victim.userData.bullFlipElapsed = 0;
-  delete victim.userData.bullFlipFalling;
-  delete victim.userData.bullFlipVY;
-  delete victim.userData.bullFlipWobbleT;
-  victim.userData.bullFlipPeakLift = BULL_UPPERCUT_LIFT * posScale;
-  victim.userData.flightTilt = 0;
-  victim.userData.flightRoll = 0;
-  victim.userData.flightLift = 0;
-  victim.userData.flightSquash = 1.04;
-  victim.userData.airborne = true;
-  victim.userData.controlLocked = true;
+  startLaunchBounce(victim, nx, nz, kb, 'bull', posScale);
   victim.userData.bullFlipBurstT = 1;
-  setBodyCollisions(victim, false);
-  setAirborneKinematic(victim);
-  victim.velocity.set(0, 0, 0);
-  victim.angularVelocity.set(0, 0, 0);
 
   attacker.userData.bullImpactFlash = true;
   attacker.userData.bullImpactX = (attacker.position.x + victim.position.x) * 0.5;
@@ -1313,11 +1322,27 @@ function clearBullFlipCinematic(body) {
   delete body.userData.bullFlipElapsed;
   delete body.userData.bullUppercutFlipT;
   delete body.userData.bullFlipBurstT;
+  delete body.userData.launchBounceSource;
+  clearLaunchBounce(body);
   body.userData.airborne = false;
 }
 
 function releaseBullFlipVictim(body, applyKb = true) {
   if (!body) return;
+  // Shared launch bounce owns release when active.
+  if (isLaunchBounceActive(body)) {
+    // Force finish by clearing; residual KB applied via launchBounce landKbScale.
+    clearBullFlipCinematic(body);
+    body.userData.controlLocked = false;
+    body.userData.flightLift = 0;
+    body.userData.flightTilt = 0;
+    body.userData.flightRoll = 0;
+    body.userData.flightSquash = 1;
+    setBodyCollisions(body, true);
+    if (body.type === CANNON.Body.KINEMATIC) restoreDynamicBody(body);
+    body.position.y = groundY(body);
+    return;
+  }
   if (applyKb && (body.userData.bullFlipKbMag ?? 0) > 0) {
     applyPhysicsKnockback(
       body,
@@ -1339,7 +1364,7 @@ function releaseBullFlipVictim(body, applyKb = true) {
 }
 
 function pinBullFlipPhysics(body) {
-  if (!body?.userData?.bullFlipPhase) return;
+  if (!isBullFlipActive(body)) return;
   if (body.type !== CANNON.Body.KINEMATIC) setAirborneKinematic(body);
   setBodyCollisions(body, false);
   body.velocity.set(0, 0, 0);
@@ -1348,61 +1373,24 @@ function pinBullFlipPhysics(body) {
 }
 
 function tickBullFlipDecay(body, dt) {
+  // Shared system drives motion; keep legacy burst fade for VFX.
   if (body.userData.bullFlipBurstT != null) {
     body.userData.bullFlipBurstT -= dt * 5;
     if (body.userData.bullFlipBurstT <= 0) delete body.userData.bullFlipBurstT;
   }
-
-  if (!body.userData.bullFlipPhase) return;
-
-  pinBullFlipPhysics(body);
-  body.userData.airborne = true;
-  body.userData.controlLocked = true;
-  body.userData.bullFlipElapsed = (body.userData.bullFlipElapsed ?? 0) + dt;
-  body.userData.bullFlipPhaseT = (body.userData.bullFlipPhaseT ?? 0) + dt;
-
-  const peakLift = body.userData.bullFlipPeakLift ?? BULL_UPPERCUT_LIFT;
-
-  if (!body.userData.bullFlipFalling) {
-    const t = clamp01(body.userData.bullFlipPhaseT / BULL_AIR_RISE_DUR);
-    const e = easeOutCubic(t);
-    body.userData.flightLift = peakLift * Math.sin(e * Math.PI * 0.5);
-    if (t >= 1) body.userData.bullFlipFalling = true;
-  } else {
-    let vy = body.userData.bullFlipVY ?? 0;
-    vy -= BULL_AIR_GRAVITY * dt;
-    let lift = (body.userData.flightLift ?? 0) + vy * dt;
-    if (lift <= 0) {
-      body.userData.flightLift = 0;
-      body.userData.flightTilt = 0;
-      body.userData.flightRoll = 0;
-      body.userData.flightSquash = 1;
-      releaseBullFlipVictim(body, true);
-      return;
+  // Mirror shared phase onto bullFlipPhase for VFX that still read it.
+  if (isLaunchBounceActive(body) && body.userData.launchBounceSource === 'bull') {
+    body.userData.bullFlipPhase = body.userData.launchBouncePhase;
+    if (body.userData.launchBounceBurstT != null) {
+      body.userData.bullFlipBurstT = body.userData.launchBounceBurstT;
     }
-    body.userData.bullFlipVY = vy;
-    body.userData.flightLift = lift;
-  }
-
-  const lift = body.userData.flightLift ?? 0;
-  const airFrac = clamp01(lift / Math.max(peakLift * 0.22, 0.5));
-  const wobbleT = (body.userData.bullFlipWobbleT ?? 0) + dt;
-  body.userData.bullFlipWobbleT = wobbleT;
-  const amp = BULL_AIR_WOBBLE_AMP * airFrac;
-  const wobbleWave = Math.sin(wobbleT * BULL_AIR_WOBBLE_RATE);
-  const wobbleWave2 = Math.sin(wobbleT * BULL_AIR_WOBBLE_RATE * 0.83 + 0.6);
-  body.userData.flightTilt = amp * wobbleWave;
-  body.userData.flightRoll = amp * wobbleWave2;
-  body.userData.flightSquash = 1 + 0.03 * airFrac * Math.sin(wobbleT * BULL_AIR_WOBBLE_RATE * 1.6);
-
-  const kb = body.userData.bullFlipKbMag ?? 0;
-  if (kb > 0) {
-    const p = easeOutQuad(clamp01(body.userData.bullFlipElapsed / BULL_FLIP_DUR));
-    const fromX = body.userData.bullFlipFromX ?? body.position.x;
-    const fromZ = body.userData.bullFlipFromZ ?? body.position.z;
-    const dist = kb * 0.32;
-    body.position.x = fromX + (body.userData.bullFlipKbNx ?? 0) * dist * p;
-    body.position.z = fromZ + (body.userData.bullFlipKbNz ?? 0) * dist * p;
+  } else if (body.userData.bullFlipPhase && body.userData.launchBounceSource === 'bull') {
+    // Launch bounce finished — clear legacy flag.
+    delete body.userData.bullFlipPhase;
+    delete body.userData.launchBounceSource;
+  } else if (body.userData.bullFlipPhase && !isLaunchBounceActive(body)) {
+    // Orphaned legacy flip — release.
+    releaseBullFlipVictim(body, true);
   }
 }
 
@@ -2356,6 +2344,7 @@ export function stepAbilities(state, dt) {
   if (!state.abilities) return;
   tickBullFlipDecay(state.playerBody, dt);
   tickBullFlipDecay(state.aiBody, dt);
+  tickLaunchBounceBodies(state, dt);
   stepBullUppercutDash(state, dt);
   stepStrikerFlashPhases(state, dt);
   stepLdragoAbsorbRush(state, dt);
@@ -2936,7 +2925,14 @@ function markEagleDiveHit(state, attackerSide, body, opp) {
     const dx = opp.position.x - body.position.x;
     const dz = opp.position.z - body.position.z;
     const d = Math.hypot(dx, dz) || 1;
-    applyPhysicsKnockback(opp, dx / d, dz / d, STAR_BLAST_HIT_KNOCKBACK * 0.92);
+    const nx = dx / d;
+    const nz = dz / d;
+    if (!isLaunchBounceActive(opp)) {
+      opp.userData.launchBounceSource = 'eagle';
+      startLaunchBounce(opp, nx, nz, STAR_BLAST_HIT_KNOCKBACK * 0.92, 'eagle', 1);
+    } else {
+      applyPhysicsKnockback(opp, nx, nz, STAR_BLAST_HIT_KNOCKBACK * 0.92);
+    }
   }
 }
 
@@ -3582,7 +3578,7 @@ function applyStarBlastSlam(impact, slamBody, slamTag, victimTag) {
 function applyBullUppercutSlam(state, impact, slamBody, slamTag, victimTag) {
   if (!slamBody?.userData?.bullUpperSlamming) return false;
   const victim = impact['body' + victimTag];
-  if (victim?.userData?.bullFlipPhase) {
+  if (victim?.userData?.bullFlipPhase || isLaunchBounceActive(victim)) {
     impact['impulse' + slamTag] *= SLAM_SELF_IMPULSE;
     return true;
   }
@@ -3874,9 +3870,11 @@ export function clearAbilityFlags(body) {
   delete body.userData.eagleCounterFromZ;
   body.userData.eagleDiveWindup = false;
   clearEagleDiveMotion(body);
-  if (body.userData.bullFlipPhase) {
+  if (body.userData.bullFlipPhase || isLaunchBounceActive(body)) {
     releaseBullFlipVictim(body, false);
   }
+  clearLaunchBounce(body);
+  delete body.userData.launchBounceSource;
   delete body.userData.bullUpperSlamming;
   delete body.userData.bullImpactFlash;
   delete body.userData.bullImpactFlashT;

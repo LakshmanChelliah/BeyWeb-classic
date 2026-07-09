@@ -10,6 +10,12 @@ import {
   effectiveSpecialWindup,
   libraBusterSandRadius,
 } from '../game/abilities.js';
+import {
+  createBurstSystem,
+  createTrailSystem,
+  ensureQuarksRuntime,
+  Vector4,
+} from './vfx/quarksRuntime.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -99,6 +105,7 @@ function easeOut(t) {
 
 /** Flame Libra Sonic Shield + Sonic Buster scene VFX. */
 export function createLibraAbilityVfx(scene) {
+  ensureQuarksRuntime(scene);
   const root = new THREE.Group();
   scene.add(root);
   const getMat = createMatCache();
@@ -111,40 +118,63 @@ export function createLibraAbilityVfx(scene) {
   root.add(pillarGroup);
   root.add(pitGroup);
 
-  const shieldAura = new THREE.Mesh(
-    new THREE.RingGeometry(0.78, 1.12, 36),
-    getMat(SHIELD_GREEN, true)
+  // Volumetric sonic dome — hemisphere shell (no flat reach ring).
+  const shieldDomeMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    makeMat(SHIELD_GREEN, 0, { additive: true, doubleSide: true })
   );
-  shieldAura.rotation.x = -Math.PI / 2;
-  shieldAura.renderOrder = 4;
-  shieldGroup.add(shieldAura);
+  shieldDomeMesh.rotation.x = Math.PI;
+  shieldDomeMesh.position.y = 0.05;
+  shieldDomeMesh.renderOrder = 4;
+  shieldGroup.add(shieldDomeMesh);
 
-  const shieldDome = new THREE.Mesh(
-    new THREE.RingGeometry(0.58, 0.92, 28),
-    getMat(SHIELD_LIME, true)
+  const shieldInner = new THREE.Mesh(
+    new THREE.SphereGeometry(0.88, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    makeMat(SHIELD_LIME, 0, { additive: true, doubleSide: true })
   );
-  shieldDome.rotation.x = -Math.PI / 2;
-  shieldDome.renderOrder = 5;
-  shieldGroup.add(shieldDome);
-
-  const shieldPulse = new THREE.Mesh(
-    new THREE.RingGeometry(0.95, 1.05, 40),
-    getMat(SHIELD_PALE, true)
-  );
-  shieldPulse.rotation.x = -Math.PI / 2;
-  shieldPulse.renderOrder = 5;
-  shieldGroup.add(shieldPulse);
+  shieldInner.rotation.x = Math.PI;
+  shieldInner.position.y = 0.05;
+  shieldInner.renderOrder = 5;
+  shieldGroup.add(shieldInner);
 
   const shieldWisps = [];
-  for (let i = 0; i < SHIELD_WISP_COUNT; i++) {
+  for (let i = 0; i < SHIELD_WISP_COUNT + 6; i++) {
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(0.14, 0.42),
       getMat(i % 2 === 0 ? SHIELD_PALE : SHIELD_GREEN, true)
     );
     mesh.renderOrder = 6;
     shieldGroup.add(mesh);
-    shieldWisps.push({ mesh, phase: (i / SHIELD_WISP_COUNT) * Math.PI * 2, band: i % 3 });
+    shieldWisps.push({ mesh, phase: (i / (SHIELD_WISP_COUNT + 6)) * Math.PI * 2, band: i % 3 });
   }
+
+  const shieldRipple = createTrailSystem(scene, {
+    rate: 28,
+    startSize: [0.1, 0.35],
+    startLife: [0.2, 0.45],
+    colorA: new Vector4(0.4, 0.95, 0.55, 0.7),
+    colorB: new Vector4(0.85, 1, 0.7, 0),
+  });
+
+  const sandStorm = createTrailSystem(scene, {
+    rate: 50,
+    startSize: [0.15, 0.55],
+    startLife: [0.35, 0.8],
+    startSpeed: [0.5, 2.5],
+    gravity: -1,
+    colorA: new Vector4(0.85, 0.72, 0.4, 0.75),
+    colorB: new Vector4(0.55, 0.42, 0.22, 0),
+  });
+
+  const sandBurst = createBurstSystem(scene, {
+    additive: false,
+    dustyColor: 0xc4a35a,
+    startSpeed: [2, 7],
+    startSize: [0.15, 0.5],
+    gravity: -8,
+    colorA: new Vector4(0.9, 0.78, 0.45, 0.9),
+    colorB: new Vector4(0.5, 0.38, 0.2, 0),
+  });
 
   // --- Sonic Buster energy column (anime-style vertical pillar) ----------------
   const pillarShell = new THREE.Mesh(
@@ -280,10 +310,10 @@ export function createLibraAbilityVfx(scene) {
   let pillarScroll = 0;
 
   function hideShield() {
-    shieldAura.material.opacity = 0;
-    shieldDome.material.opacity = 0;
-    shieldPulse.material.opacity = 0;
+    shieldDomeMesh.material.opacity = 0;
+    shieldInner.material.opacity = 0;
     for (const w of shieldWisps) w.mesh.material.opacity = 0;
+    shieldRipple.stop();
   }
 
   function hidePillar() {
@@ -447,32 +477,33 @@ export function createLibraAbilityVfx(scene) {
         const burst = body.userData.sonicShieldBurstT ?? 0;
         const pulse = 0.75 + 0.25 * Math.sin(shieldSpin * 2.0);
         const reach = body.userData.sonicShieldReach ?? R * 2.75;
-        const scale = (reach / (R * 2.75)) * R * (1.04 + burst * 0.14);
+        // Dome radius matches physics reach — volume sells the shield, not a flat ring.
+        const domeR = reach * (0.92 + burst * 0.08 + pulse * 0.04);
 
-        shieldAura.position.set(0, 0.04, 0);
-        shieldAura.scale.set(scale, scale, 1);
-        shieldAura.material.opacity = (0.24 + pulse * 0.18 + burst * 0.16) * life;
+        shieldDomeMesh.scale.set(domeR, domeR * 0.72, domeR);
+        shieldDomeMesh.material.opacity = (0.22 + pulse * 0.14 + burst * 0.12) * life;
+        shieldDomeMesh.rotation.y = shieldSpin * 0.35;
 
-        shieldDome.position.set(0, 0.06, 0);
-        shieldDome.scale.set(scale * 0.9, scale * 0.9, 1);
-        shieldDome.material.opacity = (0.14 + pulse * 0.12) * life;
+        shieldInner.scale.set(domeR * 0.82, domeR * 0.58, domeR * 0.82);
+        shieldInner.material.opacity = (0.12 + pulse * 0.1) * life;
+        shieldInner.rotation.y = -shieldSpin * 0.55;
 
-        shieldPulse.position.set(0, 0.05, 0);
-        shieldPulse.scale.set(scale * (1.05 + burst * 0.2), scale * (1.05 + burst * 0.2), 1);
-        shieldPulse.material.opacity = (0.08 + burst * 0.22) * life;
+        shieldRipple.follow(bx, floorY + domeR * 0.35, bz, true);
 
         for (const w of shieldWisps) {
           w.phase += dt * (1.8 + w.band * 0.35);
-          const orbitR = scale * (0.72 + w.band * 0.1);
-          const h = 0.18 + w.band * 0.12 + Math.sin(w.phase * 2) * 0.06;
+          const orbitR = domeR * (0.55 + w.band * 0.18);
+          const h = 0.2 + w.band * 0.22 + Math.sin(w.phase * 2) * 0.1;
           w.mesh.position.set(
             Math.cos(w.phase + shieldSpin) * orbitR,
             h,
             Math.sin(w.phase + shieldSpin) * orbitR
           );
           billboard(w.mesh, camera);
-          w.mesh.material.opacity = (0.26 + burst * 0.2) * life;
+          w.mesh.material.opacity = (0.3 + burst * 0.22) * life;
         }
+      } else {
+        shieldRipple.stop();
       }
 
       if (busterWindup || sonicBuster) {
@@ -494,6 +525,15 @@ export function createLibraAbilityVfx(scene) {
         const pillarGrow = 0.05 + spread * 0.95;
         updatePillar(body, camera, dt, env, pillarGrow);
         updateSandPit(body, camera, dt, reach, env);
+
+        const pitR = body.userData.sonicBusterSpread ?? libraBusterSandRadius(reach, pitT);
+        sandStorm.follow(bx, floorY + 0.4 + pitR * 0.08, bz, env > 0.05);
+        if (pitT < 0.05) {
+          sandBurst.setPosition(bx, floorY + 0.15, bz);
+          sandBurst.burst(28);
+        }
+      } else {
+        sandStorm.stop();
       }
     },
     reset,
