@@ -160,7 +160,7 @@ export function createStarBlastVfx(scene) {
 
   const starTex = createFourRayStarTexture();
   const apexStar = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.2, 5.2),
+    new THREE.PlaneGeometry(6.4, 6.4),
     new THREE.MeshBasicMaterial({
       map: starTex,
       color: 0xffffff,
@@ -177,12 +177,21 @@ export function createStarBlastVfx(scene) {
 
   // Outer star bloom (no ring — soft disc bloom only at apex).
   const starBloom = new THREE.Mesh(
-    new THREE.PlaneGeometry(7.5, 7.5),
+    new THREE.PlaneGeometry(9.2, 9.2),
     makeTrailMat(BLUE_LIGHT, 0)
   );
   starBloom.visible = false;
   starBloom.renderOrder = 7;
   root.add(starBloom);
+
+  // Secondary cross-flare for apex wow (cheap plane, not a ring).
+  const apexFlare = new THREE.Mesh(
+    new THREE.PlaneGeometry(10.5, 1.15),
+    makeTrailMat(WHITE, 0)
+  );
+  apexFlare.visible = false;
+  apexFlare.renderOrder = 7;
+  root.add(apexFlare);
 
   const diveTrail = createTrailSystem(scene, {
     rate: 95,
@@ -270,6 +279,8 @@ export function createStarBlastVfx(scene) {
     apexStar.material.opacity = 0;
     starBloom.visible = false;
     starBloom.material.opacity = 0;
+    apexFlare.visible = false;
+    apexFlare.material.opacity = 0;
     diveTrail.stop();
   }
 
@@ -466,29 +477,39 @@ export function createStarBlastVfx(scene) {
         diveTrail.stop();
       }
 
-      // Apex 4-ray star — larger, brighter, with bloom (no ground ring).
+      // Apex 4-ray star — larger, brighter, with bloom + flare (no ground ring).
       const apexFrac = lift / 38;
       const showStar =
-        (phase === 'ascend' && apexFrac > 0.45) || (phase === 'dive' && apexFrac > 0.55);
+        (phase === 'ascend' && apexFrac > 0.4) || (phase === 'dive' && apexFrac > 0.5);
       apexStar.visible = showStar;
       starBloom.visible = showStar;
+      apexFlare.visible = showStar;
       if (showStar) {
         apexStar.position.copy(_pos);
-        apexStar.position.y += 1.4;
+        apexStar.position.y += 1.55;
         billboard(apexStar, camera);
         starBloom.position.copy(apexStar.position);
         billboard(starBloom, camera);
+        apexFlare.position.copy(apexStar.position);
+        billboard(apexFlare, camera);
         const starLife =
           phase === 'ascend'
-            ? clamp01((apexFrac - 0.45) / 0.55)
-            : clamp01((apexFrac - 0.55) / 0.45);
-        const spin = performance.now() * 0.001;
+            ? clamp01((apexFrac - 0.4) / 0.6)
+            : clamp01((apexFrac - 0.5) / 0.5);
+        const spin = performance.now() * 0.0012;
         apexStar.rotation.z = spin;
         starBloom.rotation.z = -spin * 0.4;
-        apexStar.scale.setScalar(1.25 + starLife * 0.85);
-        starBloom.scale.setScalar(1.1 + starLife * 0.6);
-        apexStar.material.opacity = 0.75 * starLife * (phase === 'dive' ? 0.75 : 1);
-        starBloom.material.opacity = 0.28 * starLife;
+        apexFlare.rotation.z = spin * 0.55 + Math.PI / 4;
+        apexStar.scale.setScalar(1.45 + starLife * 1.05);
+        starBloom.scale.setScalar(1.25 + starLife * 0.75);
+        apexFlare.scale.set(1.1 + starLife * 0.9, 0.7 + starLife * 0.4, 1);
+        apexStar.material.opacity = 0.88 * starLife * (phase === 'dive' ? 0.8 : 1);
+        starBloom.material.opacity = 0.35 * starLife;
+        apexFlare.material.opacity = 0.28 * starLife;
+      } else {
+        apexStar.material.opacity = 0;
+        starBloom.material.opacity = 0;
+        apexFlare.material.opacity = 0;
       }
     },
     reset,

@@ -268,7 +268,7 @@ export function createLeoneAbilityVfx(scene) {
   });
 
   const galeDebris = createTrailSystem(scene, {
-    rate: 35,
+    rate: 55,
     startSize: [0.12, 0.4],
     startLife: [0.3, 0.7],
     startSpeed: [1, 4],

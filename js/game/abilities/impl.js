@@ -78,10 +78,10 @@ const STAR_SETTLE_WOBBLES = 3;       // gentle sways over the settle (slower = f
 const STAR_SETTLE_WOBBLE_AMP = 0.08; // radians, kept subtle
 const STAR_BLAST_HIT_SPIN = 0.24;    // opponent spin loss on a connected slam
 const STAR_BLAST_MISS_SELF = 0.05;   // self spin loss when the dive whiffs
-// Star Blast camera: full stadium in frame at normal FOV, walls + a little sky above.
-const STAR_BLAST_CAM_Y = 30;
-const STAR_BLAST_CAM_Z = 26;
-const STAR_BLAST_CAM_LOOK_Y = 2.0;
+// Special stadium pullback — dramatic enough for wow, still readable on mobile.
+const STAR_BLAST_CAM_Y = 34;
+const STAR_BLAST_CAM_Z = 30;
+const STAR_BLAST_CAM_LOOK_Y = 2.6;
 const SLAM_IMPULSE_MULT = 2.6;
 const SLAM_SPIN_MULT = 2.4;
 const SLAM_SELF_IMPULSE = 0.25;
@@ -3341,6 +3341,7 @@ const SPECIAL_CAM_IDS = new Set([
   'eagle_diving_crush',
   'striker_lightning_flash',
   'bull_red_horn_uppercut',
+  'leone_lion_wall',
 ]);
 
 /** Brief stadium pullback weight for major specials (Star Blast strongest). */
@@ -3366,37 +3367,43 @@ function findSpecialCameraWeight(state) {
     }
     if (id === 'ldrago_soaring_destruction') {
       if (inWindup || inActive || body.userData.ldragoFlightWindup) {
-        weight = Math.max(weight, 0.72);
+        weight = Math.max(weight, 0.88);
       }
       continue;
     }
     if (id === 'eagle_diving_crush') {
       if (inWindup || inActive || body.userData.eagleDivePhase != null) {
-        weight = Math.max(weight, 0.7);
+        weight = Math.max(weight, 0.82);
       }
       continue;
     }
     if (id === 'libra_sonic_buster') {
       if (inWindup || inActive || body.userData.sonicBuster || body.userData.sonicBusterWindup) {
-        weight = Math.max(weight, 0.55);
+        weight = Math.max(weight, 0.7);
       }
       continue;
     }
     if (id === 'ldrago_absorb_break') {
       if (inWindup || inActive || body.userData.ldragoAbsorbPhase != null) {
-        weight = Math.max(weight, 0.5);
+        weight = Math.max(weight, 0.65);
       }
       continue;
     }
     if (id === 'striker_lightning_flash') {
       if (inWindup || inActive || body.userData.strikerFlashPhase != null) {
-        weight = Math.max(weight, 0.48);
+        weight = Math.max(weight, 0.68);
       }
       continue;
     }
     if (id === 'bull_red_horn_uppercut') {
       if (inWindup || inActive || body.userData.bullUpperPhase != null) {
-        weight = Math.max(weight, 0.45);
+        weight = Math.max(weight, 0.65);
+      }
+      continue;
+    }
+    if (id === 'leone_lion_wall') {
+      if (inWindup || inActive || body.userData.lionWall || body.userData.lionWallWindup) {
+        weight = Math.max(weight, 0.62);
       }
     }
   }
@@ -3409,7 +3416,7 @@ export function getCameraCue(state, dt, mode) {
   const koActive = !!state.pendingKo;
 
   const stadiumTarget = specialWeight;
-  const stadiumRate = specialWeight > 0.05 ? 5.5 : 3.5;
+  const stadiumRate = specialWeight > 0.05 ? 7.5 : 4.2;
   _camStadiumT += (stadiumTarget - _camStadiumT) * (1 - Math.exp(-stadiumRate * dt));
 
   const targetLift = specialWeight > 0.85 ? 0 : getCinematicFlightLift(state);
