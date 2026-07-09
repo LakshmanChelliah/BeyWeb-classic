@@ -51,6 +51,7 @@ function bodySnapshot(body) {
     slamming: Boolean(ud.slamming),
     boosting: Boolean(ud.boosting),
     controlLocked: Boolean(ud.controlLocked),
+    flightLift: ud.flightLift ?? 0,
     bullUpperPhase: ud.bullUpperPhase ?? null,
     eagleDivePhase: ud.eagleDivePhase ?? null,
     strikerFlashPhase: ud.strikerFlashPhase ?? null,
