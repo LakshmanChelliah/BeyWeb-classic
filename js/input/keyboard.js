@@ -18,12 +18,12 @@ export function createKeyboardInput(
     KeyD: false,
   };
 
-  // P1: Q power · E special. P2 (2-player): . power · / special.
+  // P1: Q power · E special. P2 (2-player): N power · M special.
   const abilityKeys = {
     KeyQ: { player: 1, slot: 'power' },
     KeyE: { player: 1, slot: 'special' },
-    Period: { player: 2, slot: 'power' },
-    Slash: { player: 2, slot: 'special' },
+    KeyN: { player: 2, slot: 'power' },
+    KeyM: { player: 2, slot: 'special' },
   };
 
   function clearKeys() {
@@ -72,19 +72,8 @@ export function createKeyboardInput(
     applySteerForce(body, dirX, dirZ, spin, CONFIG.STEER_FORCE, steerOpts);
   }
 
+  /** Player 1 / vs-CPU human: WASD */
   function applyPlayer1Steer(body, spin) {
-    applyDirectionalSteer(body, spin, () => {
-      let dirX = 0;
-      let dirZ = 0;
-      if (keys.ArrowLeft) dirX -= 1;
-      if (keys.ArrowRight) dirX += 1;
-      if (keys.ArrowUp) dirZ -= 1;
-      if (keys.ArrowDown) dirZ += 1;
-      return { dirX, dirZ };
-    });
-  }
-
-  function applyPlayer2Steer(body, spin) {
     applyDirectionalSteer(body, spin, () => {
       let dirX = 0;
       let dirZ = 0;
@@ -92,6 +81,19 @@ export function createKeyboardInput(
       if (keys.KeyD) dirX += 1;
       if (keys.KeyW) dirZ -= 1;
       if (keys.KeyS) dirZ += 1;
+      return { dirX, dirZ };
+    });
+  }
+
+  /** Player 2 (local 2P): arrow keys */
+  function applyPlayer2Steer(body, spin) {
+    applyDirectionalSteer(body, spin, () => {
+      let dirX = 0;
+      let dirZ = 0;
+      if (keys.ArrowLeft) dirX -= 1;
+      if (keys.ArrowRight) dirX += 1;
+      if (keys.ArrowUp) dirZ -= 1;
+      if (keys.ArrowDown) dirZ += 1;
       return { dirX, dirZ };
     });
   }

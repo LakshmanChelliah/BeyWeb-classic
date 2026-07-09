@@ -9,7 +9,7 @@ Static snapshot of [BeyWeb](https://github.com/LakshmanChelliah/BeyWeb) at commi
 | Platform | Modes |
 |----------|--------|
 | **Mobile** | Casual vs CPU, Tournament vs CPU |
-| **PC** | Casual vs CPU, Tournament vs CPU, **local 2-player** (WASD + arrow keys) |
+| **PC** | Casual vs CPU, Tournament vs CPU, **local 2-player** (P1: WASD + Q/E · P2: arrows + N/M) |
 
 No server required. Open `index.html` or `pc.html` locally, or use the GitHub Pages link above.
 

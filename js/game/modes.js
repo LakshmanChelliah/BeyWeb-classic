@@ -16,6 +16,6 @@ export function modeBlurb(mode) {
     case GAME_MODES.TOURNAMENT:
       return 'Tournament: best of 3 vs seven bladers in rising order — Benkei to Masamune.';
     default:
-      return 'Two-player local battle — best of 5. P1: arrows + Q/E. P2: WASD + . and /';
+      return 'Two-player local battle — best of 5. P1: WASD + Q/E. P2: arrows + N/M';
   }
 }

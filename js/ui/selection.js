@@ -47,6 +47,7 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
     <div class="select-header">
       <h1 class="select-title"></h1>
       <p class="select-sub">Choose your bey</p>
+      <p class="select-controls" hidden></p>
     </div>
     <div class="carousel-scene">
       <button class="carousel-arrow left" type="button" aria-label="Previous">&#8249;</button>
@@ -60,6 +61,8 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
   `;
 
   const titleEl = mount.querySelector('.select-title');
+  const subEl = mount.querySelector('.select-sub');
+  const controlsEl = mount.querySelector('.select-controls');
   const carousel = mount.querySelector('.carousel-container');
   const scene = mount.querySelector('.carousel-scene');
   const indicators = mount.querySelector('.carousel-indicators');
@@ -227,11 +230,29 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
 
     if (picking) {
       titleEl.textContent = isMobile ? 'CHOOSE YOUR BEY' : `${players[turn].label}: CHOOSE YOUR BEY`;
+      if (subEl) subEl.textContent = 'Choose your bey';
+      if (controlsEl) {
+        const controls = players[turn]?.controls;
+        if (controls && !isMobile) {
+          controlsEl.hidden = false;
+          controlsEl.innerHTML = `Your controls: ${controls}`;
+        } else {
+          controlsEl.hidden = true;
+          controlsEl.textContent = '';
+        }
+      }
     } else {
       titleEl.textContent = 'BATTLE READY';
+      if (subEl) subEl.textContent = 'Get ready';
+      if (controlsEl) {
+        controlsEl.hidden = true;
+        controlsEl.textContent = '';
+      }
     }
 
     const labelHtml = (text) => `<span class="pick-label">${text}</span>`;
+    const controlsHtml = (text) =>
+      text ? `<span class="pick-controls">${text}</span>` : '';
 
     if (isMobile) {
       picksEl.innerHTML = '';
@@ -243,7 +264,7 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
           const chip = pick
             ? `<span class="pick-bey" style="--bey-color:${pick.color}">${pick.name}</span>`
               : `<span class="pick-bey empty">choosing...</span>`;
-          return `<div class="pick-slot${active}">${labelHtml(p.label)}${chip}</div>`;
+          return `<div class="pick-slot${active}">${labelHtml(p.label)}${chip}${controlsHtml(p.controls)}</div>`;
         })
         .join('');
 
