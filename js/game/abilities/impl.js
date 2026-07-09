@@ -117,9 +117,8 @@ const LDRAGO_ABSORB_DASH_ACCEL_DUR = 0.32;
 const LDRAGO_ABSORB_DASH_AIM_TRACK = 0.48;
 const LDRAGO_ABSORB_COAST_ARRIVE = 0.4;
 const LDRAGO_ABSORB_HIT_KB = 7.4;
-const LDRAGO_ABSORB_HIT_SPIN = 0.38;
-const LDRAGO_ABSORB_STEAL_RETURN = 0.88;
-const LDRAGO_ABSORB_STEAL_GAIN = 0.16;
+const LDRAGO_ABSORB_HIT_SPIN = 0.24;
+const LDRAGO_ABSORB_STEAL_GAIN = 0.1;
 const LDRAGO_ABSORB_MISS_SELF = 0.04;
 const LDRAGO_ABSORB_PULL_RATE = 7.2;
 const LDRAGO_ABSORB_HIT_REACH = 1.32;
@@ -622,10 +621,7 @@ function applyLdragoAbsorbHit(state, side, body, opp) {
   const attackerSpinKey = spinKey(side);
   const stolen = Math.min(state[victimSpinKey], LDRAGO_ABSORB_HIT_SPIN);
   state[victimSpinKey] = Math.max(0, state[victimSpinKey] - stolen);
-  state[attackerSpinKey] = Math.min(
-    1,
-    state[attackerSpinKey] + stolen * LDRAGO_ABSORB_STEAL_RETURN + LDRAGO_ABSORB_STEAL_GAIN
-  );
+  state[attackerSpinKey] = Math.min(1, state[attackerSpinKey] + stolen * 0.65 + LDRAGO_ABSORB_STEAL_GAIN);
   body.userData.spinStealBurstT = 1.35;
   body.userData.spinStealFromX = opp.position.x;
   body.userData.spinStealFromZ = opp.position.z;
