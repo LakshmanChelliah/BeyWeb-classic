@@ -181,9 +181,14 @@ export function createAppBootstrap({
   });
 
   // Mount after the game WebGL context exists so iOS can reuse it (no second context).
+  const getSharedRenderer = () => gameRef?.renderer ?? null;
+  mountBeyIcon(document.getElementById('boot-bey-icon'), {
+    overlayEl: document.getElementById('boot-overlay'),
+    getRenderer: getSharedRenderer,
+  });
   mountBeyIcon(document.getElementById('start-bey-icon'), {
     overlayEl: startOverlay,
-    getRenderer: () => gameRef?.renderer ?? null,
+    getRenderer: getSharedRenderer,
   });
 
   ({ mode: gameMode, difficulty } = playSetup.getState());

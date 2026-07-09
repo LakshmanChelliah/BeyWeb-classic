@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Spin Sumo | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=31" />
+  <link rel="stylesheet" href="css/game.css?v=32" />
   <style>
     #boot-overlay {
       position: fixed; inset: 0; z-index: 300;
@@ -36,7 +36,7 @@
 
   <div id="boot-overlay" class="boot-overlay" aria-live="polite" aria-busy="true">
     <div class="boot-overlay-card">
-      <div class="logo-ring" aria-hidden="true"></div>
+      <div class="bey-icon" id="boot-bey-icon" aria-hidden="true"></div>
       <p class="boot-overlay-title">Spin Sumo</p>
       <p class="boot-overlay-status" id="boot-status">Loading arena…</p>
       <div class="boot-overlay-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="boot-progress">
@@ -157,6 +157,6 @@
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=22"></script>
+  <script type="module" src="js/main-mobile.js?v=23"></script>
 </body>
 </html>

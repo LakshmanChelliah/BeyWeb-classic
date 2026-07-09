@@ -14,6 +14,10 @@ const GREY_ACCENT = new THREE.Color(0x5a616c);
 
 const gltfLoader = new GLTFLoader();
 
+/** Shared grey Pegasus template so boot + start icons load the GLB once. */
+let _greyTemplate = null;
+let _greyTemplatePromise = null;
+
 function applyGreyAnalysisMaterials(root) {
   root.traverse((child) => {
     if (!child.isMesh) return;
@@ -49,6 +53,34 @@ function applyGreyAnalysisMaterials(root) {
   });
 }
 
+function loadGreyPegasusTemplate() {
+  if (_greyTemplate) return Promise.resolve(_greyTemplate);
+  if (_greyTemplatePromise) return _greyTemplatePromise;
+
+  const modelUrl = new URL(MODEL_URL, window.location.href).href;
+  _greyTemplatePromise = new Promise((resolve, reject) => {
+    gltfLoader.load(
+      modelUrl,
+      (gltf) => {
+        try {
+          const holder = prepareTopModelHolder(gltf, MODEL_URL);
+          applyGreyAnalysisMaterials(holder);
+          _greyTemplate = holder;
+          resolve(holder);
+        } catch (err) {
+          reject(err);
+        }
+      },
+      undefined,
+      (err) => reject(err || new Error('Failed to load storm_pegasus.glb'))
+    );
+  }).finally(() => {
+    _greyTemplatePromise = null;
+  });
+
+  return _greyTemplatePromise;
+}
+
 function frameCameraToModel(root, camera) {
   root.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(root);
@@ -81,6 +113,15 @@ function frameCameraToModel(root, camera) {
 function showFallbackStatic(containerEl, canvas) {
   containerEl.classList.add('bey-icon--fallback');
   canvas?.remove();
+}
+
+function resolveWatchEl(containerEl, overlayEl) {
+  if (overlayEl) return overlayEl;
+  return (
+    containerEl.closest('#boot-overlay') ||
+    containerEl.closest('#start-overlay') ||
+    containerEl
+  );
 }
 
 /**
@@ -137,7 +178,7 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
   let pixelBuf = null;
   let imageData = null;
 
-  const watchEl = overlayEl || containerEl.closest('#start-overlay') || containerEl;
+  const watchEl = resolveWatchEl(containerEl, overlayEl);
   let overlayVisible = !watchEl.classList.contains('hidden');
 
   function ensureOwnRenderer() {
@@ -260,34 +301,34 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
     : null;
   mo?.observe(watchEl, { attributes: true, attributeFilter: ['class'] });
 
-  // Resolve relative to the page so GitHub Pages project paths work.
-  const modelUrl = new URL(MODEL_URL, window.location.href).href;
-
-  gltfLoader.load(
-    modelUrl,
-    (gltf) => {
+  loadGreyPegasusTemplate()
+    .then((template) => {
       if (disposed) return;
-      try {
-        const holder = prepareTopModelHolder(gltf, MODEL_URL);
-        applyGreyAnalysisMaterials(holder);
-        pivot.clear();
-        pivot.add(holder);
-        if (!frameCameraToModel(holder, camera)) {
-          showFallbackStatic(containerEl, canvas);
-          return;
-        }
-        modelReady = true;
-        syncOverlayVisible();
-        if (overlayVisible) renderIconFrame();
-      } catch {
-        if (!disposed) showFallbackStatic(containerEl, canvas);
+      if (!template) {
+        showFallbackStatic(containerEl, canvas);
+        return;
       }
-    },
-    undefined,
-    () => {
+      const instance = template.clone(true);
+      // Clone shares materials with the template; re-clone materials so instances stay independent.
+      instance.traverse((child) => {
+        if (!child.isMesh) return;
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        const next = mats.map((m) => (m ? m.clone() : m));
+        child.material = Array.isArray(child.material) ? next : next[0];
+      });
+      pivot.clear();
+      pivot.add(instance);
+      if (!frameCameraToModel(instance, camera)) {
+        showFallbackStatic(containerEl, canvas);
+        return;
+      }
+      modelReady = true;
+      syncOverlayVisible();
+      if (overlayVisible) renderIconFrame();
+    })
+    .catch(() => {
       if (!disposed) showFallbackStatic(containerEl, canvas);
-    }
-  );
+    });
 
   function dispose() {
     if (disposed) return;
