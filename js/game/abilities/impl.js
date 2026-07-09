@@ -64,8 +64,7 @@ const STAR_BOUNCE_KNOCKBACK = 3.4;   // XZ push on each ground tap
 const STAR_BOUNCE_KB_SCALE = 0.16;   // scales knockback with impact speed
 const STAR_BOUNCE_OPP_MULT = 1.2;    // extra push on the foe when discs overlap
 const STAR_BLAST_HIT_KNOCKBACK = 5.2; // slam connect on the opponent
-const LDRAGO_LIGHTNING_HIT_KNOCKBACK = STAR_BLAST_HIT_KNOCKBACK;
-const STAR_BLAST_IMPULSE_MULT = 4.8;  // bey-vs-bey radial pop on Star Blast hit
+const STAR_BLAST_IMPULSE_MULT = 4.8;  // bey-vs-bey radial pop on Star Blast / Soaring slam hit
 const STAR_KB_DAMP = 10;             // decay rate; v0 = distance * damp → ~distance travel
 const STAR_PHYSICS_KB_SCALE = 7;     // opponent knockback via velocity only (no position snap)
 const STAR_BOUNCE_PULSE_DUR = 0.2;   // squash stretch per contact
@@ -87,19 +86,17 @@ const SLAM_SPIN_MULT = 2.4;
 const SLAM_SELF_IMPULSE = 0.25;
 const BOOST_STEER_MULT = 1.85;
 const FLIGHT_LIFT = 0.12;
-const LDRAGO_FLIGHT_WINDUP = 0.65;
-export const LDRAGO_FLIGHT_DURATION = 3.05;
+// Legacy exports kept for any external importers; Soaring Destruction no longer uses hover AoE.
+export const LDRAGO_FLIGHT_DURATION = 6;
 export const LDRAGO_FLIGHT_LAND_DUR = 0.28;
 export const LDRAGO_FLIGHT_LAUNCH_DUR = 0.85;
-export const LDRAGO_LIGHTNING_COUNT = 5;
-export const LDRAGO_LIGHTNING_CHARGE_DUR = 0.85;
-export const LDRAGO_LIGHTNING_STRIKE_INTERVAL = 0.17;
-export const LDRAGO_LIGHTNING_RADIUS = 2.35;
+export const LDRAGO_LIGHTNING_COUNT = 0;
+export const LDRAGO_LIGHTNING_CHARGE_DUR = 0;
+export const LDRAGO_LIGHTNING_STRIKE_INTERVAL = 0;
+export const LDRAGO_LIGHTNING_RADIUS = 0;
 export const LDRAGO_SPIN_STEAL_DURATION = 4;
-const LDRAGO_FLIGHT_APEX = 15;
-const LDRAGO_FLIGHT_BOB = 0.35;
-const LDRAGO_FLIGHT_LAUNCH_PEAK = 0.58;
-const LDRAGO_LIGHTNING_POST_DUR = 0.2;
+const LDRAGO_LIGHTNING_IMPACT_DECAY = 3.4; // visual bolt flash decay rate
+const LDRAGO_APEX_CHARGE_DECAY = 2.8;
 const GUARD_IMPULSE_MULT = 3.4;
 const GUARD_SPIN_MULT = 2.2;
 const GUARD_SELF_IMPULSE = 0.04;
@@ -957,92 +954,16 @@ function applyPhysicsKnockback(body, nx, nz, distance) {
   body.velocity.z += nz * speed;
 }
 
-function pickLightningSpots(count) {
-  const spots = [];
-  const maxR = CONFIG.WALL_RADIUS - 2.8;
-  const minDist = LDRAGO_LIGHTNING_RADIUS * 2.1;
-  let attempts = 0;
-  while (spots.length < count && attempts < 100) {
-    attempts += 1;
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random()) * maxR * 0.88;
-    const x = Math.cos(angle) * r;
-    const z = Math.sin(angle) * r;
-    const tooClose = spots.some((s) => {
-      const dx = s.x - x;
-      const dz = s.z - z;
-      return dx * dx + dz * dz < minDist * minDist;
-    });
-    if (tooClose) continue;
-    spots.push({ x, z, flashT: 0 });
+function decayLdragoLightningFx(body, dt) {
+  if (!body) return;
+  if (body.userData.ldragoLightningImpactT != null) {
+    body.userData.ldragoLightningImpactT -= dt * LDRAGO_LIGHTNING_IMPACT_DECAY;
+    if (body.userData.ldragoLightningImpactT <= 0) delete body.userData.ldragoLightningImpactT;
   }
-  while (spots.length < count) {
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random()) * maxR * 0.88;
-    spots.push({ x: Math.cos(angle) * r, z: Math.sin(angle) * r, flashT: 0 });
+  if (body.userData.ldragoApexChargeT != null) {
+    body.userData.ldragoApexChargeT -= dt * LDRAGO_APEX_CHARGE_DECAY;
+    if (body.userData.ldragoApexChargeT <= 0) delete body.userData.ldragoApexChargeT;
   }
-  return spots;
-}
-
-function isInLightningZone(body, spot, radius) {
-  const dx = body.position.x - spot.x;
-  const dz = body.position.z - spot.z;
-  return dx * dx + dz * dz <= radius * radius;
-}
-
-function applyLightningStrike(state, casterBody, spot) {
-  spot.flashT = 1;
-  for (const side of ['player', 'ai']) {
-    const body = side === 'player' ? state.playerBody : state.aiBody;
-    if (!body || body === casterBody || body.userData.ringOut) continue;
-    if (body.userData.invulnerable) continue;
-    if (!isInLightningZone(body, spot, LDRAGO_LIGHTNING_RADIUS)) continue;
-
-    const k = spinKey(side);
-    state[k] = Math.max(0, state[k] - STAR_BLAST_HIT_SPIN);
-    // Launch the victim away from L-Drago with shared bounce hops.
-    let nx = body.position.x - casterBody.position.x;
-    let nz = body.position.z - casterBody.position.z;
-    const d = Math.hypot(nx, nz) || 1;
-    nx /= d;
-    nz /= d;
-    if (!isLaunchBounceActive(body)) {
-      body.userData.launchBounceSource = 'ldrago';
-      startLaunchBounce(body, nx, nz, LDRAGO_LIGHTNING_HIT_KNOCKBACK, 'ldrago', 1);
-    } else {
-      applyStarBlastHitKnockback(casterBody, body);
-    }
-  }
-}
-
-function tickLdragoSupremeFlightLightning(state, body, dt) {
-  const ft = body.userData.ldragoFlightT ?? 0;
-  const chargeStart = LDRAGO_FLIGHT_LAUNCH_DUR;
-  const strikeStart = chargeStart + LDRAGO_LIGHTNING_CHARGE_DUR;
-
-  if (ft >= chargeStart && !body.userData.ldragoLightningSpots) {
-    body.userData.ldragoLightningSpots = pickLightningSpots(LDRAGO_LIGHTNING_COUNT);
-    body.userData.ldragoLightningFired = 0;
-  }
-
-  const spots = body.userData.ldragoLightningSpots;
-  if (spots) {
-    for (const spot of spots) {
-      if (spot.flashT > 0) {
-        spot.flashT = Math.max(0, spot.flashT - dt * 2.6);
-      }
-    }
-  }
-
-  if (!spots || ft < strikeStart) return;
-
-  const strikeIdx = Math.floor((ft - strikeStart) / LDRAGO_LIGHTNING_STRIKE_INTERVAL);
-  let fired = body.userData.ldragoLightningFired ?? 0;
-  while (fired <= strikeIdx && fired < LDRAGO_LIGHTNING_COUNT) {
-    applyLightningStrike(state, body, spots[fired]);
-    fired += 1;
-  }
-  body.userData.ldragoLightningFired = fired;
 }
 
 function applyStarBounceKnockback(body, opp, contactSpeed) {
@@ -1120,6 +1041,109 @@ function initStarBlast(body) {
   delete body.userData.starPhase;
   delete body.userData.starBlastResolved;
   setBodyCollisions(body, false);
+}
+
+/** Lightning L-Drago Soaring Destruction — Star Blast twin with lightning impact twist. */
+function markLdragoSoaringHit(state, attackerSide, body, opp) {
+  if (!body || body.userData.ldragoSoaringHit) return;
+  if (opp?.userData?.invulnerable) return;
+  body.userData.ldragoSoaringHit = true;
+  body.userData.ldragoLightningImpactT = 1;
+  const oppSide = attackerSide === 'player' ? 'ai' : 'player';
+  const k = spinKey(oppSide);
+  state[k] = Math.max(0, state[k] - STAR_BLAST_HIT_SPIN);
+  applyStarBlastHitKnockback(body, opp);
+  // Launch victim with L-Drago bounce hops when not already airborne from another slam.
+  if (opp && !isLaunchBounceActive(opp)) {
+    let nx = opp.position.x - body.position.x;
+    let nz = opp.position.z - body.position.z;
+    const d = Math.hypot(nx, nz) || 1;
+    nx /= d;
+    nz /= d;
+    opp.userData.launchBounceSource = 'ldrago';
+    startLaunchBounce(opp, nx, nz, STAR_BLAST_HIT_KNOCKBACK, 'ldrago', 1);
+  }
+}
+
+function resolveLdragoSoaringOutcome(state, side, body) {
+  if (!body || body.userData.ldragoSoaringResolved) return;
+  body.userData.ldragoSoaringResolved = true;
+  if (!body.userData.ldragoSoaringHit) {
+    const k = spinKey(side);
+    state[k] = Math.max(0, state[k] - STAR_BLAST_MISS_SELF);
+  }
+}
+
+function initLdragoSoaring(body) {
+  const wall = pickWallTarget(body);
+  body.userData.ldragoWallX = wall.x;
+  body.userData.ldragoWallZ = wall.z;
+  body.userData.ldragoWallNx = wall.nx;
+  body.userData.ldragoWallNz = wall.nz;
+  body.userData.ldragoSoaringWindup = true;
+  body.userData.ldragoPhaseT = 0;
+  body.userData.ldragoImpactFlash = false;
+  body.userData.ldragoSoaringHit = false;
+  delete body.userData.ldragoPhase;
+  delete body.userData.ldragoSoaringResolved;
+  delete body.userData.ldragoLightningImpactT;
+  delete body.userData.ldragoApexChargeT;
+  setBodyCollisions(body, false);
+}
+
+function finishLdragoSoaring(state, side, slot, body, dt) {
+  if (!body || (!slot.active && body.userData.ldragoPhase == null)) return;
+  resolveLdragoSoaringOutcome(state, side, body);
+  slot.active = false;
+  slot.activeRemaining = 0;
+  slot.windupRemaining = 0;
+  if (slot.ability.onEnd) slot.ability.onEnd(makeCtx(state, side, dt));
+}
+
+function clearLdragoSoaringMotion(body) {
+  if (!body) return;
+  body.userData.flightLift = 0;
+  body.userData.flightTilt = 0;
+  body.userData.flightRoll = 0;
+  body.userData.flightSquash = 1;
+  body.userData.slamming = false;
+  body.userData.ldragoImpactFlash = false;
+  body.userData.ldragoVY = 0;
+  delete body.userData.ldragoSoaringHit;
+  delete body.userData.ldragoSoaringResolved;
+  delete body.userData.ldragoBouncePulseT;
+  delete body.userData.ldragoImpactX;
+  delete body.userData.ldragoImpactZ;
+  delete body.userData.ldragoDashFromX;
+  delete body.userData.ldragoDashFromZ;
+  delete body.userData.ldragoSettleTilt;
+  delete body.userData.ldragoSettleRoll;
+  delete body.userData.ldragoLightningImpactT;
+  delete body.userData.ldragoApexChargeT;
+  delete body.userData.starKnockbackVX;
+  delete body.userData.starKnockbackVZ;
+}
+
+function releaseLdragoSoaringControl(body) {
+  if (!body) return;
+  body.userData.controlLocked = false;
+  body.userData.airborne = false;
+  clearLdragoSoaringMotion(body);
+  delete body.userData.ldragoSoaringWindup;
+  delete body.userData.ldragoPhase;
+  delete body.userData.ldragoPhaseT;
+  delete body.userData.ldragoImpactFlash;
+  delete body.userData.ldragoWallX;
+  delete body.userData.ldragoWallZ;
+  delete body.userData.ldragoWallNx;
+  delete body.userData.ldragoWallNz;
+  setBodyCollisions(body, true);
+  if (body.type === CANNON.Body.KINEMATIC) {
+    restoreDynamicBody(body);
+  }
+  body.position.y = groundY(body);
+  body.velocity.set(0, 0, 0);
+  body.angularVelocity.set(0, 0, 0);
 }
 
 function finishStarBlast(state, side, slot, body, dt) {
@@ -1828,55 +1852,27 @@ export const ABILITY_REGISTRY = {
     name: 'Dragon Emperor, Soaring Destruction',
     slot: 'special',
     icon: '\u2726',
-    desc: 'Ryuga\'s soaring lightning assault — foes struck take Star Blast-level knockback and spin loss.',
-    charge: 12,
-    cooldown: 14,
-    duration: 3.05,
-    windup: 0.65,
+    desc: 'Wall-dash soar and electrified dive slam — Star Blast-level spin damage; whiffs cost ~5% spin.',
+    charge: 11,
+    cooldown: 12,
+    duration: 6,
+    windup: 0.5,
     glow: LDRAGO_GLOW,
     onActivate(ctx) {
       const b = ctx.body;
       b.userData.airborne = true;
-      b.userData.guarding = true;
-      b.userData.invulnerable = true;
       b.userData.controlLocked = true;
-      b.userData.ldragoFlightWindup = false;
-      b.userData.ldragoFlightT = 0;
-      b.userData.ldragoFlightLaunchT = 1;
-      b.userData.guardX = b.position.x;
-      b.userData.guardZ = b.position.z;
-      setAirborneKinematic(b);
-    },
-    onStep(ctx) {
-      const b = ctx.body;
-      b.userData.ldragoFlightT = (b.userData.ldragoFlightT ?? 0) + ctx.dt;
-      tickLdragoSupremeFlightLightning(ctx.state, b, ctx.dt);
-      b.position.y = groundY(b);
-      const xzLerp = 1 - Math.exp(-12 * ctx.dt);
-      b.position.x += ((b.userData.guardX ?? b.position.x) - b.position.x) * xzLerp;
-      b.position.z += ((b.userData.guardZ ?? b.position.z) - b.position.z) * xzLerp;
-      b.velocity.set(0, 0, 0);
-    },
-    onEnd(ctx) {
-      const b = ctx.body;
-      b.userData.airborne = false;
-      b.userData.guarding = false;
-      b.userData.invulnerable = false;
-      b.userData.controlLocked = false;
-      b.userData.ldragoFlightWindup = false;
-      b.userData.flightLift = 0;
+      b.userData.slamming = false;
       b.userData.flightTilt = 0;
       b.userData.flightRoll = 0;
-      b.userData.flightSquash = 1;
-      delete b.userData.ldragoFlightT;
-      delete b.userData.ldragoFlightLaunchT;
-      delete b.userData.flightRepulseT;
-      delete b.userData.ldragoLightningSpots;
-      delete b.userData.ldragoLightningFired;
-      delete b.userData.ldragoLightningCharging;
-      delete b.userData.ldragoFlightRerising;
-      b.position.y = groundY(b);
-      restoreDynamicBody(b);
+      delete b.userData.ldragoSoaringWindup;
+      b.userData.ldragoPhase = 'dash';
+      b.userData.ldragoPhaseT = 0;
+      setAirborneKinematic(b);
+      setBodyCollisions(b, false);
+    },
+    onEnd(ctx) {
+      releaseLdragoSoaringControl(ctx.body);
     },
   },
 
@@ -2440,8 +2436,8 @@ function applyAbilityWindupSetup(state, side, ability) {
     initStarBlast(body);
   }
   if (ability.id === 'ldrago_soaring_destruction') {
-    body.userData.invulnerable = true;
-    body.userData.ldragoFlightWindup = true;
+    body.userData.controlLocked = true;
+    initLdragoSoaring(body);
   }
   if (ability.id === 'ldrago_absorb_break') {
     body.userData.controlLocked = true;
@@ -3524,71 +3520,276 @@ export function tickLdragoAbilityVisuals(state, dt) {
       }
     }
 
-    // --- Soaring Destruction (special) ---
+    // --- Soaring Destruction (special) — Star Blast twin + lightning impact ---
     const spSlot = runtime.special;
     if (!spSlot || spSlot.ability.id !== 'ldrago_soaring_destruction') continue;
 
-    const inWindup = spSlot.windupRemaining > 0;
-    const inActive = spSlot.active;
-    if (!inWindup && !inActive && !body.userData.ldragoFlightWindup) continue;
+    const inMove =
+      spSlot.windupRemaining > 0 ||
+      spSlot.active ||
+      body.userData.ldragoSoaringWindup ||
+      body.userData.ldragoPhase != null;
+    if (!inMove) continue;
 
-    if (inWindup || body.userData.ldragoFlightWindup) {
-      const windup = slotWindupTotal(spSlot, LDRAGO_FLIGHT_WINDUP);
-      const t = clamp01(1 - spSlot.windupRemaining / windup);
-      body.userData.flightSquash = 1 - 0.14 * easeOutQuad(t);
-      body.userData.flightTilt = 0.16 * easeOutQuad(t);
-      body.userData.flightRoll = Math.sin(t * Math.PI * 3) * 0.04;
+    const floor = groundY(body);
+    body.position.y = floor;
+    body.velocity.set(0, 0, 0);
+    decayLdragoLightningFx(body, dt);
+
+    if (spSlot.windupRemaining > 0 || body.userData.ldragoSoaringWindup) {
+      const windup = slotWindupTotal(spSlot, 0.5);
+      const t = clamp01(windup > 0 ? 1 - spSlot.windupRemaining / windup : 1);
       body.userData.flightLift = 0;
-    } else if (inActive) {
-      const ft = body.userData.ldragoFlightT ?? 0;
-      const dur = spSlot.ability.duration || LDRAGO_FLIGHT_DURATION;
-      const remaining = spSlot.activeRemaining;
-      const inLand = remaining <= LDRAGO_FLIGHT_LAND_DUR;
-      const reriseStart = LDRAGO_FLIGHT_LAUNCH_DUR;
-      const reriseEnd = reriseStart + LDRAGO_LIGHTNING_CHARGE_DUR;
-      const inLaunch = !inLand && ft < LDRAGO_FLIGHT_LAUNCH_DUR;
-      const inRerise = !inLand && ft >= reriseStart && ft < reriseEnd;
+      body.userData.flightTilt = 0.12 * easeOutQuad(t);
+      // Left-spin corkscrew anticipation.
+      body.userData.flightRoll = -Math.sin(t * Math.PI * 2.5) * 0.06;
+      body.userData.flightSquash = 1 - 0.16 * easeOutQuad(t);
+      body.userData.slamming = false;
+      setBodyCollisions(body, false);
+      continue;
+    }
 
-      if (inLaunch) {
-        const t = easeOutQuad(clamp01(ft / LDRAGO_FLIGHT_LAUNCH_DUR));
-        body.userData.flightLift = LDRAGO_FLIGHT_APEX * LDRAGO_FLIGHT_LAUNCH_PEAK * t;
-        body.userData.flightSquash = 1 + 0.06 * t;
-        body.userData.flightTilt = -0.08 * easeOutQuad(t);
-        body.userData.flightRoll = Math.sin(ft * 2.4) * 0.04 * t;
-      } else if (inRerise) {
-        const t = easeOutQuad(clamp01((ft - reriseStart) / LDRAGO_LIGHTNING_CHARGE_DUR));
-        const peak = LDRAGO_FLIGHT_LAUNCH_PEAK + (1 - LDRAGO_FLIGHT_LAUNCH_PEAK) * t;
-        body.userData.flightLift = LDRAGO_FLIGHT_APEX * peak;
-        body.userData.flightSquash = 1 + 0.04 * (1 - t);
-        body.userData.flightTilt = -0.06 * (1 - t);
-        body.userData.flightRoll = Math.sin(ft * 2.2) * 0.06;
-      } else if (inLand) {
-        const landT = clamp01(remaining / LDRAGO_FLIGHT_LAND_DUR);
-        body.userData.flightLift = LDRAGO_FLIGHT_APEX * easeOutQuad(landT);
-        body.userData.flightSquash = 1 - 0.22 * (1 - landT);
-        body.userData.flightTilt = 0.04 * landT;
-        body.userData.flightRoll = Math.sin(landT * Math.PI) * 0.08 * landT;
-      } else {
-        const bob = Math.sin(ft * 2.6) * LDRAGO_FLIGHT_BOB;
-        body.userData.flightLift = LDRAGO_FLIGHT_APEX + bob;
-        body.userData.flightSquash = 1 - 0.08;
-        body.userData.flightRoll = Math.sin(ft * 2.0) * 0.1;
-        body.userData.flightTilt = 0.06 + Math.sin(ft * 1.8) * 0.03;
+    if (!spSlot.active) {
+      if (body.userData.controlLocked) {
+        resolveLdragoSoaringOutcome(state, side, body);
+        releaseLdragoSoaringControl(body);
+      }
+      continue;
+    }
+
+    const phase = body.userData.ldragoPhase;
+    if (!phase) {
+      finishLdragoSoaring(state, side, spSlot, body, dt);
+      continue;
+    }
+
+    body.userData.ldragoPhaseT = (body.userData.ldragoPhaseT ?? 0) + dt;
+    body.userData.flightSquash = body.userData.flightSquash ?? 1;
+
+    const oppSide = side === 'player' ? 'ai' : 'player';
+    const oppSleeping =
+      body.userData.ldragoSoaringHit && state[spinKey(oppSide)] <= CONFIG.SPIN_STOPPED;
+
+    switch (phase) {
+      case 'dash': {
+        body.userData.slamming = false;
+        body.userData.flightLift = 0;
+        const tx = body.userData.ldragoWallX ?? 0;
+        const tz = body.userData.ldragoWallZ ?? 0;
+        if (body.userData.ldragoDashFromX == null) {
+          body.userData.ldragoDashFromX = body.position.x;
+          body.userData.ldragoDashFromZ = body.position.z;
+        }
+        const t = clamp01(body.userData.ldragoPhaseT / STAR_DASH_DUR);
+        const e = easeInQuad(t);
+        body.position.x =
+          body.userData.ldragoDashFromX + (tx - body.userData.ldragoDashFromX) * e;
+        body.position.z =
+          body.userData.ldragoDashFromZ + (tz - body.userData.ldragoDashFromZ) * e;
+        body.userData.flightTilt = 0.14 + 0.38 * e;
+        // Left-spin corkscrew lean during the wall run.
+        body.userData.flightRoll = -0.35 * e;
+        body.userData.flightSquash = 1 + 0.08 * e;
+        if (t >= 1) {
+          body.position.x = tx;
+          body.position.z = tz;
+          body.userData.ldragoImpactX = tx;
+          body.userData.ldragoImpactZ = tz;
+          body.userData.ldragoPhase = 'ascend';
+          body.userData.ldragoPhaseT = 0;
+          body.userData.ldragoImpactFlash = true;
+          // Wall-hit lightning crackle (visual twist).
+          body.userData.ldragoLightningImpactT = 0.55;
+          delete body.userData.ldragoDashFromX;
+          delete body.userData.ldragoDashFromZ;
+        }
+        setBodyCollisions(body, false);
+        break;
       }
 
-      if (body.userData.flightRepulseT != null) {
-        body.userData.flightRepulseT -= dt * 5;
-        if (body.userData.flightRepulseT <= 0) delete body.userData.flightRepulseT;
-      }
-      if (body.userData.ldragoFlightLaunchT != null) {
-        body.userData.ldragoFlightLaunchT -= dt * 2;
-        if (body.userData.ldragoFlightLaunchT <= 0) delete body.userData.ldragoFlightLaunchT;
+      case 'ascend': {
+        if (oppSleeping) {
+          body.userData.ldragoPhase = 'settle';
+          body.userData.ldragoPhaseT = STAR_SETTLE_DUR * 0.82;
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          body.userData.slamming = false;
+          break;
+        }
+        body.userData.slamming = false;
+        const t = clamp01(body.userData.ldragoPhaseT / STAR_ASCEND_DUR);
+        const ix = body.userData.ldragoImpactX ?? body.position.x;
+        const iz = body.userData.ldragoImpactZ ?? body.position.z;
+        const nx = body.userData.ldragoWallNx ?? 0;
+        const nz = body.userData.ldragoWallNz ?? 0;
+        const wallFrac = STAR_WALL_IMPACT_DUR / STAR_ASCEND_DUR;
+
+        if (t < wallFrac) {
+          const wt = clamp01(t / wallFrac);
+          const recoil = easeOutBack(wt) * STAR_WALL_RECOIL;
+          body.position.x = ix + nx * recoil;
+          body.position.z = iz + nz * recoil;
+          const compress = Math.sin(clamp01(wt / 0.4) * Math.PI * 0.5);
+          const release = clamp01((wt - 0.4) / 0.6);
+          body.userData.flightSquash = 1 - 0.42 * compress + 0.3 * easeOutQuad(release);
+          body.userData.flightTilt = -0.7 * Math.sin(wt * Math.PI);
+          body.userData.ldragoImpactFlash = wt < 0.45;
+        } else {
+          body.position.x = ix + nx * STAR_WALL_RECOIL;
+          body.position.z = iz + nz * STAR_WALL_RECOIL;
+          body.userData.ldragoImpactFlash = false;
+          body.userData.flightSquash = 1 + 0.12 * (1 - t);
+        }
+
+        body.userData.flightLift = STAR_APEX * Math.sin(t * Math.PI * 0.5);
+        if (t > wallFrac) {
+          body.userData.flightTilt = -0.45 * (1 - t);
+          // Left-spin corkscrew during soar.
+          body.userData.flightRoll = -Math.sin(t * Math.PI * 2) * 0.55 * t;
+        } else {
+          body.userData.flightRoll = 0;
+        }
+        homingXZ(body, opp, Math.min(1, (3 + 5 * t) * dt));
+
+        if (t >= 1) {
+          body.userData.ldragoPhase = 'dive';
+          body.userData.ldragoPhaseT = 0;
+          // Brief apex charge spark before the electrified dive.
+          body.userData.ldragoApexChargeT = 1;
+        }
+        setBodyCollisions(body, false);
+        break;
       }
 
-      const chargeStart = LDRAGO_FLIGHT_LAUNCH_DUR;
-      const chargeEnd = chargeStart + LDRAGO_LIGHTNING_CHARGE_DUR;
-      body.userData.ldragoLightningCharging = ft >= chargeStart && ft < chargeEnd;
-      body.userData.ldragoFlightRerising = inRerise;
+      case 'dive': {
+        if (oppSleeping) {
+          body.userData.ldragoPhase = 'settle';
+          body.userData.ldragoPhaseT = STAR_SETTLE_DUR * 0.82;
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          body.userData.slamming = false;
+          setBodyCollisions(body, true);
+          break;
+        }
+        body.userData.slamming = true;
+        const t = clamp01(body.userData.ldragoPhaseT / STAR_DIVE_DUR);
+        const e = easeInQuad(t);
+        homingXZ(body, opp, 8 * dt);
+        body.userData.flightLift = STAR_APEX * (1 - e);
+        body.userData.flightTilt = STAR_FALL_PITCH * (0.85 + 0.15 * easeOutQuad(t));
+        // Opposite roll sense vs Pegasus — left-spin dragon corkscrew.
+        body.userData.flightRoll = -STAR_FALL_ROLL * 0.85 * easeOutQuad(t);
+        body.userData.flightSquash = 1 + 0.18 * e;
+        if (e >= 1 || body.userData.flightLift <= STAR_LAND_LIFT) {
+          body.userData.flightLift = 0;
+          body.userData.ldragoVY = STAR_BOUNCE_VELOCITY;
+          body.userData.ldragoBouncePulseT = 0;
+          applyStarBounceKnockback(body, opp, STAR_BOUNCE_VELOCITY);
+          if (starBlastOverlap(body, opp)) markLdragoSoaringHit(state, side, body, opp);
+          else body.userData.ldragoLightningImpactT = 0.7; // ground strike crackle on whiff land
+          body.userData.ldragoPhase = 'bounce';
+          body.userData.ldragoPhaseT = 0;
+          setBodyCollisions(body, true);
+        } else {
+          setBodyCollisions(body, false);
+        }
+        break;
+      }
+
+      case 'bounce': {
+        if (oppSleeping) {
+          body.userData.ldragoPhase = 'settle';
+          body.userData.ldragoPhaseT = STAR_SETTLE_DUR * 0.82;
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          body.userData.slamming = false;
+          delete body.userData.ldragoVY;
+          break;
+        }
+        body.userData.slamming = body.userData.ldragoVY > 0;
+        let vy = body.userData.ldragoVY ?? 0;
+        vy -= STAR_BOUNCE_GRAVITY * dt;
+        let lift = (body.userData.flightLift ?? 0) + vy * dt;
+        body.userData.ldragoBouncePulseT = (body.userData.ldragoBouncePulseT ?? 0) + dt;
+
+        if (lift <= 0) {
+          lift = 0;
+          const contactSpeed = Math.abs(vy);
+          if (contactSpeed < STAR_BOUNCE_MIN_V) {
+            body.userData.flightLift = 0;
+            body.userData.ldragoSettleTilt = body.userData.flightTilt ?? 0;
+            body.userData.ldragoSettleRoll = body.userData.flightRoll ?? 0;
+            body.userData.ldragoPhase = 'settle';
+            body.userData.ldragoPhaseT = 0;
+            body.userData.slamming = false;
+            break;
+          }
+          vy = contactSpeed * STAR_BOUNCE_RESTITUTION;
+          body.userData.ldragoBouncePulseT = 0;
+          body.userData.flightTilt = (body.userData.flightTilt ?? 0) * 0.45;
+          body.userData.flightRoll = (body.userData.flightRoll ?? 0) * 0.45;
+          applyStarBounceKnockback(body, opp, contactSpeed);
+          if (starBlastOverlap(body, opp) && !body.userData.ldragoSoaringHit) {
+            markLdragoSoaringHit(state, side, body, opp);
+          }
+        }
+
+        body.userData.ldragoVY = vy;
+        body.userData.flightLift = lift;
+
+        const pulse = clamp01(body.userData.ldragoBouncePulseT / STAR_BOUNCE_PULSE_DUR);
+        const stretch =
+          0.12 * Math.sin(pulse * Math.PI) * clamp01(Math.abs(vy) / STAR_BOUNCE_VELOCITY);
+        body.userData.flightSquash = 1 - 0.4 * (1 - pulse) + stretch;
+
+        const rightRate = 1 - Math.pow(STAR_BOUNCE_UPRIGHT_RATE, dt);
+        body.userData.flightTilt *= 1 - rightRate;
+        body.userData.flightRoll *= 1 - rightRate;
+        setBodyCollisions(body, true);
+        break;
+      }
+
+      case 'settle': {
+        body.userData.slamming = false;
+        const t = clamp01(body.userData.ldragoPhaseT / STAR_SETTLE_DUR);
+        const decay = (1 - t) * (1 - t);
+        const hops =
+          Math.abs(Math.sin(t * Math.PI * STAR_SETTLE_HOPS)) * STAR_SETTLE_HOP_HEIGHT * decay;
+        body.userData.flightLift = hops;
+        const sway =
+          Math.sin(t * Math.PI * STAR_SETTLE_WOBBLES) * STAR_SETTLE_WOBBLE_AMP * decay;
+        const settleEase = 1 - easeOutCubic(t);
+        body.userData.flightTilt = (body.userData.ldragoSettleTilt ?? 0) * settleEase + sway;
+        body.userData.flightRoll = (body.userData.ldragoSettleRoll ?? 0) * settleEase;
+        const grounded = 1 - clamp01(hops / (STAR_SETTLE_HOP_HEIGHT * 0.35));
+        body.userData.flightSquash = 1 - 0.1 * grounded * decay;
+        setBodyCollisions(body, true);
+        if (t >= 1) {
+          body.userData.flightLift = 0;
+          body.userData.flightTilt = 0;
+          body.userData.flightRoll = 0;
+          body.userData.flightSquash = 1;
+          finishLdragoSoaring(state, side, spSlot, body, dt);
+        }
+        break;
+      }
+
+      default:
+        finishLdragoSoaring(state, side, spSlot, body, dt);
+        break;
+    }
+
+    integrateStarKnockback(body, dt);
+
+    if (!spSlot.active && spSlot.windupRemaining <= 0 && body.userData.controlLocked) {
+      resolveLdragoSoaringOutcome(state, side, body);
+      releaseLdragoSoaringControl(body);
     }
   }
 }
@@ -3599,6 +3800,20 @@ export function shouldStarBlastGlow(body) {
   if (body.userData.starBlastWindup) return true;
   const phase = body.userData.starPhase;
   return phase === 'dash' || phase === 'ascend' || phase === 'dive';
+}
+
+/** True while Lightning L-Drago Soaring Destruction should show purple emissive glow. */
+export function shouldLdragoSoaringGlow(body) {
+  if (!body) return false;
+  if (body.userData.ldragoSoaringWindup) return true;
+  const phase = body.userData.ldragoPhase;
+  return (
+    phase === 'dash' ||
+    phase === 'ascend' ||
+    phase === 'dive' ||
+    (body.userData.ldragoLightningImpactT ?? 0) > 0 ||
+    (body.userData.ldragoApexChargeT ?? 0) > 0
+  );
 }
 
 /** Max visual flight height across both tops — used for other cinematic camera lift. */
@@ -3675,9 +3890,12 @@ function findSpecialCameraWeight(state) {
       continue;
     }
     if (id === 'ldrago_soaring_destruction') {
-      if (inWindup || inActive || body.userData.ldragoFlightWindup) {
-        weight = Math.max(weight, 0.88);
-      }
+      const inMove =
+        inWindup ||
+        inActive ||
+        body.userData.ldragoSoaringWindup ||
+        body.userData.ldragoPhase != null;
+      if (inMove) weight = Math.max(weight, 1);
       continue;
     }
     if (id === 'eagle_diving_crush') {
@@ -3880,11 +4098,15 @@ function applyGuard(impact, guardBody, guardTag, attackerTag) {
 
 function applyStarBlastSlam(impact, slamBody, slamTag, victimTag) {
   if (!slamBody.userData.slamming) return false;
-  const phase = slamBody.userData.starPhase;
+  const phase = slamBody.userData.starPhase ?? slamBody.userData.ldragoPhase;
   if (phase !== 'dive' && phase !== 'bounce') return false;
 
-  if (!slamBody.userData.starBlastHit) {
-    slamBody.userData.starBlastHit = true;
+  const hitKey = slamBody.userData.starPhase != null ? 'starBlastHit' : 'ldragoSoaringHit';
+  if (!slamBody.userData[hitKey]) {
+    slamBody.userData[hitKey] = true;
+    if (hitKey === 'ldragoSoaringHit') {
+      slamBody.userData.ldragoLightningImpactT = 1;
+    }
     impact['spinDelta' + victimTag] = -STAR_BLAST_HIT_SPIN;
   } else {
     impact['spinDelta' + victimTag] = 0;
@@ -4101,6 +4323,7 @@ export function isBodyInSpecialMove(body, state) {
     ud.lionWall ||
     ud.galeCarried ||
     ud.starPhase != null ||
+    ud.ldragoPhase != null ||
     (state && isLibraBusterChannelingBody(state, body))
   );
 }
@@ -4115,7 +4338,7 @@ function isAerialStriker(body) {
   if (body.userData.strikerSlamming) return true;
   if (body.userData.eagleDiveSlamming) return true;
   if (!body.userData.slamming) return false;
-  const phase = body.userData.starPhase;
+  const phase = body.userData.starPhase ?? body.userData.ldragoPhase;
   return phase === 'dive' || phase === 'bounce';
 }
 
@@ -4168,6 +4391,26 @@ export function clearAbilityFlags(body) {
   delete body.userData.starBlastResolved;
   delete body.userData.starWallX;
   delete body.userData.starWallZ;
+  delete body.userData.ldragoSoaringWindup;
+  delete body.userData.ldragoPhase;
+  delete body.userData.ldragoPhaseT;
+  delete body.userData.ldragoImpactFlash;
+  delete body.userData.ldragoSoaringHit;
+  delete body.userData.ldragoSoaringResolved;
+  delete body.userData.ldragoWallX;
+  delete body.userData.ldragoWallZ;
+  delete body.userData.ldragoWallNx;
+  delete body.userData.ldragoWallNz;
+  delete body.userData.ldragoLightningImpactT;
+  delete body.userData.ldragoApexChargeT;
+  delete body.userData.ldragoVY;
+  delete body.userData.ldragoBouncePulseT;
+  delete body.userData.ldragoImpactX;
+  delete body.userData.ldragoImpactZ;
+  delete body.userData.ldragoDashFromX;
+  delete body.userData.ldragoDashFromZ;
+  delete body.userData.ldragoSettleTilt;
+  delete body.userData.ldragoSettleRoll;
   delete body.userData.lionWallPulse;
   delete body.userData.leoneAnchorT;
   delete body.userData.lionWallT;
@@ -4212,6 +4455,8 @@ export function clearAbilityFlags(body) {
   delete body.userData.flightRepulseT;
   delete body.userData.ldragoLightningSpots;
   delete body.userData.ldragoLightningFired;
+  delete body.userData.ldragoLightningCharging;
+  delete body.userData.ldragoFlightRerising;
   delete body.userData.atkCombatMultMult;
   delete body.userData.ldragoAbsorbPhase;
   delete body.userData.ldragoAbsorbPhaseT;
@@ -4222,6 +4467,7 @@ export function clearAbilityFlags(body) {
   delete body.userData.ldragoAbsorbDevour;
   body.userData.lionWallWindup = false;
   body.userData.ldragoFlightWindup = false;
+  body.userData.ldragoSoaringWindup = false;
   body.userData.sonicBusterWindup = false;
   clearSonicSlow(body);
   clearLibraSandBoost(body);

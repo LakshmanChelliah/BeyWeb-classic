@@ -24,7 +24,7 @@ const GAME_TIPS = Object.freeze([
   { kind: 'tip', text: 'Flame Libra\'s high stamina lets it outlast aggressive attackers in long matches.' },
   { kind: 'tip', text: 'Rock Leone\'s Wide Ball Anchor shrugs off knockback and spin loss while it digs in.' },
   { kind: 'tip', text: 'Dark Bull\'s Red Horn Uppercut launches hardest near the rim — set it up on the edge.' },
-  { kind: 'tip', text: 'Missed specials can cost spin — Star Blast and Lightning Sword Flash punish whiffs.' },
+  { kind: 'tip', text: 'Missed specials can cost spin — Star Blast, Soaring Destruction, and Lightning Sword Flash punish whiffs.' },
   { kind: 'tip', text: 'KO beats Sleep Out when both could apply — pocket exits decide the match first.' },
   { kind: 'fact', text: 'Storm Pegasus runs a Rubber Flat tip — the fastest, most aggressive steer on the field.' },
   { kind: 'fact', text: 'Meteo L-Drago\'s Spin Steal drains rival spin on every clash while cutting knockback taken.' },

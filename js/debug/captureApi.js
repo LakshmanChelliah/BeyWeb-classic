@@ -57,7 +57,11 @@ function bodySnapshot(body) {
     starBlastPhase: ud.starPhase ?? ud.starBlastPhase ?? null,
     starPhase: ud.starPhase ?? null,
     launchBouncePhase: ud.launchBounce?.phase ?? ud.launchBouncePhase ?? null,
-    ldragoFlightPhase: ud.ldragoFlightPhase ?? null,
+    ldragoPhase: ud.ldragoPhase ?? null,
+    ldragoFlightPhase: ud.ldragoPhase ?? ud.ldragoFlightPhase ?? null,
+    ldragoLightningImpactT: ud.ldragoLightningImpactT ?? null,
+    ldragoApexChargeT: ud.ldragoApexChargeT ?? null,
+    ldragoSoaringHit: Boolean(ud.ldragoSoaringHit),
   };
 }
 

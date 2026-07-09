@@ -5,12 +5,6 @@ import {
   LDRAGO_ABSORB_COIL_DUR,
   LDRAGO_ABSORB_IMPACT_HOLD,
   LDRAGO_ABSORB_PIERCE_DUR,
-  LDRAGO_FLIGHT_DURATION,
-  LDRAGO_FLIGHT_LAND_DUR,
-  LDRAGO_FLIGHT_LAUNCH_DUR,
-  LDRAGO_LIGHTNING_CHARGE_DUR,
-  LDRAGO_LIGHTNING_COUNT,
-  LDRAGO_LIGHTNING_RADIUS,
   LDRAGO_SPIN_STEAL_DURATION,
 } from '../game/abilities.js';
 import {
@@ -339,7 +333,6 @@ export function createLdragoAbilityVfx(scene) {
   const getMat = createMatCache();
   const fireOuterTex = createFireStreakTexture();
   const fireInnerTex = createFireStreakTexture();
-  const cloudShadowTex = createCloudShadowTexture();
   const dragonSilhouetteTex = createDragonSilhouetteTexture();
 
   // Quarks — violet dragon fire / shock (no flat floor rings).
@@ -639,62 +632,6 @@ export function createLdragoAbilityVfx(scene) {
   }
 
   let lastLaunchPulse = false;
-  let lastLightningPulse = -1;
-
-  const lightningGroup = new THREE.Group();
-  root.add(lightningGroup);
-  const lightningStrikes = [];
-  const CLOUD_PIECES_PER_STRIKE = 3;
-  for (let i = 0; i < LDRAGO_LIGHTNING_COUNT; i++) {
-    const cloudShadows = [];
-    for (let ci = 0; ci < CLOUD_PIECES_PER_STRIKE; ci++) {
-      const w = 2.8 + ci * 0.55 + rand(i * 7 + ci) * 1.2;
-      const h = w * (0.62 + rand(i + ci * 3) * 0.28);
-      const shadow = new THREE.Mesh(
-        new THREE.PlaneGeometry(w, h),
-        makeShadowMat(cloudShadowTex)
-      );
-      shadow.rotation.x = -Math.PI / 2;
-      shadow.rotation.z = rand(i + ci * 11) * Math.PI * 2;
-      shadow.renderOrder = 9;
-      lightningGroup.add(shadow);
-      cloudShadows.push({
-        mesh: shadow,
-        offX: boltRand(i + ci * 5) * 1.4,
-        offZ: boltRand(i + ci * 9 + 3) * 1.4,
-        scaleBias: 0.85 + rand(i + ci) * 0.35,
-      });
-    }
-
-    const chargeArcs = spawnBoltLines(lightningGroup, STRIKE_CHARGE_ARC_COUNT, [BOLT_VIOLET, CRIMSON, BOLT_GLOW], 10);
-    const mainBolts = spawnBoltLines(lightningGroup, STRIKE_MAIN_BOLT_COUNT, MAIN_BOLT_COLORS, 13);
-    const branchBolts = spawnBoltLines(lightningGroup, STRIKE_BRANCH_BOLT_COUNT, BRANCH_BOLT_COLORS, 12);
-    const sideBolts = spawnBoltLines(lightningGroup, STRIKE_SIDE_BOLT_COUNT, [BOLT_VIOLET, PALE, BOLT_GLOW, ORANGE, CRIMSON], 11);
-
-    const skyFlash = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.2, 1.6),
-      getMat(WHITE_HOT, true)
-    );
-    skyFlash.renderOrder = 14;
-    lightningGroup.add(skyFlash);
-
-    const skyFlashOuter = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.5, 2.8),
-      getMat(BOLT_VIOLET, true)
-    );
-    skyFlashOuter.renderOrder = 13;
-    lightningGroup.add(skyFlashOuter);
-
-    lightningStrikes.push({
-      cloudShadows,
-      chargeArcs,
-      mainBolts,
-      branchBolts,
-      sideBolts,
-      skyFlash,
-      skyFlashOuter,
-    });
-  }
 
   let stealSpin = 0;
   let flightSpin = 0;
@@ -757,27 +694,6 @@ export function createLdragoAbilityVfx(scene) {
     flightTrail.stop();
     darkVortex.stop();
     lastLaunchPulse = false;
-    lastLightningPulse = -1;
-    hideLightning();
-  }
-
-  function hideLightning() {
-    for (const strike of lightningStrikes) {
-      for (const cloud of strike.cloudShadows) {
-        cloud.mesh.visible = false;
-        cloud.mesh.material.opacity = 0;
-      }
-      strike.skyFlash.visible = false;
-      strike.skyFlash.material.opacity = 0;
-      strike.skyFlashOuter.visible = false;
-      strike.skyFlashOuter.material.opacity = 0;
-      for (const group of [strike.chargeArcs, strike.mainBolts, strike.branchBolts, strike.sideBolts]) {
-        for (const line of group) {
-          line.visible = false;
-          line.material.opacity = 0;
-        }
-      }
-    }
   }
 
   function billboard(mesh, camera) {
@@ -789,7 +705,6 @@ export function createLdragoAbilityVfx(scene) {
     hideSteal();
     hideAbsorb();
     hideFlight();
-    hideLightning();
     hideUpper();
     stealSpin = 0;
     flightSpin = 0;
@@ -812,7 +727,6 @@ export function createLdragoAbilityVfx(scene) {
 
       const spinStealing = !!body.userData.spinStealing;
       const upperMode = !!body.userData.ldragoUpperMode;
-      const flightWindup = !!body.userData.ldragoFlightWindup;
       const absorbPhase = body.userData.ldragoAbsorbPhase;
       const absorbWindup =
         !!body.userData.ldragoAbsorbWindup ||
@@ -824,14 +738,9 @@ export function createLdragoAbilityVfx(scene) {
         absorbPhase === 'pierce' ||
         absorbPhase === 'impact';
       const inAbsorb = absorbWindup || absorbRush || absorbPhase != null;
-      // Soaring Destruction only — Absorb Break must not share this gate.
-      const inFlight =
-        !!body.userData.airborne &&
-        !!body.userData.invulnerable &&
-        !inAbsorb &&
-        (flightWindup || body.userData.ldragoFlightT != null);
+      // Soaring Destruction cinematic VFX lives in ldragoSoaringVfx.js now.
 
-      if (!spinStealing && !upperMode && !flightWindup && !inAbsorb && !inFlight) {
+      if (!spinStealing && !upperMode && !inAbsorb) {
         reset();
         return;
       }
@@ -845,7 +754,7 @@ export function createLdragoAbilityVfx(scene) {
       const yBase = body.position.y + (body.userData.visualYOffset ?? 0)
         + (body.userData.flightLift ?? 0);
 
-      if (upperMode && !spinStealing && !inAbsorb && !flightWindup && !inFlight) {
+      if (upperMode && !spinStealing && !inAbsorb) {
         hideSteal();
         hideAbsorb();
         hideFlight();
@@ -1108,380 +1017,6 @@ export function createLdragoAbilityVfx(scene) {
         setVisible(stealCore, (0.15 + burst * 0.35) * life);
       }
 
-      if (flightWindup || inFlight) {
-        hideSteal();
-        hideAbsorb();
-        flightGroup.position.set(bx, floorY, bz);
-        flightT += dt;
-
-        if (flightWindup && !inFlight) {
-          const growT = clamp01(flightT / 0.65);
-          const e = 1 - (1 - growT) * (1 - growT);
-          flightSpin += dt * 4.5;
-
-          // Volumetric crater curtain — rising sparks around the gather radius.
-          const craterR = R * (1.6 - e * 0.55);
-          for (const c of windupCraterSparks) {
-            c.phase += dt * (4.5 + c.band * 0.8);
-            const ang = c.phase + flightSpin * 0.8;
-            const h = 0.08 + e * (0.35 + c.band * 0.18) + Math.abs(Math.sin(c.phase * 2)) * 0.12;
-            c.mesh.position.set(
-              Math.cos(ang) * craterR,
-              h,
-              Math.sin(ang) * craterR
-            );
-            billboard(c.mesh, camera);
-            c.mesh.material.opacity = (0.28 + e * 0.45) * (0.55 + 0.45 * Math.sin(c.phase * 3));
-          }
-          if (growT > 0.15 && growT < 0.22) {
-            windupGatherBurst.setPosition(bx, floorY + 0.2, bz);
-            windupGatherBurst.burst(28);
-          }
-          // Rising preview pillar under the bey.
-          const previewH = R * (0.4 + e * 1.8);
-          windupPillar.scale.set(R * 0.55, previewH, R * 0.55);
-          windupPillar.position.set(0, previewH * 0.5, 0);
-          windupPillar.material.opacity = 0.18 + e * 0.42;
-
-          // Outward stadium dust pushed away.
-          for (const d of windupOutDust) {
-            d.phase += dt * (5 + d.phase % 3);
-            const r = R * (0.55 + e * 2.2) * (0.88 + 0.12 * Math.sin(d.phase * 2));
-            d.mesh.position.set(
-              Math.cos(d.phase + flightSpin * 0.6) * r,
-              0.05 + e * 0.55 + Math.sin(d.phase) * 0.08,
-              Math.sin(d.phase + flightSpin * 0.6) * r
-            );
-            billboard(d.mesh, camera);
-            d.mesh.material.opacity = 0.42 * e * (0.45 + 0.55 * Math.sin(d.phase * 3));
-          }
-
-          // Inward spiraling energy motes converging on L-Drago.
-          for (const g of windupGather) {
-            g.phase += dt * (6 + g.band * 2);
-            const t = (g.phase * 0.15 + g.band * 0.2 + flightSpin * 0.08) % 1;
-            const gatherR = R * (2.4 * (1 - t) + 0.25);
-            const h = 0.12 + t * (0.35 + e * 0.9);
-            g.mesh.position.set(
-              Math.cos(g.phase) * gatherR,
-              h,
-              Math.sin(g.phase) * gatherR
-            );
-            billboard(g.mesh, camera);
-            g.mesh.material.opacity = (0.25 + t * 0.45) * e;
-          }
-
-          for (const w of dragonWings) w.mesh.material.opacity = 0;
-          for (const p of helixPool) p.mesh.material.opacity = 0;
-          for (const em of orbitEmbers) em.mesh.material.opacity = 0;
-          pillarOuter.material.opacity = 0;
-          pillarInner.material.opacity = 0;
-          hoverGlow.material.opacity = 0;
-          dragonBackdrop.material.opacity = 0;
-          for (const r of repulseSheets) r.mesh.material.opacity = 0;
-          for (const s of repulseSparks) s.mesh.material.opacity = 0;
-          flightTrail.stop();
-          darkVortex.stop();
-        } else {
-          flightSpin += dt * 3.6;
-          const ft = body.userData.ldragoFlightT ?? 0;
-          const launch = body.userData.ldragoFlightLaunchT ?? 0;
-          const repulse = body.userData.flightRepulseT ?? 0;
-          const fadeIn = clamp01(ft / LDRAGO_FLIGHT_LAUNCH_DUR);
-          const inLand = ft >= LDRAGO_FLIGHT_DURATION - LDRAGO_FLIGHT_LAND_DUR;
-          const landFade = inLand
-            ? clamp01((LDRAGO_FLIGHT_DURATION - ft) / LDRAGO_FLIGHT_LAND_DUR)
-            : 1;
-          const env = fadeIn * landFade;
-          const wingRevealStart = LDRAGO_FLIGHT_LAUNCH_DUR * 0.45;
-          const wingRevealSpan = LDRAGO_FLIGHT_LAUNCH_DUR * 0.35;
-          const wingReveal = ft < wingRevealStart
-            ? 0
-            : clamp01((ft - wingRevealStart) / wingRevealSpan);
-          const hoverY = body.userData.flightLift ?? 0;
-          const launchBoost = launch > 0 ? 1 + (1 - launch) * 0.55 : 1;
-
-          fireOuterTex.offset.y -= dt * 2.2;
-          fireInnerTex.offset.y += dt * 2.2;
-
-          for (const d of windupOutDust) d.mesh.material.opacity = 0;
-          for (const g of windupGather) g.mesh.material.opacity = 0;
-          for (const c of windupCraterSparks) c.mesh.material.opacity = 0;
-          windupPillar.material.opacity = launch > 0 ? (1 - launch) * 0.35 : 0;
-
-          // Dark-energy vortex + electrified trail (Soaring Destruction canon).
-          flightTrail.follow(bx, floorY + hoverY + 0.4, bz, env > 0.2);
-          darkVortex.follow(bx, floorY + hoverY * 0.55 + 0.2, bz, env > 0.15);
-          // Energy column anchored at the stadium floor around the bey.
-          const colH = FLIGHT_COLUMN_HEIGHT * R * 0.55 * launchBoost * landFade;
-          const colPulse = 0.92 + 0.08 * Math.sin(flightSpin * 3.2);
-          pillarOuter.scale.set(R * 0.95 * colPulse, colH, R * 0.95 * colPulse);
-          pillarOuter.position.set(0, colH * 0.5, 0);
-          pillarOuter.material.opacity = (0.28 + launch * 0.22) * env;
-
-          pillarInner.scale.set(R * 0.48 * colPulse, colH * 0.92, R * 0.48 * colPulse);
-          pillarInner.position.set(0, colH * 0.48, 0);
-          pillarInner.material.opacity = (0.38 + launch * 0.28) * env;
-
-          // Helix flame strands spiraling up the column.
-          for (const p of helixPool) {
-            const tr = p.traits;
-            tr.phase += dt * (tr.speed * 1.6 + 0.4);
-            const t = (tr.height + tr.phase * 0.06) % 1;
-            const h = t * colH;
-            const taper = 1 - t * 0.55;
-            const r = R * (0.55 + taper * 0.85) * tr.radius * (0.92 + 0.08 * Math.sin(tr.phase * 5));
-            const angle = tr.phase * 2.4 + flightSpin * 1.8 + t * Math.PI * 4;
-            p.mesh.position.set(Math.cos(angle) * r, h, Math.sin(angle) * r);
-            p.mesh.rotation.set(Math.sin(angle) * 0.35, angle, 0.12);
-            setVisible(p.mesh, (0.32 + 0.28 * (1 - Math.abs(t - 0.45))) * env * wingReveal);
-          }
-
-          // Anime dragon wings — three tiers per side, spread wide at hover height.
-          for (const wing of dragonWings) {
-            const { side, tier, flapPhase } = wing;
-            const spread = R * (1.85 + tier * 0.42 + 0.12 * Math.sin(flightSpin * 2 + tier));
-            const flap = Math.sin(flightSpin * 3.5 + flapPhase + tier * 0.7) * 0.22;
-            const yaw = side * (0.42 + tier * 0.22);
-            const h = hoverY + 0.05 + tier * 0.12 + flap * 0.15;
-            wing.mesh.position.set(
-              side * spread * 0.92,
-              h,
-              spread * 0.18 * side
-            );
-            if (tier === 2) {
-              billboard(wing.mesh, camera);
-            } else {
-              wing.mesh.rotation.set(
-                -0.35 + flap + tier * 0.08,
-                yaw,
-                side * (0.28 + tier * 0.06)
-              );
-            }
-            wing.mesh.material.opacity = (0.48 + tier * 0.08) * env * wingReveal;
-          }
-
-          // Dragon silhouette glow behind the hovering bey.
-          dragonBackdrop.position.set(0, hoverY + 0.08, -R * 0.35);
-          dragonBackdrop.rotation.set(-0.15, 0, 0);
-          dragonBackdrop.scale.set(
-            R * (1.35 + 0.08 * Math.sin(flightSpin * 2)),
-            R * (1.05 + 0.06 * Math.sin(flightSpin * 1.6)),
-            1
-          );
-          dragonBackdrop.material.opacity = 0.38 * env * wingReveal;
-
-          // Soft billboard glow at hover height (not a floor range ring).
-          const auraPulse = 0.85 + 0.15 * Math.sin(flightSpin * 4);
-          hoverGlow.position.set(0, hoverY, 0);
-          billboard(hoverGlow, camera);
-          hoverGlow.scale.setScalar(R * auraPulse * 1.35);
-          hoverGlow.material.opacity = 0.28 * env * wingReveal;
-
-          // Orbiting embers at hover height.
-          for (const em of orbitEmbers) {
-            em.phase += dt * (2.8 + em.band * 0.6);
-            const bandR = R * (1.15 + em.band * 0.22);
-            em.mesh.position.set(
-              Math.cos(em.phase + flightSpin) * bandR,
-              hoverY + 0.12 + Math.sin(em.phase * 2.5) * 0.18,
-              Math.sin(em.phase + flightSpin) * bandR
-            );
-            billboard(em.mesh, camera);
-            em.mesh.material.opacity = 0.42 * env * wingReveal * (0.6 + 0.4 * Math.sin(em.phase * 3));
-          }
-
-          // Launch detonation + repulse — vertical shock sheets + quarks (no flat rings).
-          const burstT = Math.max(launch, repulse);
-          const launchingNow = launch > 0.85;
-          if (launchingNow && !lastLaunchPulse) {
-            launchShock.setPosition(bx, floorY + hoverY * 0.4 + 0.3, bz);
-            launchShock.burst(48);
-            lastLaunchPulse = true;
-          } else if (launch <= 0.05) {
-            lastLaunchPulse = false;
-          }
-
-          if (burstT > 0.04) {
-            for (const sheet of repulseSheets) {
-              const delay = launch > 0 ? sheet.delay : sheet.delay * 1.4;
-              const rate = launch > 0 ? 1.9 : 1.4;
-              const wave = clamp01((burstT - delay) * rate);
-              if (wave <= 0) {
-                sheet.mesh.material.opacity = 0;
-                continue;
-              }
-              const dist = R * (1.2 + (1 - wave) * (launch > 0 ? 4.2 : 3.4));
-              const h = 0.35 + hoverY * 0.35 + (1 - wave) * 1.1;
-              sheet.mesh.position.set(
-                Math.cos(sheet.angle + flightSpin * 0.4) * dist,
-                h,
-                Math.sin(sheet.angle + flightSpin * 0.4) * dist
-              );
-              sheet.mesh.lookAt(bx, h, bz);
-              sheet.mesh.scale.set(1 + (1 - wave) * 1.8, 0.7 + wave * 1.4, 1);
-              sheet.mesh.material.opacity = wave * 0.55 * env;
-            }
-            for (const sp of repulseSparks) {
-              const burst = burstT * (1 + sp.band * 0.12);
-              const dist = R * (1.4 + (1 - burst) * 3.2 + Math.sin(sp.angle * 4 + sp.band) * 0.35);
-              const liftOff = hoverY * (0.25 + burst * 0.55) + sp.band * 0.06;
-              sp.mesh.position.set(
-                Math.cos(sp.angle + flightSpin * 1.5) * dist,
-                liftOff,
-                Math.sin(sp.angle + flightSpin * 1.5) * dist
-              );
-              billboard(sp.mesh, camera);
-              sp.mesh.material.opacity = burst * 0.78 * env;
-            }
-          } else {
-            for (const r of repulseSheets) r.mesh.material.opacity = 0;
-            for (const sp of repulseSparks) sp.mesh.material.opacity = 0;
-          }
-
-          // Lightning telegraphs + strike bolts (world-space targets).
-          const spots = body.userData.ldragoLightningSpots;
-          const chargeStart = LDRAGO_FLIGHT_LAUNCH_DUR;
-          const chargeEnd = chargeStart + LDRAGO_LIGHTNING_CHARGE_DUR;
-          const inCharge = ft >= chargeStart && ft < chargeEnd;
-          const chargeProg = inCharge
-            ? clamp01((ft - chargeStart) / LDRAGO_LIGHTNING_CHARGE_DUR)
-            : ft >= chargeEnd ? 1 : 0;
-          const chargeEase = 1 - (1 - chargeProg) * (1 - chargeProg);
-
-          if (spots && ft >= chargeStart) {
-            for (let li = 0; li < LDRAGO_LIGHTNING_COUNT; li++) {
-              const spot = spots[li];
-              const strike = lightningStrikes[li];
-              if (!spot || !strike) continue;
-
-              const pulse = 0.62 + 0.38 * Math.sin(flightSpin * 5 + li * 1.35);
-              const cloudBase = inCharge
-                ? (0.12 + chargeProg * 0.28) * pulse
-                : spot.flashT > 0.02
-                  ? (0.28 + spot.flashT * 0.35) * env
-                  : 0.16 * pulse * env;
-              const cloudScale = LDRAGO_LIGHTNING_RADIUS * (inCharge ? 0.55 + chargeEase * 0.45 : 0.75);
-
-              strike.cloudShadows.forEach((cloud, ci) => {
-                const drift = Math.sin(flightSpin * 1.8 + li + ci * 2.1) * 0.18;
-                cloud.mesh.position.set(
-                  spot.x + cloud.offX + drift,
-                  floorY + 0.03 + ci * 0.008,
-                  spot.z + cloud.offZ - drift * 0.6
-                );
-                const s = cloudScale * cloud.scaleBias * (0.92 + ci * 0.06);
-                cloud.mesh.scale.set(s, s, 1);
-                cloud.mesh.material.opacity = cloudBase * (0.75 + ci * 0.12);
-                cloud.mesh.visible = cloud.mesh.material.opacity > 0.02;
-              });
-
-              // Pre-strike charge arcs — multiple flickering crawlers.
-              if (inCharge && chargeProg > 0.3) {
-                const arcT = (chargeProg - 0.3) / 0.7;
-                const arcTop = floorY + LIGHTNING_SKY_Y * (0.3 + arcT * 0.5);
-                const arcBot = floorY + 0.15;
-                strike.chargeArcs.forEach((arc, ai) => {
-                  const arcSpread = 0.28 + arcT * (0.4 + ai * 0.18);
-                  const arcSeed = li * 19 + ai * 31 + flightSpin * 2.5;
-                  const offX = boltRand(arcSeed) * arcSpread * 0.35;
-                  const offZ = boltRand(arcSeed + 17) * arcSpread * 0.35;
-                  setBoltPoints(
-                    arc,
-                    buildBoltPoints(arcSeed, spot.x + offX, spot.z + offZ, arcTop, arcBot, arcSpread)
-                  );
-                  arc.material.opacity = arcT * (0.22 + ai * 0.08) * pulse;
-                  arc.visible = arc.material.opacity > 0.02;
-                });
-              } else {
-                for (const arc of strike.chargeArcs) {
-                  arc.visible = false;
-                  arc.material.opacity = 0;
-                }
-              }
-
-              if (spot.flashT > 0.02) {
-                const flicker = 0.55 + 0.45 * Math.abs(Math.sin(flightSpin * 52 + li * 9.7));
-                const strikePow = spot.flashT * flicker * env;
-                const jitter = (1 - spot.flashT) * 0.65;
-                const spread = LIGHTNING_BOLT_SPREAD + jitter;
-                const seed = li * 23 + Math.floor(flightSpin * 14);
-                const topY = floorY + LIGHTNING_SKY_Y;
-                const botY = floorY + 0.08;
-
-                if (spot.flashT > 0.85 && lastLightningPulse !== li) {
-                  lightningBurst.setPosition(spot.x, floorY + 0.35, spot.z);
-                  lightningBurst.burst(36);
-                  lastLightningPulse = li;
-                }
-                if (spot.flashT < 0.1 && lastLightningPulse === li) lastLightningPulse = -1;
-
-                const mainPath = buildBoltPoints(seed, spot.x, spot.z, topY, botY, spread);
-                strike.mainBolts.forEach((line, bi) => {
-                  const boltSpread = spread * (0.72 + bi * 0.09);
-                  const offX = boltRand(seed + bi * 4.1) * spread * 0.22;
-                  const offZ = boltRand(seed + bi * 6.3) * spread * 0.22;
-                  setBoltPoints(
-                    line,
-                    buildBoltPoints(seed + bi * 7.3, spot.x + offX, spot.z + offZ, topY, botY, boltSpread)
-                  );
-                  const tier = bi === 0 ? 1 : bi < 3 ? 0.78 : bi < 5 ? 0.58 : 0.42;
-                  line.material.opacity = strikePow * tier;
-                  line.visible = line.material.opacity > 0.02;
-                });
-
-                strike.branchBolts.forEach((line, bi) => {
-                  const branchStart = 3 + (bi % 5) + Math.floor(bi / 3);
-                  setBoltPoints(
-                    line,
-                    buildBranchPoints(seed + 50 + bi * 11, mainPath, branchStart, spread * (0.65 + bi * 0.08))
-                  );
-                  line.material.opacity = strikePow * (0.62 - bi * 0.06);
-                  line.visible = line.material.opacity > 0.02;
-                });
-
-                strike.sideBolts.forEach((line, sb) => {
-                  const sideSpread = spread * (0.55 + sb * 0.06);
-                  const sideX = spot.x + boltRand(seed + sb * 3.1) * (1.0 + sb * 0.22);
-                  const sideZ = spot.z + boltRand(seed + sb * 5.7 + 20) * (1.0 + sb * 0.22);
-                  const sideTop = floorY + LIGHTNING_SKY_Y * (0.86 + sb * 0.025);
-                  setBoltPoints(
-                    line,
-                    buildBoltPoints(seed + 120 + sb * 9, sideX, sideZ, sideTop, botY, sideSpread)
-                  );
-                  line.material.opacity = strikePow * (0.48 - sb * 0.05);
-                  line.visible = line.material.opacity > 0.02;
-                });
-
-                strike.skyFlash.position.set(spot.x, topY - 0.5, spot.z);
-                billboard(strike.skyFlash, camera);
-                strike.skyFlash.scale.set(1.4 + spot.flashT * 1.8, 0.55 + spot.flashT * 1.0, 1);
-                strike.skyFlash.material.opacity = strikePow * 0.85;
-                strike.skyFlash.visible = true;
-
-                strike.skyFlashOuter.position.set(spot.x, topY - 0.2, spot.z);
-                billboard(strike.skyFlashOuter, camera);
-                strike.skyFlashOuter.scale.set(2.2 + spot.flashT * 2.6, 1.0 + spot.flashT * 1.4, 1);
-                strike.skyFlashOuter.material.opacity = strikePow * 0.45;
-                strike.skyFlashOuter.visible = true;
-              } else {
-                for (const group of [strike.mainBolts, strike.branchBolts, strike.sideBolts]) {
-                  for (const line of group) {
-                    line.visible = false;
-                    line.material.opacity = 0;
-                  }
-                }
-                strike.skyFlash.visible = false;
-                strike.skyFlash.material.opacity = 0;
-                strike.skyFlashOuter.visible = false;
-                strike.skyFlashOuter.material.opacity = 0;
-              }
-            }
-          } else {
-            hideLightning();
-          }
-        }
-      }
     },
     reset,
   };
