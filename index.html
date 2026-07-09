@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Spin Sumo | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=26" />
+  <link rel="stylesheet" href="css/game.css?v=27" />
   <script>
     (function () {
       var desktop =
@@ -76,10 +76,41 @@
     <div class="logo-ring"></div>
     <h1>Spin Sumo</h1>
     <p id="start-blurb">Tournament: best of 3 vs six bladers in rising order — Benkei to Ryuga.</p>
-    <label id="joystick-option" class="control-option">
-      <input type="checkbox" id="use-joystick" />
-      Use joystick
-    </label>
+    <fieldset id="control-mode" class="control-mode" aria-label="How to steer">
+      <legend class="control-mode-legend">How do you want to steer?</legend>
+      <div class="control-mode-options" role="radiogroup" aria-label="Steering control">
+        <label class="control-mode-card" data-mode="tilt">
+          <input type="radio" name="steer-mode" id="steer-tilt" value="tilt" checked />
+          <span class="control-mode-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" width="36" height="36" fill="none">
+              <rect x="16" y="6" width="16" height="28" rx="3" stroke="currentColor" stroke-width="2.2"/>
+              <circle cx="24" cy="30" r="1.6" fill="currentColor"/>
+              <path d="M10 18c-2 2-3 4-3 6s1 4 3 6M38 18c2 2 3 4 3 6s-1 4-3 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="control-mode-copy">
+            <span class="control-mode-title">Tilt phone</span>
+            <span class="control-mode-desc">Lean to steer · needs calibration</span>
+          </span>
+          <span class="control-mode-check" aria-hidden="true"></span>
+        </label>
+        <label class="control-mode-card" data-mode="joystick">
+          <input type="radio" name="steer-mode" id="use-joystick" value="joystick" />
+          <span class="control-mode-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" width="36" height="36" fill="none">
+              <circle cx="24" cy="24" r="14" stroke="currentColor" stroke-width="2.2"/>
+              <circle cx="24" cy="24" r="6" fill="currentColor" opacity="0.9"/>
+              <path d="M24 8v4M24 36v4M8 24h4M36 24h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+            </svg>
+          </span>
+          <span class="control-mode-copy">
+            <span class="control-mode-title">On-screen stick</span>
+            <span class="control-mode-desc">Thumb pad · skip sensors</span>
+          </span>
+          <span class="control-mode-check" aria-hidden="true"></span>
+        </label>
+      </div>
+    </fieldset>
     <button id="btn-start">Calibrate &amp; Start</button>
     <p id="permission-hint">Requires motion sensor access on iOS. Hold phone flat when starting.</p>
     <p class="platform-link"><a href="pc.html">Desktop keyboard version</a></p>
@@ -105,6 +136,6 @@
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=17"></script>
+  <script type="module" src="js/main-mobile.js?v=18"></script>
 </body>
 </html>
