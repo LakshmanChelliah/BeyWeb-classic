@@ -79,43 +79,44 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   createArenaMesh(scene);
 
   const { playerGroup, aiGroup } = createTopGroups(scene);
-  ensureQuarksRuntime(scene);
-  const starBlastVfx = {
-    player: createStarBlastVfx(scene),
-    ai: createStarBlastVfx(scene),
-  };
-  const leoneVfx = {
-    player: createLeoneAbilityVfx(scene),
-    ai: createLeoneAbilityVfx(scene),
-  };
-  const speedBoostVfx = {
-    player: createPegasusSpeedBoostVfx(scene),
-    ai: createPegasusSpeedBoostVfx(scene),
-  };
-  const ldragoVfx = {
-    player: createLdragoAbilityVfx(scene),
-    ai: createLdragoAbilityVfx(scene),
-  };
-  const libraVfx = {
-    player: createLibraAbilityVfx(scene),
-    ai: createLibraAbilityVfx(scene),
-  };
-  const bullVfx = {
-    player: createBullAbilityVfx(scene),
-    ai: createBullAbilityVfx(scene),
-  };
-  const eagleVfx = {
-    player: createEagleAbilityVfx(scene),
-    ai: createEagleAbilityVfx(scene),
-  };
-  const strikerVfx = {
-    player: createStrikerAbilityVfx(scene),
-    ai: createStrikerAbilityVfx(scene),
-  };
-  const collisionSparksVfx = createCollisionSparksVfx(scene, {
-    poolSize: mode === 'mobile' ? 64 : 128,
-    countScale: mode === 'mobile' ? 0.72 : 1,
-  });
+  try {
+    ensureQuarksRuntime(scene);
+  } catch (err) {
+    console.warn('[boot] quarks runtime skipped', err);
+  }
+
+  function safeVfx(factory, label) {
+    try {
+      return { player: factory(scene), ai: factory(scene) };
+    } catch (err) {
+      console.warn(`[boot] ${label} VFX disabled`, err);
+      const noop = {
+        reset() {},
+        update() {},
+        dispose() {},
+      };
+      return { player: noop, ai: noop };
+    }
+  }
+
+  const starBlastVfx = safeVfx(createStarBlastVfx, 'starBlast');
+  const leoneVfx = safeVfx(createLeoneAbilityVfx, 'leone');
+  const speedBoostVfx = safeVfx(createPegasusSpeedBoostVfx, 'speedBoost');
+  const ldragoVfx = safeVfx(createLdragoAbilityVfx, 'ldrago');
+  const libraVfx = safeVfx(createLibraAbilityVfx, 'libra');
+  const bullVfx = safeVfx(createBullAbilityVfx, 'bull');
+  const eagleVfx = safeVfx(createEagleAbilityVfx, 'eagle');
+  const strikerVfx = safeVfx(createStrikerAbilityVfx, 'striker');
+  let collisionSparksVfx;
+  try {
+    collisionSparksVfx = createCollisionSparksVfx(scene, {
+      poolSize: mode === 'mobile' ? 64 : 128,
+      countScale: mode === 'mobile' ? 0.72 : 1,
+    });
+  } catch (err) {
+    console.warn('[boot] collision sparks VFX disabled', err);
+    collisionSparksVfx = { reset() {}, update() {}, dispose() {} };
+  }
 
   function resetAllAbilityVfx() {
     starBlastVfx.player.reset();
