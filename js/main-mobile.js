@@ -17,7 +17,10 @@ function lockPortraitOrientation() {
   lock.call(screen.orientation, 'portrait-primary').catch(() => {});
 }
 
-document.addEventListener('pointerdown', lockPortraitOrientation, { passive: true });
+// Do NOT lock orientation on every pointerdown — screen.orientation.lock()
+// consumes iOS Safari's transient user activation, so a later
+// DeviceOrientationEvent.requestPermission() never shows the system prompt.
+// Lock only after motion permission is handled, or on orientation changes.
 window.addEventListener('orientationchange', lockPortraitOrientation);
 
 const btnStart = document.getElementById('btn-start');
@@ -106,33 +109,59 @@ createAppBootstrap({
         tickAIAbilities(state, (slot) => getGameRef().triggerAbility('ai', slot));
       },
       async onStartClick(startGame) {
-        lockPortraitOrientation();
         const joy = useJoystickChecked();
 
         if (joy) {
           btnStart.disabled = true;
           btnStart.textContent = 'Starting…';
           joystick.show();
+          lockPortraitOrientation();
           await startGame();
           campaignCtrl.updateHud();
           return;
         }
 
         joystick.hide();
-        btnStart.disabled = true;
-        btnStart.textContent = 'Requesting…';
+        // CRITICAL: requestPermission must be the first await in this tap
+        // handler. Do not disable the button, lock orientation, or await
+        // anything else first — iOS will refuse to show the prompt.
+        btnStart.textContent = 'Allow Motion…';
+        const result = await gyro.requestMotionPermission();
+        const granted = result?.granted === true;
 
-        const granted = await gyro.requestMotionPermission();
         if (!granted) {
           btnStart.disabled = false;
           btnStart.textContent = 'Calibrate & Start';
-          permissionHint.textContent =
-            'Motion permission denied. On desktop, use mouse to steer instead.';
+          const errMsg = result?.orientation?.message || result?.motion?.message || '';
+          const needsPrompt = gyro.needsIosMotionPermission?.() ?? false;
+          if (needsPrompt && /user gesture|NotAllowed/i.test(errMsg)) {
+            permissionHint.textContent =
+              'iOS blocked the motion prompt. Tap Calibrate & Start again (do not switch apps mid-tap).';
+          } else if (needsPrompt) {
+            permissionHint.textContent =
+              'Motion access denied. In iOS Settings → Safari → Motion & Orientation Access, allow it, then tap again. Or use On-screen stick.';
+          } else {
+            permissionHint.textContent =
+              'Motion sensors unavailable. On desktop, use mouse to steer — or pick On-screen stick on phone.';
+          }
           gyro.setMouseFallback();
+          return;
         }
 
+        btnStart.disabled = true;
+        btnStart.textContent = 'Calibrating…';
+        gyro.clearMouseFallback?.();
         gyro.startListening();
-        await gyro.calibrateOnce();
+        const calibrated = await gyro.calibrateOnce();
+        if (!calibrated && !gyro.hasOrientation?.()) {
+          btnStart.disabled = false;
+          btnStart.textContent = 'Calibrate & Start';
+          permissionHint.textContent =
+            'Permission granted, but no tilt data yet. Hold the phone flat and tap again.';
+          return;
+        }
+
+        lockPortraitOrientation();
         await startGame();
         campaignCtrl.updateHud();
       },
