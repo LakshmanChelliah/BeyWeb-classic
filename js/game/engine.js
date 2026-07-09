@@ -224,26 +224,46 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       btn.style.setProperty('--ability-glow', ability.glow || '#4f8cff');
       const keyLabel = abilityKeyLabels()[side]?.[slotName];
       btn.innerHTML =
-        `<span class="ability-cd"></span>` +
+        `<span class="ability-cd" aria-hidden="true"></span>` +
+        `<span class="ability-face">` +
         `<span class="ability-icon">${ability.icon || ''}</span>` +
         `<span class="ability-name">${ability.name}</span>` +
-        (keyLabel ? `<span class="ability-key">${keyLabel}</span>` : '');
+        `<span class="ability-status">Ready</span>` +
+        (keyLabel ? `<span class="ability-key">${keyLabel}</span>` : '') +
+        `</span>`;
       bindTapWithoutZoom(btn, () => triggerAbility(side, slotName));
       container.appendChild(btn);
-      abilityButtons[side].push({ btn, slot, cdEl: btn.querySelector('.ability-cd') });
+      abilityButtons[side].push({
+        btn,
+        slot,
+        cdEl: btn.querySelector('.ability-cd'),
+        statusEl: btn.querySelector('.ability-status'),
+      });
     }
     container.classList.toggle('visible', abilityButtons[side].length > 0);
   }
 
   function updateAbilityHud() {
     for (const side of ['player', 'ai']) {
-      for (const { btn, slot, cdEl } of abilityButtons[side]) {
+      for (const { btn, slot, cdEl, statusEl } of abilityButtons[side]) {
         const ability = slot.ability;
         const total = slot.cooldownTotal || ability.cooldown || 0;
-        const ratio = total ? slot.cooldownRemaining / total : 0;
-        cdEl.style.transform = `scaleY(${Math.max(0, Math.min(1, ratio))})`;
-        btn.classList.toggle('cooling', slot.cooldownRemaining > 0);
-        btn.classList.toggle('active', slot.active || slot.windupRemaining > 0);
+        const remaining = slot.cooldownRemaining || 0;
+        const ratio = total ? remaining / total : 0;
+        const ready = remaining <= 0;
+        const active = slot.active || slot.windupRemaining > 0;
+        const fill = Math.max(0, Math.min(1, 1 - ratio));
+        btn.style.setProperty('--cd-ratio', String(ratio));
+        btn.style.setProperty('--cd-fill', String(fill));
+        if (cdEl) cdEl.style.transform = `scaleY(${Math.max(0, Math.min(1, ratio))})`;
+        btn.classList.toggle('cooling', !ready);
+        btn.classList.toggle('ready', ready && !active);
+        btn.classList.toggle('active', active);
+        if (statusEl) {
+          if (active) statusEl.textContent = 'Active';
+          else if (!ready) statusEl.textContent = 'Loading';
+          else statusEl.textContent = 'Ready';
+        }
       }
     }
   }

@@ -1340,10 +1340,6 @@ body:not(.mobile) #campaign-hud {
 #controls-hint.visible,
 #tilt-hint.visible { opacity: 1; }
 
-body.mobile.joystick-mode #tilt-hint {
-  bottom: calc(156px + env(safe-area-inset-bottom, 0px));
-}
-
 /* ---------- Virtual joystick (mobile) ---------- */
 .virtual-joystick {
   position: fixed;
@@ -1408,28 +1404,63 @@ body.mobile.joystick-mode #tilt-hint {
 .ability-bar.visible { opacity: 1; }
 .ability-bar-left { left: 16px; }
 .ability-bar-right { right: 16px; }
-body.mobile .ability-bar-right { bottom: 80px; }
 
-/* Joystick mode: power left · stick center · special right */
+/* Gyro / tilt: same right bias, ~25% larger hit targets */
+body.mobile:not(.joystick-mode) .ability-bar-right {
+  right: 10px;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+}
+
+body.mobile:not(.joystick-mode) #player-abilities .ability-btn {
+  width: 115px;
+  min-height: 115px;
+  padding: 12px 10px 10px;
+  border-radius: 18px;
+  gap: 4px;
+}
+
+body.mobile:not(.joystick-mode) #player-abilities .ability-icon {
+  font-size: 28px;
+}
+
+body.mobile:not(.joystick-mode) #player-abilities .ability-name {
+  font-size: 10px;
+}
+
+body.mobile:not(.joystick-mode) #player-abilities .ability-status {
+  font-size: 9px;
+}
+
+/* Joystick mode: huge left / right pads — slap without aiming */
 body.mobile.joystick-mode #player-abilities.ability-bar {
-  left: 12px;
-  right: 12px;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  height: 120px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(148px + env(safe-area-inset-bottom, 0px));
+  padding:
+    8px
+    max(8px, env(safe-area-inset-right, 0px))
+    max(10px, env(safe-area-inset-bottom, 0px))
+    max(8px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
   gap: 0;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
   z-index: 13;
 }
 
 body.mobile.joystick-mode #player-abilities .ability-btn {
-  width: 76px;
+  width: min(132px, 34vw);
+  min-height: 132px;
   flex-shrink: 0;
-  padding: 8px 6px 7px;
+  padding: 14px 10px 12px;
+  border-radius: 22px;
+  gap: 5px;
 }
 
 body.mobile.joystick-mode #player-abilities .ability-name {
-  font-size: 7.5px;
+  font-size: 9px;
   max-height: 2.4em;
   overflow: hidden;
   display: -webkit-box;
@@ -1438,37 +1469,96 @@ body.mobile.joystick-mode #player-abilities .ability-name {
 }
 
 body.mobile.joystick-mode #player-abilities .ability-icon {
-  font-size: 20px;
+  font-size: 30px;
+}
+
+body.mobile.joystick-mode #player-abilities .ability-status {
+  font-size: 10px;
+}
+
+body.mobile.joystick-mode #tilt-hint {
+  bottom: calc(168px + env(safe-area-inset-bottom, 0px));
 }
 
 .ability-btn {
   --ability-glow: #4f8cff;
+  --cd-ratio: 0;
+  --cd-fill: 1;
   position: relative;
   pointer-events: auto;
   cursor: pointer;
   overflow: hidden;
+  isolation: isolate;
   width: 92px;
   padding: 9px 8px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--ability-glow) 55%, transparent);
-  background: rgba(8, 12, 28, 0.72);
+  border: 2px solid color-mix(in srgb, var(--ability-glow) 70%, #fff 12%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ability-glow) 22%, rgba(8, 12, 28, 0.88)) 0%,
+      rgba(8, 12, 28, 0.88) 100%
+    );
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: #e8ecf4;
-  box-shadow: 0 0 14px -6px var(--ability-glow);
-  transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 0 18px -4px var(--ability-glow);
+  transition: transform 0.12s, box-shadow 0.2s, filter 0.2s, border-color 0.2s;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
-.ability-btn:active { transform: scale(0.94); }
-.ability-btn.cooling { filter: grayscale(0.5) brightness(0.7); }
-.ability-btn.active {
-  box-shadow: 0 0 26px -2px var(--ability-glow);
+
+.ability-face {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: inherit;
+  pointer-events: none;
+}
+
+.ability-btn:active { transform: scale(0.96); }
+
+.ability-btn.ready {
+  animation: ability-ready-pulse 1.6s ease-in-out infinite;
   border-color: var(--ability-glow);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ability-glow) 45%, transparent) inset,
+    0 0 28px -2px var(--ability-glow);
+}
+
+.ability-btn.cooling {
+  filter: saturate(0.55) brightness(0.82);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+  animation: none;
+}
+
+.ability-btn.active {
+  animation: none;
+  box-shadow: 0 0 32px -1px var(--ability-glow);
+  border-color: #fff;
+}
+
+@keyframes ability-ready-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--ability-glow) 35%, transparent) inset,
+      0 0 18px -4px var(--ability-glow);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--ability-glow) 55%, transparent) inset,
+      0 0 34px 0 var(--ability-glow);
+  }
 }
 
 .ability-icon {
@@ -1486,6 +1576,23 @@ body.mobile.joystick-mode #player-abilities .ability-icon {
   line-height: 1.2;
   color: #c8d4f0;
 }
+.ability-status {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ability-glow) 80%, #fff);
+}
+.ability-btn.cooling .ability-status {
+  color: #9aa8c8;
+}
+.ability-btn.ready .ability-status {
+  color: #e8fff0;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--ability-glow) 70%, transparent);
+}
+.ability-btn.active .ability-status {
+  color: #fff;
+}
 .ability-key {
   font-size: 10px;
   font-weight: 700;
@@ -1496,13 +1603,44 @@ body.mobile.joystick-mode #player-abilities .ability-icon {
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #cdddff;
 }
+
+/* Bottom wipe + ring fill so loading is obvious */
 .ability-cd {
   position: absolute;
   inset: 0;
-  background: rgba(5, 8, 18, 0.72);
-  transform-origin: top;
-  transform: scaleY(0);
+  z-index: 1;
   pointer-events: none;
+  background:
+    linear-gradient(
+      to top,
+      rgba(5, 8, 18, 0.82) 0%,
+      rgba(5, 8, 18, 0.82) calc(var(--cd-ratio) * 100%),
+      transparent calc(var(--cd-ratio) * 100%)
+    );
+  transform: none !important;
+}
+
+.ability-btn.cooling::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from -90deg,
+    var(--ability-glow) 0deg,
+    var(--ability-glow) calc(var(--cd-fill) * 360deg),
+    rgba(255, 255, 255, 0.08) calc(var(--cd-fill) * 360deg)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  opacity: 0.95;
+}
+
+.ability-btn.ready::before,
+.ability-btn.active::before {
+  content: none;
 }
 
 /* ---------- Special-move logo flash ---------- */
