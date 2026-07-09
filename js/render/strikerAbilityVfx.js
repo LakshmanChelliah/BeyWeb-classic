@@ -17,7 +17,7 @@ const _smoothDir = new THREE.Vector3();
 const _right = new THREE.Vector3();
 
 const BLITZ_DUR = 3;
-const HISTORY_LEN = 10;
+const HISTORY_LEN = 14;
 
 function makeMat(color, opacity, additive = true) {
   return new THREE.MeshBasicMaterial({
@@ -30,7 +30,7 @@ function makeMat(color, opacity, additive = true) {
   });
 }
 
-/** Teal Blitz Charge trails + Lightning Sword Flash vanish / reappear / dash. */
+/** Dense teal Blitz Charge + dramatic Lightning Sword Flash vanish / reappear / dash. */
 export function createStrikerAbilityVfx(scene) {
   const root = new THREE.Group();
   scene.add(root);
@@ -42,11 +42,21 @@ export function createStrikerAbilityVfx(scene) {
   root.add(vanishGroup);
   root.add(dashGroup);
 
-  // --- Blitz Charge ---
-  const blitzStreaks = [];
-  for (let i = 0; i < 6; i++) {
+  const blitzGhosts = [];
+  for (let i = 0; i < 4; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.035, 1.35),
+      new THREE.PlaneGeometry(1.45, 1.45),
+      makeMat(TEAL_LIGHT, 0)
+    );
+    mesh.renderOrder = 4;
+    blitzGroup.add(mesh);
+    blitzGhosts.push(mesh);
+  }
+
+  const blitzStreaks = [];
+  for (let i = 0; i < 10; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.045, 1.7),
       makeMat(TEAL_PALE, 0)
     );
     mesh.renderOrder = 5;
@@ -55,18 +65,18 @@ export function createStrikerAbilityVfx(scene) {
   }
 
   const blitzSparks = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.09, 0.09),
+      new THREE.PlaneGeometry(0.12, 0.12),
       makeMat(TEAL_WHITE, 0)
     );
     mesh.renderOrder = 6;
     blitzGroup.add(mesh);
-    blitzSparks.push({ mesh, phase: (i / 4) * Math.PI * 2 });
+    blitzSparks.push({ mesh, phase: (i / 8) * Math.PI * 2 });
   }
 
   const blitzRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.85, 0.98, 32),
+    new THREE.RingGeometry(0.8, 1.05, 40),
     makeMat(TEAL, 0)
   );
   blitzRing.rotation.x = -Math.PI / 2;
@@ -74,48 +84,55 @@ export function createStrikerAbilityVfx(scene) {
   blitzGroup.add(blitzRing);
 
   const blitzCore = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.95, 0.95),
+    new THREE.PlaneGeometry(1.2, 1.2),
     makeMat(TEAL_WHITE, 0)
   );
   blitzCore.renderOrder = 7;
   blitzGroup.add(blitzCore);
 
-  // --- Lightning Sword Flash ---
   const vanishRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.4, 0.95, 32),
+    new THREE.RingGeometry(0.35, 1.1, 40),
     makeMat(TEAL_LIGHT, 0)
   );
   vanishRing.rotation.x = -Math.PI / 2;
   vanishRing.renderOrder = 8;
   vanishGroup.add(vanishRing);
 
+  const vanishOuter = new THREE.Mesh(
+    new THREE.RingGeometry(1.0, 1.35, 40),
+    makeMat(TEAL_PALE, 0)
+  );
+  vanishOuter.rotation.x = -Math.PI / 2;
+  vanishOuter.renderOrder = 7;
+  vanishGroup.add(vanishOuter);
+
   const vanishCore = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.25, 1.25),
+    new THREE.PlaneGeometry(1.55, 1.55),
     makeMat(TEAL_WHITE, 0)
   );
   vanishCore.renderOrder = 9;
   vanishGroup.add(vanishCore);
 
   const vanishStreaks = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 14; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.04, 1.55),
+      new THREE.PlaneGeometry(0.055, 2.0),
       makeMat(TEAL_PALE, 0)
     );
     mesh.renderOrder = 7;
     vanishGroup.add(mesh);
-    vanishStreaks.push({ mesh, angle: (i / 8) * Math.PI * 2 });
+    vanishStreaks.push({ mesh, angle: (i / 14) * Math.PI * 2 });
   }
 
   const afterimage = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.2, 1.2),
+    new THREE.PlaneGeometry(1.45, 1.45),
     makeMat(TEAL, 0, false)
   );
   afterimage.renderOrder = 4;
   vanishGroup.add(afterimage);
 
   const reappearRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.2, 1.05, 36),
+    new THREE.RingGeometry(0.15, 1.25, 40),
     makeMat(TEAL_WHITE, 0)
   );
   reappearRing.rotation.x = -Math.PI / 2;
@@ -123,22 +140,21 @@ export function createStrikerAbilityVfx(scene) {
   dashGroup.add(reappearRing);
 
   const reappearBurst = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.4, 1.4),
+    new THREE.PlaneGeometry(1.9, 1.9),
     makeMat(TEAL_WHITE, 0)
   );
   reappearBurst.renderOrder = 10;
   dashGroup.add(reappearBurst);
 
-  // Sword-motif dash streaks (elongated teal blades, not literal props).
   const dashStreaks = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.05, 2.0),
+      new THREE.PlaneGeometry(0.06, 2.5),
       makeMat(i % 2 === 0 ? TEAL_WHITE : TEAL_PALE, 0)
     );
     mesh.renderOrder = 6;
     dashGroup.add(mesh);
-    dashStreaks.push({ mesh, offset: i / 6 });
+    dashStreaks.push({ mesh, offset: i / 10 });
   }
 
   const history = Array.from({ length: HISTORY_LEN }, () => new THREE.Vector3());
@@ -159,6 +175,7 @@ export function createStrikerAbilityVfx(scene) {
   }
 
   function hideBlitz() {
+    for (const g of blitzGhosts) setOpacity(g, 0);
     for (const s of blitzStreaks) setOpacity(s, 0);
     for (const sp of blitzSparks) setOpacity(sp.mesh, 0);
     setOpacity(blitzRing, 0);
@@ -167,6 +184,7 @@ export function createStrikerAbilityVfx(scene) {
 
   function hideFlash() {
     setOpacity(vanishRing, 0);
+    setOpacity(vanishOuter, 0);
     setOpacity(vanishCore, 0);
     setOpacity(afterimage, 0);
     setOpacity(reappearRing, 0);
@@ -186,6 +204,18 @@ export function createStrikerAbilityVfx(scene) {
     _smoothDir.set(0, 0, -1);
     hideBlitz();
     hideFlash();
+  }
+
+  function sampleHistory(t, target) {
+    if (historyCount < 2) {
+      target.copy(_pos);
+      return;
+    }
+    const maxIdx = historyCount - 1;
+    const f = t * maxIdx;
+    const i0 = Math.floor(f);
+    const i1 = Math.min(i0 + 1, maxIdx);
+    target.lerpVectors(history[i0], history[i1], f - i0);
   }
 
   reset();
@@ -255,21 +285,34 @@ export function createStrikerAbilityVfx(scene) {
         const boostT = body.userData.boostT ?? 0;
         const life = clamp01(1 - boostT / BLITZ_DUR);
         const speedFactor = clamp01(smoothSpeed / 18);
-        const intensity = (0.45 + speedFactor * 0.4) * (0.4 + life * 0.6);
+        const intensity = (0.6 + speedFactor * 0.55) * (0.4 + life * 0.7);
         const yBase = body.position.y + (body.userData.visualYOffset ?? 0) * 0.4;
 
-        if (boostT < 0.26) {
-          const t = boostT / 0.26;
+        if (boostT < 0.35) {
+          const t = boostT / 0.35;
           blitzRing.position.set(_pos.x, yBase + 0.04, _pos.z);
-          blitzRing.scale.setScalar(R * (1 + t * 1.5));
-          setOpacity(blitzRing, 0.28 * (1 - t));
+          blitzRing.scale.setScalar(R * (1 + t * 2.4));
+          setOpacity(blitzRing, 0.5 * (1 - t));
         } else {
           setOpacity(blitzRing, 0);
         }
 
+        for (let i = 0; i < blitzGhosts.length; i++) {
+          const ghost = blitzGhosts[i];
+          const t = (i + 1) / (blitzGhosts.length + 0.5);
+          const gp = new THREE.Vector3();
+          sampleHistory(t * 0.75, gp);
+          ghost.position.copy(gp).addScaledVector(_smoothDir, -t * 1.1);
+          billboard(ghost, camera);
+          ghost.scale.setScalar((topGroup.scale.x) * (0.9 - t * 0.14));
+          setOpacity(ghost, historyCount > 2 && speedFactor > 0.08
+            ? Math.max(0.04, (0.36 - t * 0.28) * intensity)
+            : 0);
+        }
+
         const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
-        const streakLen = 0.5 + speedFactor * 1.6;
-        const showStreaks = speedFactor > 0.08;
+        const streakLen = 0.75 + speedFactor * 2.2;
+        const showStreaks = speedFactor > 0.05;
         for (let i = 0; i < blitzStreaks.length; i++) {
           const streak = blitzStreaks[i];
           const t = i / Math.max(1, blitzStreaks.length - 1);
@@ -277,34 +320,34 @@ export function createStrikerAbilityVfx(scene) {
             setOpacity(streak, 0);
             continue;
           }
-          const back = 0.25 + t * 1.9;
-          const fan = (i - (blitzStreaks.length - 1) * 0.5) * 0.065;
+          const back = 0.25 + t * 2.6;
+          const fan = (i - (blitzStreaks.length - 1) * 0.5) * 0.085;
           streak.position.copy(_pos);
           streak.position.addScaledVector(_smoothDir, -back);
           streak.position.addScaledVector(_right, fan);
           streak.position.y = yBase + 0.02;
-          streak.rotation.set(0, yaw, fan * 0.2);
-          streak.scale.set(1, streakLen * (1 - t * 0.28), 1);
-          setOpacity(streak, Math.max(0.04, (0.36 - t * 0.28) * intensity));
+          streak.rotation.set(0, yaw, fan * 0.3);
+          streak.scale.set(1, streakLen * (1 - t * 0.32), 1);
+          setOpacity(streak, Math.max(0.05, (0.5 - t * 0.4) * intensity));
         }
 
         for (const sp of blitzSparks) {
-          sp.phase += dt * (3.2 + speedFactor * 4);
-          const orbitR = R * (1.05 + 0.06 * Math.sin(sp.phase * 2));
+          sp.phase += dt * (5 + speedFactor * 8);
+          const orbitR = R * (1.15 + 0.12 * Math.sin(sp.phase * 2));
           sp.mesh.position.set(
             _pos.x + Math.cos(sp.phase) * orbitR,
-            yBase + 0.1 + Math.sin(sp.phase * 1.5) * 0.06,
+            yBase + 0.12 + Math.sin(sp.phase * 1.5) * 0.1,
             _pos.z + Math.sin(sp.phase) * orbitR
           );
           billboard(sp.mesh, camera);
-          setOpacity(sp.mesh, (0.12 + speedFactor * 0.16) * life);
+          setOpacity(sp.mesh, (0.22 + speedFactor * 0.28) * life);
         }
 
         blitzCore.position.copy(_pos);
         blitzCore.position.y = yBase;
         billboard(blitzCore, camera);
-        blitzCore.scale.setScalar((topGroup?.scale?.x ?? 1) * (0.35 + speedFactor * 0.15));
-        setOpacity(blitzCore, (0.06 + speedFactor * 0.12) * life);
+        blitzCore.scale.setScalar((topGroup?.scale?.x ?? 1) * (0.5 + speedFactor * 0.3));
+        setOpacity(blitzCore, (0.14 + speedFactor * 0.22) * life);
         return;
       }
 
@@ -319,29 +362,31 @@ export function createStrikerAbilityVfx(scene) {
         const t = clamp01((body.userData.strikerFlashPhaseT ?? 0) / STRIKER_VANISH_DUR);
         const burst = 1 - t;
 
-        vanishRing.scale.setScalar(R * (0.75 + t * 2.0));
-        setOpacity(vanishRing, burst * 0.55);
+        vanishRing.scale.setScalar(R * (0.8 + t * 2.8));
+        setOpacity(vanishRing, burst * 0.85);
+        vanishOuter.scale.setScalar(R * (1.1 + t * 3.2));
+        setOpacity(vanishOuter, burst * 0.45);
 
-        vanishCore.position.set(0, R * 0.42, 0);
+        vanishCore.position.set(0, R * 0.45, 0);
         billboard(vanishCore, camera);
-        vanishCore.scale.setScalar(R * (1.0 - t * 0.5));
-        setOpacity(vanishCore, burst * 0.7);
+        vanishCore.scale.setScalar(R * (1.25 - t * 0.55));
+        setOpacity(vanishCore, burst * 0.95);
 
-        afterimage.position.set(0, R * 0.4, 0);
+        afterimage.position.set(0, R * 0.42, 0);
         billboard(afterimage, camera);
-        afterimage.scale.setScalar(R * 0.95);
-        setOpacity(afterimage, (1 - t) * 0.32);
+        afterimage.scale.setScalar(R * 1.1);
+        setOpacity(afterimage, (1 - t) * 0.5);
 
         for (const s of vanishStreaks) {
-          const len = R * (1.0 + t * 2.2);
+          const len = R * (1.3 + t * 3.2);
           s.mesh.position.set(
-            Math.cos(s.angle) * len * 0.45,
-            R * 0.32 + Math.sin(s.angle * 2) * 0.06,
-            Math.sin(s.angle) * len * 0.45
+            Math.cos(s.angle) * len * 0.55,
+            R * 0.35 + Math.sin(s.angle * 2) * 0.1,
+            Math.sin(s.angle) * len * 0.55
           );
           s.mesh.rotation.y = s.angle;
           billboard(s.mesh, camera);
-          setOpacity(s.mesh, burst * 0.4 * (0.7 + 0.3 * Math.sin(s.angle * 3)));
+          setOpacity(s.mesh, burst * 0.65 * (0.65 + 0.35 * Math.sin(s.angle * 3)));
         }
 
         setOpacity(reappearRing, 0);
@@ -357,21 +402,22 @@ export function createStrikerAbilityVfx(scene) {
       );
       setOpacity(vanishCore, 0);
       setOpacity(vanishRing, 0);
+      setOpacity(vanishOuter, 0);
       setOpacity(afterimage, 0);
       for (const s of vanishStreaks) setOpacity(s.mesh, 0);
 
       dashGroup.position.set(body.position.x, floorY, body.position.z);
-      dashSpin += dt * 8;
+      dashSpin += dt * 10;
 
       if (reappearing) {
         const flash = phase === 'reappear' ? reappear : 0;
-        reappearRing.scale.setScalar(R * (1.25 + (1 - flash) * 1.35));
-        setOpacity(reappearRing, flash * 0.65);
+        reappearRing.scale.setScalar(R * (1.5 + (1 - flash) * 2.0));
+        setOpacity(reappearRing, flash * 0.95);
 
-        reappearBurst.position.set(0, R * 0.45, 0);
+        reappearBurst.position.set(0, R * 0.5, 0);
         billboard(reappearBurst, camera);
-        reappearBurst.scale.setScalar(R * (0.8 + (1 - flash) * 0.4));
-        setOpacity(reappearBurst, flash * 0.75);
+        reappearBurst.scale.setScalar(R * (1.1 + (1 - flash) * 0.7));
+        setOpacity(reappearBurst, flash * 1.0);
       } else {
         setOpacity(reappearRing, 0);
         setOpacity(reappearBurst, 0);
@@ -382,12 +428,12 @@ export function createStrikerAbilityVfx(scene) {
         const nz = body.userData.strikerCoastNz ?? 0;
         for (let i = 0; i < dashStreaks.length; i++) {
           const s = dashStreaks[i];
-          const lag = s.offset * R * 1.6;
-          const side = (i - (dashStreaks.length - 1) * 0.5) * 0.08;
-          s.mesh.position.set(-nx * lag + nz * side, R * 0.38, -nz * lag - nx * side);
+          const lag = s.offset * R * 2.2;
+          const side = (i - (dashStreaks.length - 1) * 0.5) * 0.1;
+          s.mesh.position.set(-nx * lag + nz * side, R * 0.4, -nz * lag - nx * side);
           s.mesh.rotation.y = Math.atan2(nx, nz);
           billboard(s.mesh, camera);
-          setOpacity(s.mesh, 0.32 + 0.18 * Math.sin(dashSpin * 3.5 + i));
+          setOpacity(s.mesh, 0.5 + 0.3 * Math.sin(dashSpin * 4 + i));
         }
       } else {
         for (const s of dashStreaks) setOpacity(s.mesh, 0);

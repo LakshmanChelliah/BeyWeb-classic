@@ -17,7 +17,7 @@ const BLUE_PALE = 0xbae6fd;
 const BLUE_WHITE = 0xe0f2fe;
 
 const BOOST_DUR = 3;
-const HISTORY_LEN = 12;
+const HISTORY_LEN = 16;
 
 function makeTrailMat(color, opacity) {
   return new THREE.MeshBasicMaterial({
@@ -30,16 +30,16 @@ function makeTrailMat(color, opacity) {
   });
 }
 
-/** Tight blue afterimages and speed lines for Storm Pegasus Speed Boost only. */
+/** Dense blue afterimages, speed lines, and orbit sparks for Storm Pegasus Speed Boost. */
 export function createPegasusSpeedBoostVfx(scene) {
   const root = new THREE.Group();
   scene.add(root);
 
   const ghosts = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.35, 1.35),
-      makeTrailMat(BLUE_LIGHT, 0.28 - i * 0.07)
+      new THREE.PlaneGeometry(1.65, 1.65),
+      makeTrailMat(BLUE_LIGHT, 0.4 - i * 0.065)
     );
     mesh.visible = false;
     mesh.renderOrder = 4;
@@ -48,10 +48,10 @@ export function createPegasusSpeedBoostVfx(scene) {
   }
 
   const streaks = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 12; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.035, 1.45),
-      makeTrailMat(BLUE_PALE, 0.42 - i * 0.045)
+      new THREE.PlaneGeometry(0.05, 1.9),
+      makeTrailMat(BLUE_PALE, 0.58 - i * 0.04)
     );
     mesh.visible = false;
     mesh.renderOrder = 5;
@@ -60,30 +60,38 @@ export function createPegasusSpeedBoostVfx(scene) {
   }
 
   const sparks = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.1, 0.1),
+      new THREE.PlaneGeometry(0.14, 0.14),
       makeTrailMat(BLUE_WHITE, 0)
     );
     mesh.renderOrder = 6;
     root.add(mesh);
-    sparks.push({ mesh, phase: (i / 5) * Math.PI * 2 });
+    sparks.push({ mesh, phase: (i / 10) * Math.PI * 2 });
   }
 
   const core = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.05, 1.05),
+    new THREE.PlaneGeometry(1.35, 1.35),
     makeTrailMat(BLUE_WHITE, 0)
   );
   core.renderOrder = 7;
   root.add(core);
 
   const burstRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.88, 1.02, 36),
+    new THREE.RingGeometry(0.8, 1.05, 48),
     makeTrailMat(BLUE_CORE, 0)
   );
   burstRing.rotation.x = -Math.PI / 2;
   burstRing.renderOrder = 3;
   root.add(burstRing);
+
+  const outerRing = new THREE.Mesh(
+    new THREE.RingGeometry(1.05, 1.25, 48),
+    makeTrailMat(BLUE_PALE, 0)
+  );
+  outerRing.rotation.x = -Math.PI / 2;
+  outerRing.renderOrder = 3;
+  root.add(outerRing);
 
   const history = Array.from({ length: HISTORY_LEN }, () => new THREE.Vector3());
   let historyCount = 0;
@@ -108,6 +116,7 @@ export function createPegasusSpeedBoostVfx(scene) {
     for (const sp of sparks) sp.mesh.material.opacity = 0;
     core.material.opacity = 0;
     burstRing.material.opacity = 0;
+    outerRing.material.opacity = 0;
   }
 
   function sampleHistory(t, target) {
@@ -132,7 +141,6 @@ export function createPegasusSpeedBoostVfx(scene) {
         return;
       }
 
-      // Pegasus-only — Striker Blitz uses strikerBlitzing + striker VFX.
       const boosting = !!body.userData.boosting && !body.userData.strikerBlitzing;
       if (!boosting) {
         reset();
@@ -182,18 +190,23 @@ export function createPegasusSpeedBoostVfx(scene) {
       const boostT = body.userData.boostT ?? 0;
       const life = clamp01(1 - boostT / BOOST_DUR);
       const speedFactor = clamp01(smoothSpeed / 18);
-      const intensity = (0.45 + speedFactor * 0.45) * (0.4 + life * 0.6);
+      const intensity = (0.65 + speedFactor * 0.65) * (0.4 + life * 0.7);
 
-      if (boostT < 0.28) {
-        const t = boostT / 0.28;
+      if (boostT < 0.42) {
+        const t = boostT / 0.42;
         const e = 1 - (1 - t) * (1 - t);
         const R = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
+        const y = body.position.y + (body.userData.visualYOffset ?? 0) * 0.5;
         burstRing.position.copy(_pos);
-        burstRing.position.y = body.position.y + (body.userData.visualYOffset ?? 0) * 0.5;
-        burstRing.scale.setScalar(R * (1 + e * 1.6));
-        burstRing.material.opacity = 0.32 * (1 - t);
+        burstRing.position.y = y;
+        burstRing.scale.setScalar(R * (1 + e * 2.8));
+        burstRing.material.opacity = 0.55 * (1 - t);
+        outerRing.position.copy(burstRing.position);
+        outerRing.scale.setScalar(R * (1.2 + e * 3.4));
+        outerRing.material.opacity = 0.28 * (1 - t);
       } else {
         burstRing.material.opacity = 0;
+        outerRing.material.opacity = 0;
       }
 
       _right.crossVectors(_smoothDir, camera.up).normalize();
@@ -202,20 +215,20 @@ export function createPegasusSpeedBoostVfx(scene) {
       for (let i = 0; i < ghosts.length; i++) {
         const ghost = ghosts[i];
         const t = (i + 1) / (ghosts.length + 0.5);
-        sampleHistory(t * 0.7, _ghostPos);
-        ghost.visible = historyCount > 2 && speedFactor > 0.1;
+        sampleHistory(t * 0.8, _ghostPos);
+        ghost.visible = historyCount > 2 && speedFactor > 0.06;
         if (!ghost.visible) continue;
 
-        ghost.position.copy(_ghostPos).addScaledVector(_smoothDir, -t * 0.95);
+        ghost.position.copy(_ghostPos).addScaledVector(_smoothDir, -t * 1.25);
         billboard(ghost, camera);
-        const s = topGroup.scale.x * (0.88 - t * 0.12);
+        const s = topGroup.scale.x * (0.95 - t * 0.16);
         ghost.scale.set(s, s, s);
-        ghost.material.opacity = Math.max(0.03, (0.28 - t * 0.22) * intensity);
+        ghost.material.opacity = Math.max(0.05, (0.42 - t * 0.34) * intensity);
       }
 
-      const streakLen = 0.55 + speedFactor * 1.7;
+      const streakLen = 0.85 + speedFactor * 2.5;
       const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
-      const showStreaks = smoothSpeed > 0.8 || speedFactor > 0.08;
+      const showStreaks = smoothSpeed > 0.5 || speedFactor > 0.04;
 
       for (let i = 0; i < streaks.length; i++) {
         const streak = streaks[i];
@@ -223,42 +236,42 @@ export function createPegasusSpeedBoostVfx(scene) {
         streak.visible = showStreaks;
         if (!showStreaks) continue;
 
-        const back = 0.28 + t * 2.1;
-        const fan = (i - (streaks.length - 1) * 0.5) * 0.07;
+        const back = 0.3 + t * 3.0;
+        const fan = (i - (streaks.length - 1) * 0.5) * 0.1;
         streak.position.copy(_pos);
         streak.position.addScaledVector(_smoothDir, -back);
         streak.position.addScaledVector(_right, fan);
         streak.rotation.order = 'YXZ';
         streak.rotation.y = yaw;
-        streak.rotation.z = fan * 0.25;
-        streak.scale.set(1, streakLen * (1 - t * 0.3), 1);
-        streak.material.opacity = Math.max(0.04, (0.4 - t * 0.32) * intensity);
+        streak.rotation.z = fan * 0.35;
+        streak.scale.set(1, streakLen * (1 - t * 0.35), 1);
+        streak.material.opacity = Math.max(0.06, (0.58 - t * 0.48) * intensity);
       }
 
       const R = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
       const yBase = body.position.y + (body.userData.visualYOffset ?? 0)
         + (body.userData.flightLift ?? 0);
-      const orbitRate = 3.5 + speedFactor * 5;
+      const orbitRate = 6 + speedFactor * 10;
 
       for (const sp of sparks) {
         sp.phase += dt * orbitRate;
-        const orbitR = R * (1.08 + 0.08 * Math.sin(sp.phase * 2));
-        const lift = 0.12 + Math.sin(sp.phase * 1.4) * 0.08;
+        const orbitR = R * (1.2 + 0.18 * Math.sin(sp.phase * 2));
+        const lift = 0.18 + Math.sin(sp.phase * 1.5) * 0.16;
         sp.mesh.position.set(
           _pos.x + Math.cos(sp.phase) * orbitR,
           yBase + lift,
           _pos.z + Math.sin(sp.phase) * orbitR
         );
         billboard(sp.mesh, camera);
-        sp.mesh.material.opacity = (0.14 + speedFactor * 0.18) * life;
-        sp.mesh.scale.setScalar(0.55 + speedFactor * 0.35);
+        sp.mesh.material.opacity = (0.28 + speedFactor * 0.35) * life;
+        sp.mesh.scale.setScalar(0.85 + speedFactor * 0.65);
       }
 
       core.position.copy(_pos);
       core.position.y = yBase;
       billboard(core, camera);
-      core.scale.setScalar(topGroup.scale.x * (0.38 + speedFactor * 0.18));
-      core.material.opacity = (0.08 + speedFactor * 0.14) * life;
+      core.scale.setScalar(topGroup.scale.x * (0.55 + speedFactor * 0.35));
+      core.material.opacity = (0.18 + speedFactor * 0.28) * life;
     },
     reset,
   };

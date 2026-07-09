@@ -28,16 +28,16 @@ function makeMat(color, opacity, additive = true) {
   });
 }
 
-/** Red stampede dust, uppercut gather, dash streak, and victim flip burst. */
+/** Dense red stampede dust, uppercut gather, dash streak, and victim flip burst. */
 export function createBullAbilityVfx(scene) {
   const root = new THREE.Group();
   scene.add(root);
 
   const dustStreaks = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.055, 1.25),
-      makeMat(ORANGE, 0.36 - i * 0.04)
+      new THREE.PlaneGeometry(0.07, 1.6),
+      makeMat(ORANGE, 0.48 - i * 0.035)
     );
     mesh.visible = false;
     mesh.renderOrder = 4;
@@ -46,44 +46,59 @@ export function createBullAbilityVfx(scene) {
   }
 
   const hoofSparks = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 8; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.12, 0.12),
+      new THREE.PlaneGeometry(0.16, 0.16),
       makeMat(AMBER, 0)
     );
     mesh.renderOrder = 5;
     root.add(mesh);
-    hoofSparks.push({ mesh, phase: (i / 5) * Math.PI * 2 });
+    hoofSparks.push({ mesh, phase: (i / 8) * Math.PI * 2 });
   }
 
   const emberRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.88, 1.0, 36),
+    new THREE.RingGeometry(0.82, 1.08, 48),
     makeMat(RED_BRIGHT, 0)
   );
   emberRing.rotation.x = -Math.PI / 2;
   emberRing.renderOrder = 3;
   root.add(emberRing);
 
+  const emberOuter = new THREE.Mesh(
+    new THREE.RingGeometry(1.05, 1.28, 48),
+    makeMat(ORANGE, 0)
+  );
+  emberOuter.rotation.x = -Math.PI / 2;
+  emberOuter.renderOrder = 2;
+  root.add(emberOuter);
+
   const gatherPool = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 16; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.09, 0.09),
+      new THREE.PlaneGeometry(0.12, 0.12),
       makeMat(RED_CORE, 0)
     );
     mesh.renderOrder = 6;
     root.add(mesh);
-    gatherPool.push({ mesh, phase: (i / 10) * Math.PI * 2 });
+    gatherPool.push({ mesh, phase: (i / 16) * Math.PI * 2 });
   }
 
   const hornGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.7, 1.1),
+    new THREE.PlaneGeometry(0.95, 1.5),
     makeMat(RED_BRIGHT, 0)
   );
   hornGlow.renderOrder = 6;
   root.add(hornGlow);
 
+  const hornCore = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.55, 0.9),
+    makeMat(AMBER, 0)
+  );
+  hornCore.renderOrder = 7;
+  root.add(hornCore);
+
   const impactRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.5, 0.72, 40),
+    new THREE.RingGeometry(0.4, 0.85, 48),
     makeMat(AMBER, 0)
   );
   impactRing.rotation.x = -Math.PI / 2;
@@ -91,22 +106,30 @@ export function createBullAbilityVfx(scene) {
   root.add(impactRing);
 
   const debrisPool = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 14; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.07, 0.07),
+      new THREE.PlaneGeometry(0.1, 0.1),
       makeMat(ORANGE, 0)
     );
     mesh.renderOrder = 7;
     root.add(mesh);
-    debrisPool.push({ mesh, angle: (i / 8) * Math.PI * 2 });
+    debrisPool.push({ mesh, angle: (i / 14) * Math.PI * 2 });
   }
 
   const flipBurst = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.95, 0.95),
+    new THREE.PlaneGeometry(1.4, 1.4),
     makeMat(PALE, 0)
   );
   flipBurst.renderOrder = 6;
   root.add(flipBurst);
+
+  const flipRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.5, 0.9, 40),
+    makeMat(RED_BRIGHT, 0)
+  );
+  flipRing.rotation.x = -Math.PI / 2;
+  flipRing.renderOrder = 5;
+  root.add(flipRing);
 
   let hasLast = false;
   let smoothSpeed = 0;
@@ -130,8 +153,11 @@ export function createBullAbilityVfx(scene) {
     for (const s of dustStreaks) s.visible = false;
     for (const sp of hoofSparks) sp.mesh.material.opacity = 0;
     emberRing.material.opacity = 0;
+    emberOuter.material.opacity = 0;
     impactRing.material.opacity = 0;
     hornGlow.material.opacity = 0;
+    hornCore.material.opacity = 0;
+    flipRing.material.opacity = 0;
     for (const g of gatherPool) g.mesh.material.opacity = 0;
     for (const d of debrisPool) d.mesh.material.opacity = 0;
     flipBurst.material.opacity = 0;
@@ -191,45 +217,50 @@ export function createBullAbilityVfx(scene) {
         const t = body.userData.stampedeT ?? 0;
         const life = clamp01(1 - t / BULL_STAMPEDE_DURATION);
         const speedFactor = clamp01(smoothSpeed / 16);
-        const intensity = (0.45 + speedFactor * 0.45) * (0.4 + life * 0.6);
+        const intensity = (0.6 + speedFactor * 0.6) * (0.4 + life * 0.7);
 
-        const pulse = 0.55 + 0.45 * Math.sin(t * 6.5);
+        const pulse = 0.55 + 0.45 * Math.sin(t * 8.5);
         emberRing.position.set(_pos.x, yBase + 0.04, _pos.z);
-        emberRing.scale.setScalar(R * (1.1 + pulse * 0.28));
-        emberRing.material.opacity = 0.22 * intensity * pulse;
+        emberRing.scale.setScalar(R * (1.2 + pulse * 0.4));
+        emberRing.material.opacity = 0.38 * intensity * pulse;
+        emberOuter.position.copy(emberRing.position);
+        emberOuter.scale.setScalar(R * (1.35 + pulse * 0.5));
+        emberOuter.material.opacity = 0.18 * intensity * pulse;
 
-        const streakLen = 0.7 + speedFactor * 1.7;
+        const streakLen = 0.95 + speedFactor * 2.4;
         const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
         for (let i = 0; i < dustStreaks.length; i++) {
           const streak = dustStreaks[i];
           const side = i % 2 === 0 ? 1 : -1;
-          const offset = (Math.floor(i / 2) + 0.5) * 0.2;
-          streak.visible = speedFactor > 0.06;
+          const offset = (Math.floor(i / 2) + 0.5) * 0.22;
+          streak.visible = speedFactor > 0.04;
           if (!streak.visible) continue;
           streak.position
             .copy(_pos)
-            .addScaledVector(_right, side * R * 0.5)
+            .addScaledVector(_right, side * R * 0.6)
             .addScaledVector(_smoothDir, -offset - streakLen * 0.5);
           streak.position.y = yBase + 0.02;
           streak.rotation.set(0, yaw, 0);
           streak.scale.set(1, streakLen, 1);
-          streak.material.opacity = Math.max(0.04, (0.32 - i * 0.03) * intensity);
+          streak.material.opacity = Math.max(0.06, (0.45 - i * 0.03) * intensity);
         }
 
         for (const sp of hoofSparks) {
-          sp.phase += dt * (6.5 + speedFactor * 5);
+          sp.phase += dt * (9 + speedFactor * 8);
           const side = Math.sin(sp.phase) > 0 ? 1 : -1;
           sp.mesh.position
             .copy(_pos)
-            .addScaledVector(_right, side * R * 0.68)
-            .addScaledVector(_smoothDir, -0.3);
-          sp.mesh.position.y = yBase + 0.05 + Math.abs(Math.sin(sp.phase * 2)) * 0.06;
+            .addScaledVector(_right, side * R * 0.78)
+            .addScaledVector(_smoothDir, -0.4);
+          sp.mesh.position.y = yBase + 0.08 + Math.abs(Math.sin(sp.phase * 2)) * 0.12;
           billboard(sp.mesh, camera);
-          sp.mesh.material.opacity = speedFactor > 0.1 ? 0.28 * intensity : 0;
+          sp.mesh.material.opacity = speedFactor > 0.08 ? 0.45 * intensity : 0;
         }
         hornGlow.material.opacity = 0;
+        hornCore.material.opacity = 0;
       } else if (wasStampede) {
         emberRing.material.opacity *= 0.85;
+        emberOuter.material.opacity *= 0.85;
         if (emberRing.material.opacity < 0.02) wasStampede = false;
       }
 
@@ -241,84 +272,99 @@ export function createBullAbilityVfx(scene) {
           const wind = clamp01(phaseT / BULL_UPPERCUT_WINDUP);
           for (let i = 0; i < gatherPool.length; i++) {
             const g = gatherPool[i];
-            const tr = g.phase + phaseT * 3.5;
-            const orbit = R * (1.65 - wind * 1.0);
+            const tr = g.phase + phaseT * 5;
+            const orbit = R * (2.0 - wind * 1.3);
             g.mesh.position.set(
               _pos.x + Math.cos(tr) * orbit,
-              yBase + 0.18 + Math.sin(tr * 2) * 0.08,
+              yBase + 0.25 + Math.sin(tr * 2) * 0.15,
               _pos.z + Math.sin(tr) * orbit
             );
             billboard(g.mesh, camera);
-            g.mesh.material.opacity = 0.18 + 0.28 * Math.sin(tr * 3) * wind;
+            g.mesh.material.opacity = 0.3 + 0.45 * Math.sin(tr * 3) * wind;
+            g.mesh.scale.setScalar(0.8 + wind * 0.5);
           }
           hornGlow.position.copy(_pos);
-          hornGlow.position.y = yBase + 0.35;
-          hornGlow.position.addScaledVector(_smoothDir, 0.15);
+          hornGlow.position.y = yBase + 0.4;
+          hornGlow.position.addScaledVector(_smoothDir, 0.2);
           billboard(hornGlow, camera);
-          hornGlow.scale.set(0.7 + wind * 0.35, 0.9 + wind * 0.4, 1);
-          hornGlow.material.opacity = 0.15 + wind * 0.28;
+          hornGlow.scale.set(0.9 + wind * 0.55, 1.1 + wind * 0.6, 1);
+          hornGlow.material.opacity = 0.25 + wind * 0.45;
+          hornCore.position.copy(hornGlow.position);
+          billboard(hornCore, camera);
+          hornCore.scale.set(0.7 + wind * 0.4, 0.9 + wind * 0.5, 1);
+          hornCore.material.opacity = 0.2 + wind * 0.4;
           for (const s of dustStreaks) s.visible = false;
         } else if (phase === 'dash') {
           for (const g of gatherPool) g.mesh.material.opacity = 0;
           const build = clamp01(phaseT / BULL_DASH_BUILD_DUR);
-          const intensity = 0.3 + build * 0.4;
-          const streakLen = 0.8 + build * 1.25;
+          const intensity = 0.45 + build * 0.55;
+          const streakLen = 1.1 + build * 1.8;
           const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
           for (let i = 0; i < dustStreaks.length; i++) {
             const streak = dustStreaks[i];
             const side = i % 2 === 0 ? 1 : -1;
-            const offset = (Math.floor(i / 2) + 0.5) * 0.18;
+            const offset = (Math.floor(i / 2) + 0.5) * 0.2;
             streak.visible = true;
             streak.position
               .copy(_pos)
-              .addScaledVector(_right, side * R * 0.45)
+              .addScaledVector(_right, side * R * 0.55)
               .addScaledVector(_smoothDir, -offset - streakLen * 0.5);
             streak.position.y = yBase + 0.03;
             streak.rotation.set(0, yaw, 0);
             streak.scale.set(1, streakLen, 1);
-            streak.material.opacity = Math.max(0.05, (0.28 - i * 0.025) * intensity);
+            streak.material.opacity = Math.max(0.08, (0.42 - i * 0.025) * intensity);
           }
           emberRing.position.set(_pos.x, yBase + 0.04, _pos.z);
-          emberRing.scale.setScalar(R * (1.05 + build * 0.18));
-          emberRing.material.opacity = 0.15 * intensity;
+          emberRing.scale.setScalar(R * (1.15 + build * 0.3));
+          emberRing.material.opacity = 0.28 * intensity;
+          emberOuter.position.copy(emberRing.position);
+          emberOuter.scale.setScalar(R * (1.3 + build * 0.35));
+          emberOuter.material.opacity = 0.14 * intensity;
           hornGlow.position.copy(_pos);
-          hornGlow.position.y = yBase + 0.3;
+          hornGlow.position.y = yBase + 0.35;
           billboard(hornGlow, camera);
-          hornGlow.material.opacity = 0.2 + build * 0.2;
+          hornGlow.material.opacity = 0.35 + build * 0.35;
+          hornCore.position.copy(hornGlow.position);
+          billboard(hornCore, camera);
+          hornCore.material.opacity = 0.3 + build * 0.3;
         } else {
           for (const g of gatherPool) g.mesh.material.opacity = 0;
           for (const s of dustStreaks) s.visible = false;
           hornGlow.material.opacity = 0;
+          hornCore.material.opacity = 0;
         }
       } else if (wasUpper && !stampeding) {
         emberRing.material.opacity *= 0.88;
+        emberOuter.material.opacity *= 0.88;
         hornGlow.material.opacity *= 0.85;
+        hornCore.material.opacity *= 0.85;
         if (emberRing.material.opacity < 0.02) wasUpper = false;
       }
 
       if (body.userData.bullImpactFlash) {
-        impactT = 0.2;
+        impactT = 0.28;
         const ix = body.userData.bullImpactX ?? _pos.x;
         const iz = body.userData.bullImpactZ ?? _pos.z;
         impactRing.position.set(ix, yBase + 0.08, iz);
-        impactRing.scale.setScalar(R * 2.0);
-        impactRing.material.opacity = 0.6;
+        impactRing.scale.setScalar(R * 2.6);
+        impactRing.material.opacity = 0.85;
 
         for (const d of debrisPool) {
-          const spread = R * 1.45;
+          const spread = R * 2.0;
           d.mesh.position.set(
             ix + Math.cos(d.angle) * spread,
-            yBase + 0.08 + Math.sin(d.angle * 3) * 0.12,
+            yBase + 0.12 + Math.sin(d.angle * 3) * 0.2,
             iz + Math.sin(d.angle) * spread
           );
           billboard(d.mesh, camera);
-          d.mesh.material.opacity = 0.45;
+          d.mesh.material.opacity = 0.7;
+          d.mesh.scale.setScalar(1.2);
         }
       }
 
       if (impactT > 0) {
         impactT -= dt;
-        const fade = clamp01(impactT / 0.2);
+        const fade = clamp01(impactT / 0.28);
         impactRing.material.opacity = Math.max(impactRing.material.opacity, 0) * fade;
         for (const d of debrisPool) {
           d.mesh.material.opacity *= fade;
@@ -327,13 +373,17 @@ export function createBullAbilityVfx(scene) {
 
       if (flipBurstT > 0) {
         flipBurst.position.copy(_pos);
-        flipBurst.position.y = yBase + 0.22;
+        flipBurst.position.y = yBase + 0.3;
         billboard(flipBurst, camera);
         const f = clamp01(flipBurstT);
-        flipBurst.scale.setScalar(R * (1.1 + (1 - f) * 0.65));
-        flipBurst.material.opacity = 0.4 * f;
+        flipBurst.scale.setScalar(R * (1.4 + (1 - f) * 1.0));
+        flipBurst.material.opacity = 0.65 * f;
+        flipRing.position.set(_pos.x, yBase + 0.08, _pos.z);
+        flipRing.scale.setScalar(R * (1.2 + (1 - f) * 1.5));
+        flipRing.material.opacity = 0.4 * f;
       } else {
         flipBurst.material.opacity = 0;
+        flipRing.material.opacity = 0;
       }
     },
     reset,
