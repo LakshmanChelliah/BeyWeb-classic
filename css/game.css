@@ -289,7 +289,7 @@ body:not(.boot-ready) #select-overlay {
   50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(79, 140, 255, 0.6); }
 }
 
-/* Start-overlay brand mark: grey Storm Pegasus turntable */
+/* Start/boot brand mark: grey Storm Pegasus turntable */
 .bey-icon {
   width: 120px;
   height: 120px;
@@ -304,10 +304,33 @@ body:not(.boot-ready) #select-overlay {
   box-shadow: 0 0 28px rgba(120, 140, 170, 0.2);
 }
 
+.bey-icon-placeholder {
+  position: absolute;
+  inset: 12%;
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+  filter: grayscale(1) brightness(1.15) contrast(0.95);
+  animation: bey-icon-spin 11s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bey-icon.is-ready .bey-icon-placeholder {
+  display: none;
+}
+
 .bey-icon-canvas {
   display: block;
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 0;
+  transition: opacity 0.2s ease;
+}
+
+@keyframes bey-icon-spin {
+  to { transform: rotate(360deg); }
 }
 
 .bey-icon--fallback {
@@ -315,6 +338,13 @@ body:not(.boot-ready) #select-overlay {
   background:
     radial-gradient(circle at 50% 40%, #b0b8c2 0%, #7a8490 45%, #4a5260 100%);
   box-shadow: 0 0 24px rgba(120, 140, 170, 0.25), inset 0 0 16px rgba(255, 255, 255, 0.12);
+}
+
+.bey-icon--fallback .bey-icon-placeholder {
+  inset: 18%;
+  width: 64%;
+  height: 64%;
+  animation: none;
 }
 
 #start-overlay h1 {

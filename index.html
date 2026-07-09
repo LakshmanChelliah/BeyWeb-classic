@@ -10,7 +10,9 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Spin Sumo | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=33" />
+  <link rel="stylesheet" href="css/game.css?v=34" />
+  <link rel="preload" href="pegasusLogo.png" as="image" type="image/png" />
+  <link rel="preload" href="storm_pegasus.glb" as="fetch" type="model/gltf-binary" crossorigin="anonymous" />
   <style>
     #boot-overlay {
       position: fixed; inset: 0; z-index: 300;
@@ -19,6 +21,18 @@
       color: #c8d4f0; text-align: center;
     }
     #boot-overlay.hidden { opacity: 0; pointer-events: none; }
+    /* Inline so the placeholder paints before game.css arrives */
+    .bey-icon {
+      width: 120px; height: 120px; margin: 0 auto 20px; border-radius: 50%;
+      overflow: hidden; position: relative; flex-shrink: 0;
+      background: radial-gradient(circle at 50% 40%, rgba(180,190,205,.22) 0%, transparent 58%);
+    }
+    .bey-icon-placeholder {
+      position: absolute; inset: 12%; width: 76%; height: 76%; object-fit: contain;
+      filter: grayscale(1) brightness(1.15) contrast(0.95);
+      animation: bey-icon-spin 11s linear infinite;
+    }
+    @keyframes bey-icon-spin { to { transform: rotate(360deg); } }
   </style>
   <script>
     (function () {
@@ -36,7 +50,9 @@
 
   <div id="boot-overlay" class="boot-overlay" aria-live="polite" aria-busy="true">
     <div class="boot-overlay-card">
-      <div class="bey-icon" id="boot-bey-icon" aria-hidden="true"></div>
+      <div class="bey-icon" id="boot-bey-icon" aria-hidden="true">
+        <img class="bey-icon-placeholder" src="pegasusLogo.png" alt="" decoding="async" fetchpriority="high" />
+      </div>
       <p class="boot-overlay-title">Spin Sumo</p>
       <p class="boot-overlay-status" id="boot-status">Loading arena…</p>
       <div class="boot-overlay-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="boot-progress">
@@ -95,7 +111,9 @@
   </div>
 
   <div id="start-overlay">
-    <div class="bey-icon" id="start-bey-icon" aria-hidden="true"></div>
+    <div class="bey-icon" id="start-bey-icon" aria-hidden="true">
+      <img class="bey-icon-placeholder" src="pegasusLogo.png" alt="" decoding="async" />
+    </div>
     <h1>Spin Sumo</h1>
     <p id="start-blurb">Tournament: best of 3 vs six bladers in rising order — Benkei to Ryuga.</p>
     <fieldset id="control-mode" class="control-mode" aria-label="How to steer">
@@ -160,6 +178,6 @@
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=23"></script>
+  <script type="module" src="js/main-mobile.js?v=24"></script>
 </body>
 </html>

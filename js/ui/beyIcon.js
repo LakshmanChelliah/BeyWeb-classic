@@ -113,6 +113,15 @@ function frameCameraToModel(root, camera) {
 function showFallbackStatic(containerEl, canvas) {
   containerEl.classList.add('bey-icon--fallback');
   canvas?.remove();
+  // Keep or restore a static logo so the slot is never empty.
+  if (!containerEl.querySelector('.bey-icon-placeholder')) {
+    const img = document.createElement('img');
+    img.className = 'bey-icon-placeholder';
+    img.src = new URL('pegasusLogo.png', window.location.href).href;
+    img.alt = '';
+    img.decoding = 'async';
+    containerEl.appendChild(img);
+  }
 }
 
 function resolveWatchEl(containerEl, overlayEl) {
@@ -124,12 +133,20 @@ function resolveWatchEl(containerEl, overlayEl) {
   );
 }
 
+/** Kick off the grey Pegasus GLB load as early as possible (deduped). */
+export function preloadGreyPegasusIcon() {
+  return loadGreyPegasusTemplate().catch(() => null);
+}
+
 /**
  * Mount a slowly spinning grey Storm Pegasus (storm_pegasus.glb) into a container.
  *
  * Uses the shared game WebGLRenderer via a render target when available so iOS
  * Safari does not lose a second WebGL context. Falls back to a dedicated
  * renderer when no shared one is provided.
+ *
+ * Keeps any existing `.bey-icon-placeholder` image until the first 3D frame
+ * is painted so the boot screen never shows an empty glow.
  *
  * @param {HTMLElement | null} containerEl
  * @param {{ overlayEl?: HTMLElement | null, getRenderer?: () => import('three').WebGLRenderer | null }} [opts]
@@ -138,13 +155,28 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
   if (!containerEl) return null;
 
   containerEl.classList.add('bey-icon');
-  containerEl.replaceChildren();
+  containerEl.classList.remove('is-ready', 'bey-icon--fallback');
+
+  // Preserve an existing HTML placeholder; only clear previous canvas mounts.
+  containerEl.querySelectorAll('canvas.bey-icon-canvas').forEach((el) => el.remove());
+  let placeholder = containerEl.querySelector('.bey-icon-placeholder');
+  if (!placeholder) {
+    placeholder = document.createElement('img');
+    placeholder.className = 'bey-icon-placeholder';
+    placeholder.src = new URL('pegasusLogo.png', window.location.href).href;
+    placeholder.alt = '';
+    placeholder.decoding = 'async';
+    placeholder.setAttribute('aria-hidden', 'true');
+    containerEl.appendChild(placeholder);
+  }
 
   const canvas = document.createElement('canvas');
   canvas.className = 'bey-icon-canvas';
   canvas.width = RT_SIZE;
   canvas.height = RT_SIZE;
   canvas.setAttribute('aria-hidden', 'true');
+  // Sit under the placeholder until the first frame is ready.
+  canvas.style.opacity = '0';
   containerEl.appendChild(canvas);
   const ctx2d = canvas.getContext('2d');
 
@@ -215,8 +247,16 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
     return renderTarget;
   }
 
+  function revealCanvas() {
+    if (canvas.style.opacity === '1') return;
+    canvas.style.opacity = '1';
+    containerEl.classList.add('is-ready');
+    placeholder?.remove();
+    placeholder = null;
+  }
+
   function blitToCanvas(renderer) {
-    if (!ctx2d || !pixelBuf || !imageData || !renderTarget) return;
+    if (!ctx2d || !pixelBuf || !imageData || !renderTarget) return false;
     renderer.readRenderTargetPixels(renderTarget, 0, 0, RT_SIZE, RT_SIZE, pixelBuf);
     // WebGL is bottom-up; flip for 2D canvas.
     const row = RT_SIZE * 4;
@@ -225,12 +265,13 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
       imageData.data.set(pixelBuf.subarray(src, src + row), y * row);
     }
     ctx2d.putImageData(imageData, 0, 0);
+    return true;
   }
 
   function renderIconFrame() {
     const shared = typeof getRenderer === 'function' ? getRenderer() : null;
     const renderer = shared || ensureOwnRenderer();
-    if (!renderer) return;
+    if (!renderer) return false;
 
     const prevTarget = renderer.getRenderTarget();
     const prevXr = renderer.xr?.enabled;
@@ -247,12 +288,14 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
     renderer.setClearColor(0x000000, 0);
     renderer.clear(true, true, true);
     renderer.render(scene, camera);
-    blitToCanvas(renderer);
+    const ok = blitToCanvas(renderer);
 
     renderer.setRenderTarget(prevTarget);
     renderer.setClearColor(prevClearColor, prevClearAlpha);
     renderer.toneMappingExposure = prevTone;
     if (renderer.xr) renderer.xr.enabled = prevXr;
+    if (ok) revealCanvas();
+    return ok;
   }
 
   function syncOverlayVisible() {
