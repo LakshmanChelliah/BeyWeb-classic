@@ -382,9 +382,9 @@ export function createLdragoAbilityVfx(scene) {
   stealCore.renderOrder = 7;
   stealGroup.add(stealCore);
 
-  // Upper Mode — restrained purple rim aura (no cartoon dragon mascot).
+  // Upper Mode — bold purple dark-power aura.
   const upperRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.9, 1.08, 40),
+    new THREE.RingGeometry(0.85, 1.15, 48),
     getMat(CRIMSON, true)
   );
   upperRing.rotation.x = -Math.PI / 2;
@@ -392,29 +392,48 @@ export function createLdragoAbilityVfx(scene) {
   upperGroup.add(upperRing);
 
   const upperInner = new THREE.Mesh(
-    new THREE.RingGeometry(0.62, 0.82, 32),
+    new THREE.RingGeometry(0.55, 0.85, 40),
     getMat(ORANGE, true)
   );
   upperInner.rotation.x = -Math.PI / 2;
   upperInner.renderOrder = 5;
   upperGroup.add(upperInner);
 
+  const upperOuter = new THREE.Mesh(
+    new THREE.RingGeometry(1.1, 1.35, 48),
+    getMat(PALE, true)
+  );
+  upperOuter.rotation.x = -Math.PI / 2;
+  upperOuter.renderOrder = 3;
+  upperGroup.add(upperOuter);
+
   const upperCore = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.05, 1.05),
+    new THREE.PlaneGeometry(1.35, 1.35),
     getMat(PALE, true)
   );
   upperCore.renderOrder = 6;
   upperGroup.add(upperCore);
 
   const upperSparks = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 12; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.08, 0.08),
+      new THREE.PlaneGeometry(0.12, 0.12),
       getMat(i % 2 === 0 ? WHITE_HOT : PALE, true)
     );
     mesh.renderOrder = 6;
     upperGroup.add(mesh);
-    upperSparks.push({ mesh, phase: (i / 6) * Math.PI * 2 });
+    upperSparks.push({ mesh, phase: (i / 12) * Math.PI * 2 });
+  }
+
+  const upperBeams = [];
+  for (let i = 0; i < 6; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.06, 1.8),
+      getMat(ORANGE, true)
+    );
+    mesh.renderOrder = 5;
+    upperGroup.add(mesh);
+    upperBeams.push({ mesh, angle: (i / 6) * Math.PI * 2 });
   }
 
   const dragonWings = [];
@@ -606,8 +625,10 @@ export function createLdragoAbilityVfx(scene) {
   function hideUpper() {
     upperRing.material.opacity = 0;
     upperInner.material.opacity = 0;
+    upperOuter.material.opacity = 0;
     upperCore.material.opacity = 0;
     for (const s of upperSparks) s.mesh.material.opacity = 0;
+    for (const b of upperBeams) b.mesh.material.opacity = 0;
   }
 
   function hideFlight() {
@@ -701,35 +722,53 @@ export function createLdragoAbilityVfx(scene) {
       if (upperMode && !spinStealing && !absorbWindup && !absorbRush && !flightWindup && !inFlight) {
         hideSteal();
         hideFlight();
-        upperSpin += dt * 3.2;
-        const pulse = 0.7 + 0.3 * Math.sin(upperSpin * 2.4);
+        upperSpin += dt * 4.5;
+        const pulse = 0.65 + 0.35 * Math.sin(upperSpin * 3.2);
         upperGroup.position.set(bx, floorY, bz);
 
         upperRing.position.set(0, 0.05, 0);
-        upperRing.scale.setScalar(R * (1.05 + pulse * 0.06));
-        upperRing.material.opacity = 0.22 + pulse * 0.14;
-        upperRing.rotation.z -= dt * 2.4;
+        upperRing.scale.setScalar(R * (1.12 + pulse * 0.12));
+        upperRing.material.opacity = 0.38 + pulse * 0.28;
+        upperRing.rotation.z -= dt * 3.8;
 
         upperInner.position.set(0, 0.07, 0);
-        upperInner.scale.setScalar(R * (0.95 + pulse * 0.04));
-        upperInner.material.opacity = 0.12 + pulse * 0.1;
-        upperInner.rotation.z += dt * 1.8;
+        upperInner.scale.setScalar(R * (1.0 + pulse * 0.08));
+        upperInner.material.opacity = 0.22 + pulse * 0.2;
+        upperInner.rotation.z += dt * 2.8;
 
-        upperCore.position.set(0, R * 0.35, 0);
+        upperOuter.position.set(0, 0.04, 0);
+        upperOuter.scale.setScalar(R * (1.2 + pulse * 0.15));
+        upperOuter.material.opacity = 0.14 + pulse * 0.12;
+        upperOuter.rotation.z -= dt * 2.2;
+
+        upperCore.position.set(0, R * 0.4, 0);
         billboard(upperCore, camera);
-        upperCore.scale.setScalar(topGroup.scale.x * (0.4 + pulse * 0.08));
-        upperCore.material.opacity = 0.1 + pulse * 0.08;
+        upperCore.scale.setScalar(topGroup.scale.x * (0.55 + pulse * 0.2));
+        upperCore.material.opacity = 0.22 + pulse * 0.2;
 
         for (const s of upperSparks) {
-          s.phase += dt * 4;
-          const orbitR = R * (1.12 + 0.06 * Math.sin(s.phase * 2));
+          s.phase += dt * 6;
+          const orbitR = R * (1.25 + 0.15 * Math.sin(s.phase * 2));
           s.mesh.position.set(
             Math.cos(s.phase + upperSpin) * orbitR,
-            0.15 + Math.sin(s.phase * 1.5) * 0.08,
+            0.2 + Math.sin(s.phase * 1.5) * 0.15,
             Math.sin(s.phase + upperSpin) * orbitR
           );
           billboard(s.mesh, camera);
-          s.mesh.material.opacity = 0.14 + pulse * 0.1;
+          s.mesh.material.opacity = 0.28 + pulse * 0.22;
+          s.mesh.scale.setScalar(0.9 + pulse * 0.4);
+        }
+
+        for (const b of upperBeams) {
+          const len = R * (1.4 + pulse * 0.6);
+          b.mesh.position.set(
+            Math.cos(b.angle + upperSpin * 0.5) * len * 0.45,
+            R * 0.35,
+            Math.sin(b.angle + upperSpin * 0.5) * len * 0.45
+          );
+          b.mesh.rotation.y = b.angle + upperSpin * 0.5;
+          billboard(b.mesh, camera);
+          b.mesh.material.opacity = 0.2 + pulse * 0.18;
         }
         return;
       }

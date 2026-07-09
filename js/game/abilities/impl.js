@@ -2444,8 +2444,8 @@ export function tickAbilityVisuals(state, dt) {
         const e = easeInQuad(t); // smooth, gradual build of speed into the wall
         body.position.x = body.userData.starDashFromX + (tx - body.userData.starDashFromX) * e;
         body.position.z = body.userData.starDashFromZ + (tz - body.userData.starDashFromZ) * e;
-        body.userData.flightTilt = 0.14 + 0.38 * e; // lean into the wall run
-        body.userData.flightSquash = 1 + 0.08 * e;
+        body.userData.flightTilt = 0.16 + 0.48 * e; // lean hard into the wall run
+        body.userData.flightSquash = 1 + 0.14 * e;
         if (t >= 1) {
           body.position.x = tx;
           body.position.z = tz;
@@ -2534,10 +2534,10 @@ export function tickAbilityVisuals(state, dt) {
         const e = easeInQuad(t);
         homingXZ(body, opp, 8 * dt);
         body.userData.flightLift = STAR_APEX * (1 - e);
-        // Nose-down dive — pitch hard enough to read underside without cartoon flip.
-        body.userData.flightTilt = STAR_FALL_PITCH * (0.85 + 0.15 * easeOutQuad(t));
-        body.userData.flightRoll = STAR_FALL_ROLL * 0.85 * easeOutQuad(t);
-        body.userData.flightSquash = 1 + 0.18 * e;
+        // Hard nose-down dive — show underside clearly.
+        body.userData.flightTilt = STAR_FALL_PITCH * easeOutQuad(t);
+        body.userData.flightRoll = STAR_FALL_ROLL * easeOutQuad(t);
+        body.userData.flightSquash = 1 + 0.28 * e;
         if (e >= 1 || body.userData.flightLift <= STAR_LAND_LIFT) {
           body.userData.flightLift = 0;
           body.userData.starVY = STAR_BOUNCE_VELOCITY;
@@ -2762,10 +2762,10 @@ export function tickBullAbilityVisuals(state, dt) {
     if (pwSlot?.active && pwSlot.ability.id === 'bull_maximum_stampede') {
       const t = body.userData.stampedeT ?? 0;
       body.userData.stampedeT = t + dt;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 7.5);
-      body.userData.flightSquash = 1 - 0.04 * pulse;
-      body.userData.flightTilt = 0.05 * pulse;
-      body.userData.flightRoll = Math.sin(t * 5.5) * 0.02;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 10);
+      body.userData.flightSquash = 1 - 0.07 * pulse;
+      body.userData.flightTilt = 0.07 * pulse;
+      body.userData.flightRoll = Math.sin(t * 6.5) * 0.035;
     }
 
     const spSlot = runtime.special;
@@ -2799,11 +2799,11 @@ export function tickBullAbilityVisuals(state, dt) {
       // Late windup: slide toward the foe so the dash line is fresher at launch.
       if (t > 0.5 && opp) homingXZ(body, opp, 5 * dt);
       body.userData.flightLift = 0;
-      // Horn-lower windup: tip forward and squash into the charge.
-      body.userData.bullWindupEndTilt = 0.18 * easeOutCubic(t);
+      // Horn-lower windup: tip forward and squash hard into the charge.
+      body.userData.bullWindupEndTilt = 0.24 * easeOutCubic(t);
       body.userData.flightTilt = body.userData.bullWindupEndTilt;
-      body.userData.flightRoll = Math.sin(t * Math.PI) * 0.02;
-      body.userData.flightSquash = 1 - 0.16 * e;
+      body.userData.flightRoll = Math.sin(t * Math.PI) * 0.04;
+      body.userData.flightSquash = 1 - 0.2 * e;
       continue;
     }
 
@@ -2854,10 +2854,10 @@ export function tickStrikerAbilityVisuals(state, dt) {
     if (pwSlot?.active && pwSlot.ability.id === 'striker_blitz_charge') {
       const t = body.userData.boostT ?? 0;
       body.userData.boostT = t + dt;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 9.5);
-      body.userData.flightSquash = 1 - 0.035 * pulse;
-      body.userData.flightTilt = 0.06 * pulse;
-      body.userData.flightRoll = Math.sin(t * 7) * 0.02;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 12);
+      body.userData.flightSquash = 1 - 0.055 * pulse;
+      body.userData.flightTilt = 0.08 * pulse;
+      body.userData.flightRoll = Math.sin(t * 8) * 0.035;
     }
 
     const spSlot = runtime.special;
@@ -2896,7 +2896,7 @@ export function tickStrikerAbilityVisuals(state, dt) {
     if (phase === 'vanish') {
       const t = clamp01(phaseT / STRIKER_VANISH_DUR);
       body.userData.topVanish = easeInQuad(t);
-      body.userData.flightSquash = 1 - 0.18 * easeInQuad(t);
+      body.userData.flightSquash = 1 - 0.28 * easeInQuad(t);
       body.userData.flightTilt = (body.userData.strikerWindupEndTilt ?? 0.14) * (1 - t);
       continue;
     }
@@ -2905,21 +2905,20 @@ export function tickStrikerAbilityVisuals(state, dt) {
       const t = clamp01(phaseT / STRIKER_REAPPEAR_DUR);
       body.userData.topVanish = 1 - easeOutCubic(t);
       body.userData.strikerReappearFlash = body.userData.strikerReappearFlash ?? 1 - t;
-      // Brief settle pop — readable, not cartoon bounce.
-      body.userData.flightSquash = 0.88 + 0.12 * easeOutCubic(t);
-      body.userData.flightTilt = 0.16 * easeOutCubic(t);
-      body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.035 * t;
+      body.userData.flightSquash = 0.78 + 0.22 * easeOutBack(t);
+      body.userData.flightTilt = 0.24 * easeOutCubic(t);
+      body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.05 * t;
       continue;
     }
 
     if (phase !== 'dash') continue;
 
-    const lean = 0.3;
+    const lean = 0.38;
     const fromTilt = body.userData.strikerWindupEndTilt ?? 0.14;
     const build = easeOutCubic(clamp01(phaseT / 0.22));
     body.userData.flightTilt = fromTilt + (lean - fromTilt) * build;
-    body.userData.flightSquash = 1 + 0.035 * build;
-    body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.045 * build;
+    body.userData.flightSquash = 1 + 0.06 * build;
+    body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.06 * build;
   }
 }
 
@@ -2953,10 +2952,10 @@ export function tickEagleAbilityVisuals(state, dt) {
     if (pwSlot?.active && pwSlot.ability.id === 'eagle_counter_stance') {
       const t = body.userData.eagleCounterT ?? 0;
       body.userData.eagleCounterT = t + dt;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 14);
-      body.userData.flightSquash = 0.94 + pulse * 0.025;
-      body.userData.flightTilt = Math.sin(t * 8) * 0.03;
-      body.userData.flightRoll = Math.cos(t * 6.5) * 0.02;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 20);
+      body.userData.flightSquash = 0.9 + pulse * 0.04;
+      body.userData.flightTilt = Math.sin(t * 12) * 0.05;
+      body.userData.flightRoll = Math.cos(t * 9) * 0.04;
       if ((body.userData.eagleCounterFlashT ?? 0) > 0) {
         body.userData.eagleCounterFlashT = Math.max(0, body.userData.eagleCounterFlashT - dt * 3.2);
       }
@@ -2994,9 +2993,9 @@ export function tickEagleAbilityVisuals(state, dt) {
         const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_ASCEND_DUR);
         const e = easeOutCubic(t);
         body.userData.flightLift = EAGLE_DIVE_APEX * e;
-        body.userData.flightTilt = -0.22 * Math.sin(t * Math.PI);
-        body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.14;
-        body.userData.flightSquash = 1 + 0.1 * Math.sin(t * Math.PI);
+        body.userData.flightTilt = -0.28 * Math.sin(t * Math.PI);
+        body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.22;
+        body.userData.flightSquash = 1 + 0.16 * Math.sin(t * Math.PI);
         body.userData.slamming = false;
         body.userData.eagleDiveSlamming = false;
         homingXZ(body, opp, 2.4 * dt);
@@ -3009,10 +3008,9 @@ export function tickEagleAbilityVisuals(state, dt) {
       }
       case 'hover': {
         const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_HOVER_DUR);
-        body.userData.flightLift = EAGLE_DIVE_APEX + Math.sin(t * Math.PI) * 1.0;
-        // Wing-spread tilt — slight open lean while tracking.
-        body.userData.flightTilt = 0.14 * Math.sin(t * Math.PI);
-        body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.16;
+        body.userData.flightLift = EAGLE_DIVE_APEX + Math.sin(t * Math.PI) * 1.4;
+        body.userData.flightTilt = 0.18 * Math.sin(t * Math.PI);
+        body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.22;
         body.userData.flightSquash = 1;
         body.userData.slamming = false;
         body.userData.eagleDiveSlamming = false;
@@ -3031,9 +3029,9 @@ export function tickEagleAbilityVisuals(state, dt) {
         const e = easeInQuad(t);
         moveTowardEagleDiveTarget(body, 11 * dt);
         body.userData.flightLift = EAGLE_DIVE_APEX * (1 - e);
-        body.userData.flightTilt = -Math.PI * 0.42 * easeOutQuad(t);
-        body.userData.flightRoll = Math.PI * 0.18 * Math.sin(t * Math.PI);
-        body.userData.flightSquash = 1 + 0.16 * e;
+        body.userData.flightTilt = -Math.PI * 0.48 * easeOutQuad(t);
+        body.userData.flightRoll = Math.PI * 0.28 * Math.sin(t * Math.PI);
+        body.userData.flightSquash = 1 + 0.24 * e;
         body.userData.slamming = true;
         body.userData.eagleDiveSlamming = true;
         if (e >= 1 || body.userData.flightLift <= 0.2) {
@@ -3092,11 +3090,11 @@ export function tickLibraAbilityVisuals(state, dt) {
     if (pwSlot?.active && pwSlot.ability.id === 'libra_sonic_shield') {
       const t = body.userData.sonicShieldT ?? 0;
       body.userData.sonicShieldT = t + dt;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 4.6);
-      body.userData.flightSquash = 1 - 0.05 * pulse;
-      body.userData.flightRoll = Math.sin(t * 3.0) * 0.035;
-      body.userData.flightTilt = 0.025 * pulse;
-      body.userData.flightLift = 0.04 * pulse;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 5.8);
+      body.userData.flightSquash = 1 - 0.08 * pulse;
+      body.userData.flightRoll = Math.sin(t * 3.8) * 0.05;
+      body.userData.flightTilt = 0.04 * pulse;
+      body.userData.flightLift = 0.08 * pulse;
       if (body.userData.sonicShieldBurstT != null) {
         body.userData.sonicShieldBurstT -= dt * 7;
         if (body.userData.sonicShieldBurstT <= 0) delete body.userData.sonicShieldBurstT;
@@ -3113,15 +3111,15 @@ export function tickLibraAbilityVisuals(state, dt) {
 
     const vt = (body.userData.sonicBusterVibrateT ?? 0) + dt;
     body.userData.sonicBusterVibrateT = vt;
-    // High-frequency bob — readable at distance without jittery chaos.
-    const w = Math.min(LIBRA_BUSTER_VIBRATE_HZ, 48) * Math.PI * 2;
+    // Full high-frequency vibration for Sonic Buster shriek.
+    const w = LIBRA_BUSTER_VIBRATE_HZ * Math.PI * 2;
     const phase = vt * w;
     const bob = Math.sin(phase);
     body.userData.sonicBusterVisualSpinMult = LIBRA_BUSTER_VISUAL_SPIN;
-    body.userData.flightLift = bob * LIBRA_BUSTER_VIBRATE_LIFT * 0.85;
-    body.userData.flightSquash = 1 - bob * 0.08;
-    body.userData.flightOffsetX = Math.sin(phase) * LIBRA_BUSTER_VIBRATE_XY * 0.85;
-    body.userData.flightOffsetZ = Math.sin(phase + Math.PI * 0.5) * LIBRA_BUSTER_VIBRATE_XY * 0.85;
+    body.userData.flightLift = bob * LIBRA_BUSTER_VIBRATE_LIFT;
+    body.userData.flightSquash = 1 - bob * 0.12;
+    body.userData.flightOffsetX = Math.sin(phase) * LIBRA_BUSTER_VIBRATE_XY;
+    body.userData.flightOffsetZ = Math.sin(phase + Math.PI * 0.5) * LIBRA_BUSTER_VIBRATE_XY;
     body.userData.flightTilt = 0;
     body.userData.flightRoll = 0;
   }
@@ -3145,8 +3143,8 @@ export function tickLdragoAbilityVisuals(state, dt) {
     const pwSlot = runtime.power;
     if (pwSlot?.active && pwSlot.ability.id === 'ldrago_spin_steal') {
       body.userData.spinStealT = (body.userData.spinStealT ?? 0) + dt;
-      body.userData.flightRoll = Math.sin(body.userData.spinStealT * 4.0) * 0.045;
-      body.userData.flightTilt = Math.sin(body.userData.spinStealT * 3.2) * 0.02;
+      body.userData.flightRoll = Math.sin(body.userData.spinStealT * 5.2) * 0.07;
+      body.userData.flightTilt = Math.sin(body.userData.spinStealT * 3.8) * 0.035;
       if (body.userData.spinStealBurstT != null) {
         body.userData.spinStealBurstT -= dt * 6;
         if (body.userData.spinStealBurstT <= 0) {
@@ -3162,10 +3160,10 @@ export function tickLdragoAbilityVisuals(state, dt) {
     if (pwSlot?.active && pwSlot.ability.id === 'ldrago_upper_mode') {
       const t = body.userData.ldragoUpperT ?? 0;
       body.userData.ldragoUpperT = t + dt;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 6.5);
-      body.userData.flightSquash = 1 - 0.04 * pulse;
-      body.userData.flightTilt = 0.03 * pulse;
-      body.userData.flightRoll = Math.sin(t * 4.2) * 0.03;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 8);
+      body.userData.flightSquash = 1 - 0.07 * pulse;
+      body.userData.flightTilt = 0.055 * pulse;
+      body.userData.flightRoll = Math.sin(t * 5.5) * 0.05;
       continue;
     }
 
@@ -3370,37 +3368,37 @@ function findSpecialCameraWeight(state) {
     }
     if (id === 'ldrago_soaring_destruction') {
       if (inWindup || inActive || body.userData.ldragoFlightWindup) {
-        weight = Math.max(weight, 0.72);
+        weight = Math.max(weight, 0.9);
       }
       continue;
     }
     if (id === 'eagle_diving_crush') {
       if (inWindup || inActive || body.userData.eagleDivePhase != null) {
-        weight = Math.max(weight, 0.7);
+        weight = Math.max(weight, 0.88);
       }
       continue;
     }
     if (id === 'libra_sonic_buster') {
       if (inWindup || inActive || body.userData.sonicBuster || body.userData.sonicBusterWindup) {
-        weight = Math.max(weight, 0.55);
+        weight = Math.max(weight, 0.75);
       }
       continue;
     }
     if (id === 'ldrago_absorb_break') {
       if (inWindup || inActive || body.userData.ldragoAbsorbPhase != null) {
-        weight = Math.max(weight, 0.5);
+        weight = Math.max(weight, 0.7);
       }
       continue;
     }
     if (id === 'striker_lightning_flash') {
       if (inWindup || inActive || body.userData.strikerFlashPhase != null) {
-        weight = Math.max(weight, 0.48);
+        weight = Math.max(weight, 0.68);
       }
       continue;
     }
     if (id === 'bull_red_horn_uppercut') {
       if (inWindup || inActive || body.userData.bullUpperPhase != null) {
-        weight = Math.max(weight, 0.45);
+        weight = Math.max(weight, 0.65);
       }
     }
   }
