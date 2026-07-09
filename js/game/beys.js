@@ -49,7 +49,7 @@ export const BEYS = Object.freeze([
     id: 'lightning_ldrago',
     name: 'LIGHTNING L-DRAGO',
     type: 'Attack',
-    desc: 'Ryuga\'s original left-spin dragon. Upper Mode unleashes devastating smash strikes; Soaring Destruction calls lightning from above.',
+    desc: 'Ryuga\'s original left-spin dragon. Upper Mode unleashes devastating smash strikes; Soaring Destruction wall-dashes and dives with electrified dark power.',
     // Lightning fusion wheel, L-Drago I energy ring (no rubber), 100 track, HF (Hole Flat) tip.
     // Hasbro BB-43 card stars: Attack 5 / Defense 2 / Stamina 0.
     leftSpin: true,

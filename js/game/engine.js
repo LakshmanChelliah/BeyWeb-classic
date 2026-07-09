@@ -47,6 +47,7 @@ import {
   getCameraCue,
   resetStarBlastCamera,
   shouldStarBlastGlow,
+  shouldLdragoSoaringGlow,
   clearAbilityFlags,
   cancelAbilitiesOnSpinStop,
   isLibraBusterChannelingBody,
@@ -56,6 +57,7 @@ import { createStarBlastVfx } from '../render/starBlastVfx.js';
 import { createLeoneAbilityVfx } from '../render/leoneAbilityVfx.js';
 import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';
 import { createLdragoAbilityVfx } from '../render/ldragoAbilityVfx.js';
+import { createLdragoSoaringVfx } from '../render/ldragoSoaringVfx.js';
 import { createLibraAbilityVfx } from '../render/libraAbilityVfx.js';
 import { createBullAbilityVfx } from '../render/bullAbilityVfx.js';
 import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
@@ -103,6 +105,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   const leoneVfx = safeVfx(createLeoneAbilityVfx, 'leone');
   const speedBoostVfx = safeVfx(createPegasusSpeedBoostVfx, 'speedBoost');
   const ldragoVfx = safeVfx(createLdragoAbilityVfx, 'ldrago');
+  const ldragoSoaringVfx = safeVfx(createLdragoSoaringVfx, 'ldragoSoaring');
   const libraVfx = safeVfx(createLibraAbilityVfx, 'libra');
   const bullVfx = safeVfx(createBullAbilityVfx, 'bull');
   const eagleVfx = safeVfx(createEagleAbilityVfx, 'eagle');
@@ -127,6 +130,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     speedBoostVfx.ai.reset();
     ldragoVfx.player.reset();
     ldragoVfx.ai.reset();
+    ldragoSoaringVfx.player.reset();
+    ldragoSoaringVfx.ai.reset();
     libraVfx.player.reset();
     libraVfx.ai.reset();
     bullVfx.player.reset();
@@ -323,27 +328,17 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       }
       if (sp.ability.id === 'ldrago_soaring_destruction') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
-        const repulse = body?.userData.flightRepulseT ?? 0;
-        const launch = body?.userData.ldragoFlightLaunchT ?? 0;
-        const windup = body?.userData.ldragoFlightWindup;
-        // Exclude Absorb Break — it also uses invulnerable but is a grounded rush.
-        const active =
-          body?.userData.airborne &&
-          body?.userData.invulnerable &&
-          body?.userData.ldragoAbsorbPhase == null;
-        const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.011);
-        let base = pulse * 1.35;
-        if (windup) base = Math.max(base, pulse * 1.65);
-        if (active) base = Math.max(base, pulse * 1.85);
-        if (launch > 0) base = Math.max(base, 2.8 + launch * 1.2);
-        if (body?.userData.ldragoLightningCharging) {
-          base = Math.max(base, pulse * 2.15);
+        if (!shouldLdragoSoaringGlow(body)) return null;
+        if (body?.userData.ldragoImpactFlash || (body?.userData.ldragoLightningImpactT ?? 0) > 0.55) {
+          return { color: '#f5f3ff', intensity: 2.8 };
         }
-        if (body?.userData.ldragoFlightRerising) {
-          base = Math.max(base, pulse * 2.05);
+        if ((body?.userData.ldragoApexChargeT ?? 0) > 0) {
+          return { color: sp.ability.glow, intensity: 2.5 };
         }
-        const intensity = repulse > 0 ? Math.max(base, 2.0 + repulse * 1.1) : base;
-        return { color: sp.ability.glow, intensity };
+        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.011);
+        const phase = body?.userData.ldragoPhase;
+        const diveBoost = phase === 'dive' ? 1.15 : 1;
+        return { color: sp.ability.glow, intensity: pulse * 1.9 * diveBoost };
       }
       if (sp.ability.id === 'libra_sonic_buster') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
@@ -842,6 +837,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     speedBoostVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     ldragoVfx.player.update(playerGroup, state.playerBody, camera, dt);
     ldragoVfx.ai.update(aiGroup, state.aiBody, camera, dt);
+    ldragoSoaringVfx.player.update(playerGroup, state.playerBody, camera, dt);
+    ldragoSoaringVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     libraVfx.player.update(playerGroup, state.playerBody, camera, dt);
     libraVfx.ai.update(aiGroup, state.aiBody, camera, dt);
     bullVfx.player.update(playerGroup, state.playerBody, camera, dt);

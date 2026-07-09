@@ -258,7 +258,7 @@ export function syncTopVisual(group, body, spinPct, visualYaw, dt, spinSign = 1)
     }
   }
 
-  if (body.userData.starPhase !== 'dive') {
+  if (body.userData.starPhase !== 'dive' && body.userData.ldragoPhase !== 'dive') {
     let spinMult = 0;
     if (dead && body.userData.deathAnimT < CONFIG.DEATH_ANIM_DUR) {
       const base = body.userData.deathBaseSpin ?? 0.55;

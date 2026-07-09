@@ -51,13 +51,18 @@ function bodySnapshot(body) {
     slamming: Boolean(ud.slamming),
     boosting: Boolean(ud.boosting),
     controlLocked: Boolean(ud.controlLocked),
+    flightLift: ud.flightLift ?? 0,
     bullUpperPhase: ud.bullUpperPhase ?? null,
     eagleDivePhase: ud.eagleDivePhase ?? null,
     strikerFlashPhase: ud.strikerFlashPhase ?? null,
     starBlastPhase: ud.starPhase ?? ud.starBlastPhase ?? null,
     starPhase: ud.starPhase ?? null,
     launchBouncePhase: ud.launchBounce?.phase ?? ud.launchBouncePhase ?? null,
-    ldragoFlightPhase: ud.ldragoFlightPhase ?? null,
+    ldragoPhase: ud.ldragoPhase ?? null,
+    ldragoFlightPhase: ud.ldragoPhase ?? ud.ldragoFlightPhase ?? null,
+    ldragoLightningImpactT: ud.ldragoLightningImpactT ?? null,
+    ldragoApexChargeT: ud.ldragoApexChargeT ?? null,
+    ldragoSoaringHit: Boolean(ud.ldragoSoaringHit),
   };
 }
 
