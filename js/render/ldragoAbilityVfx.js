@@ -10,6 +10,12 @@ import {
   LDRAGO_LIGHTNING_RADIUS,
   LDRAGO_SPIN_STEAL_DURATION,
 } from '../game/abilities.js';
+import {
+  createBurstSystem,
+  createTrailSystem,
+  ensureQuarksRuntime,
+  Vector4,
+} from './vfx/quarksRuntime.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -49,8 +55,9 @@ const HELIX_FLAME_COUNT = 28;
 const WINDUP_OUT_DUST = 20;
 const WINDUP_IN_GATHER = 16;
 const ORBIT_EMBER_COUNT = 10;
-const REPULSE_SPARK_COUNT = 20;
-const REPULSE_RING_COUNT = 3;
+const REPULSE_SPARK_COUNT = 28;
+const WINDUP_CRATER_SPARKS = 18;
+const REPULSE_SHEET_COUNT = 6;
 const FLIGHT_COLUMN_HEIGHT = 4.2;
 
 function rand(seed) {
@@ -317,6 +324,7 @@ function createDragonSilhouetteTexture() {
 
 /** L-Drago Spin Steal + Soaring Destruction scene VFX. */
 export function createLdragoAbilityVfx(scene) {
+  ensureQuarksRuntime(scene);
   const root = new THREE.Group();
   scene.add(root);
   const getMat = createMatCache();
@@ -324,6 +332,42 @@ export function createLdragoAbilityVfx(scene) {
   const fireInnerTex = createFireStreakTexture();
   const cloudShadowTex = createCloudShadowTexture();
   const dragonSilhouetteTex = createDragonSilhouetteTexture();
+
+  // Quarks — violet dragon fire / shock (no flat floor rings).
+  const windupGatherBurst = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [2, 7],
+    startSize: [0.1, 0.4],
+    gravity: 4,
+    coneAngle: 1.4,
+    colorA: new Vector4(0.72, 0.45, 1, 1),
+    colorB: new Vector4(0.35, 0.12, 0.65, 0),
+  });
+  const flightTrail = createTrailSystem(scene, {
+    rate: 55,
+    startSize: [0.18, 0.55],
+    startLife: [0.2, 0.45],
+    gravity: -2,
+    colorA: new Vector4(0.85, 0.55, 1, 0.95),
+    colorB: new Vector4(0.45, 0.15, 0.75, 0),
+  });
+  const launchShock = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [8, 22],
+    startSize: [0.12, 0.55],
+    gravity: -6,
+    coneAngle: 1.35,
+    colorA: new Vector4(1, 0.95, 1, 1),
+    colorB: new Vector4(0.55, 0.25, 0.95, 0),
+  });
+  const lightningBurst = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [6, 18],
+    startSize: [0.1, 0.45],
+    gravity: -3,
+    colorA: new Vector4(0.95, 0.9, 1, 1),
+    colorB: new Vector4(0.55, 0.35, 0.95, 0),
+  });
 
   const stealGroup = new THREE.Group();
   const flightGroup = new THREE.Group();
@@ -452,13 +496,21 @@ export function createLdragoAbilityVfx(scene) {
     windupGather.push({ mesh, phase: (i / WINDUP_IN_GATHER) * Math.PI * 2, band: rand(i + 40) });
   }
 
-  const windupCrater = new THREE.Mesh(
-    new THREE.RingGeometry(0.35, 1.15, 24),
-    getMat(CRIMSON, true)
-  );
-  windupCrater.rotation.x = -Math.PI / 2;
-  windupCrater.renderOrder = 2;
-  flightGroup.add(windupCrater);
+  // Volumetric windup crater — rising spark curtain (no flat RingGeometry).
+  const windupCraterSparks = [];
+  for (let i = 0; i < WINDUP_CRATER_SPARKS; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08 + (i % 3) * 0.04, 0.35 + (i % 4) * 0.12),
+      getMat(i % 3 === 0 ? WHITE_HOT : i % 3 === 1 ? PALE : CRIMSON, true)
+    );
+    mesh.renderOrder = 3;
+    flightGroup.add(mesh);
+    windupCraterSparks.push({
+      mesh,
+      phase: (i / WINDUP_CRATER_SPARKS) * Math.PI * 2,
+      band: i % 4,
+    });
+  }
 
   const windupPillar = new THREE.Mesh(
     new THREE.CylinderGeometry(0.22, 0.55, 1, 12, 1, true),
@@ -496,28 +548,35 @@ export function createLdragoAbilityVfx(scene) {
   dragonBackdrop.renderOrder = 4;
   flightGroup.add(dragonBackdrop);
 
-  const repulseRings = [];
-  for (let i = 0; i < REPULSE_RING_COUNT; i++) {
+  // Vertical shock sheets + dense sparks replace flat floor shock rings.
+  const repulseSheets = [];
+  for (let i = 0; i < REPULSE_SHEET_COUNT; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.RingGeometry(0.5, 0.72, 24),
-      getMat(i === 0 ? WHITE_HOT : PALE, true)
+      new THREE.PlaneGeometry(0.35, 1.8),
+      getMat(i % 2 === 0 ? WHITE_HOT : PALE, true)
     );
-    mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 9;
     flightGroup.add(mesh);
-    repulseRings.push({ mesh, delay: i * 0.12 });
+    repulseSheets.push({
+      mesh,
+      angle: (i / REPULSE_SHEET_COUNT) * Math.PI * 2,
+      delay: (i % 3) * 0.05,
+    });
   }
 
   const repulseSparks = [];
   for (let i = 0; i < REPULSE_SPARK_COUNT; i++) {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.06 + (i % 3) * 0.025, 0.06 + (i % 2) * 0.02),
+      new THREE.PlaneGeometry(0.08 + (i % 3) * 0.03, 0.08 + (i % 2) * 0.025),
       getMat(i % 4 === 0 ? WHITE_HOT : PALE, true)
     );
     mesh.renderOrder = 8;
     flightGroup.add(mesh);
     repulseSparks.push({ mesh, angle: (i / REPULSE_SPARK_COUNT) * Math.PI * 2, band: i % 5 });
   }
+
+  let lastLaunchPulse = false;
+  let lastLightningPulse = -1;
 
   const lightningGroup = new THREE.Group();
   root.add(lightningGroup);
@@ -598,20 +657,22 @@ export function createLdragoAbilityVfx(scene) {
     for (const e of orbitEmbers) { e.mesh.visible = false; e.mesh.material.opacity = 0; }
     for (const d of windupOutDust) { d.mesh.visible = false; d.mesh.material.opacity = 0; }
     for (const g of windupGather) { g.mesh.visible = false; g.mesh.material.opacity = 0; }
-    windupCrater.visible = false;
+    for (const c of windupCraterSparks) { c.mesh.visible = false; c.mesh.material.opacity = 0; }
     windupPillar.visible = false;
     pillarOuter.visible = false;
     pillarInner.visible = false;
     hoverGlow.visible = false;
     dragonBackdrop.visible = false;
-    windupCrater.material.opacity = 0;
     windupPillar.material.opacity = 0;
     pillarOuter.material.opacity = 0;
     pillarInner.material.opacity = 0;
     hoverGlow.material.opacity = 0;
     dragonBackdrop.material.opacity = 0;
-    for (const r of repulseRings) { r.mesh.visible = false; r.mesh.material.opacity = 0; }
+    for (const r of repulseSheets) { r.mesh.visible = false; r.mesh.material.opacity = 0; }
     for (const s of repulseSparks) { s.mesh.visible = false; s.mesh.material.opacity = 0; }
+    flightTrail.stop();
+    lastLaunchPulse = false;
+    lastLightningPulse = -1;
     hideLightning();
   }
 
@@ -786,12 +847,24 @@ export function createLdragoAbilityVfx(scene) {
           const e = 1 - (1 - growT) * (1 - growT);
           flightSpin += dt * 4.5;
 
-          // Crater ring — energy gathering on the floor (anime wind-up).
+          // Volumetric crater curtain — rising sparks around the gather radius.
           const craterR = R * (1.6 - e * 0.55);
-          windupCrater.scale.set(craterR, craterR, 1);
-          windupCrater.position.set(0, 0.04, 0);
-          windupCrater.material.opacity = (0.22 + e * 0.38) * (0.75 + 0.25 * Math.sin(flightSpin * 5));
-
+          for (const c of windupCraterSparks) {
+            c.phase += dt * (4.5 + c.band * 0.8);
+            const ang = c.phase + flightSpin * 0.8;
+            const h = 0.08 + e * (0.35 + c.band * 0.18) + Math.abs(Math.sin(c.phase * 2)) * 0.12;
+            c.mesh.position.set(
+              Math.cos(ang) * craterR,
+              h,
+              Math.sin(ang) * craterR
+            );
+            billboard(c.mesh, camera);
+            c.mesh.material.opacity = (0.28 + e * 0.45) * (0.55 + 0.45 * Math.sin(c.phase * 3));
+          }
+          if (growT > 0.15 && growT < 0.22) {
+            windupGatherBurst.setPosition(bx, floorY + 0.2, bz);
+            windupGatherBurst.burst(28);
+          }
           // Rising preview pillar under the bey.
           const previewH = R * (0.4 + e * 1.8);
           windupPillar.scale.set(R * 0.55, previewH, R * 0.55);
@@ -833,8 +906,9 @@ export function createLdragoAbilityVfx(scene) {
           pillarInner.material.opacity = 0;
           hoverGlow.material.opacity = 0;
           dragonBackdrop.material.opacity = 0;
-          for (const r of repulseRings) r.mesh.material.opacity = 0;
+          for (const r of repulseSheets) r.mesh.material.opacity = 0;
           for (const s of repulseSparks) s.mesh.material.opacity = 0;
+          flightTrail.stop();
         } else {
           flightSpin += dt * 3.6;
           const ft = body.userData.ldragoFlightT ?? 0;
@@ -859,9 +933,11 @@ export function createLdragoAbilityVfx(scene) {
 
           for (const d of windupOutDust) d.mesh.material.opacity = 0;
           for (const g of windupGather) g.mesh.material.opacity = 0;
-          windupCrater.material.opacity = 0;
+          for (const c of windupCraterSparks) c.mesh.material.opacity = 0;
           windupPillar.material.opacity = launch > 0 ? (1 - launch) * 0.35 : 0;
 
+          // Quarks fire trail while hovering / launching.
+          flightTrail.follow(bx, floorY + hoverY + 0.4, bz, env > 0.2);
           // Energy column anchored at the stadium floor around the bey.
           const colH = FLIGHT_COLUMN_HEIGHT * R * 0.55 * launchBoost * landFade;
           const colPulse = 0.92 + 0.08 * Math.sin(flightSpin * 3.2);
@@ -941,22 +1017,36 @@ export function createLdragoAbilityVfx(scene) {
             em.mesh.material.opacity = 0.42 * env * wingReveal * (0.6 + 0.4 * Math.sin(em.phase * 3));
           }
 
-          // Launch detonation + repulse — expanding shock rings + radial spark burst.
+          // Launch detonation + repulse — vertical shock sheets + quarks (no flat rings).
           const burstT = Math.max(launch, repulse);
+          const launchingNow = launch > 0.85;
+          if (launchingNow && !lastLaunchPulse) {
+            launchShock.setPosition(bx, floorY + hoverY * 0.4 + 0.3, bz);
+            launchShock.burst(48);
+            lastLaunchPulse = true;
+          } else if (launch <= 0.05) {
+            lastLaunchPulse = false;
+          }
+
           if (burstT > 0.04) {
-            for (let ri = 0; ri < repulseRings.length; ri++) {
-              const ring = repulseRings[ri];
-              const delay = launch > 0 ? ri * 0.06 : ring.delay;
-              const rate = launch > 0 ? 1.8 : 1.35;
+            for (const sheet of repulseSheets) {
+              const delay = launch > 0 ? sheet.delay : sheet.delay * 1.4;
+              const rate = launch > 0 ? 1.9 : 1.4;
               const wave = clamp01((burstT - delay) * rate);
               if (wave <= 0) {
-                ring.mesh.material.opacity = 0;
+                sheet.mesh.material.opacity = 0;
                 continue;
               }
-              const rr = R * (1.1 + (1 - wave) * (launch > 0 ? 4.6 : 3.8) + ri * 0.35);
-              ring.mesh.position.set(0, hoverY * 0.25 + ri * 0.08, 0);
-              ring.mesh.scale.set(rr, rr, 1);
-              ring.mesh.material.opacity = wave * (0.55 - ri * 0.12) * env;
+              const dist = R * (1.2 + (1 - wave) * (launch > 0 ? 4.2 : 3.4));
+              const h = 0.35 + hoverY * 0.35 + (1 - wave) * 1.1;
+              sheet.mesh.position.set(
+                Math.cos(sheet.angle + flightSpin * 0.4) * dist,
+                h,
+                Math.sin(sheet.angle + flightSpin * 0.4) * dist
+              );
+              sheet.mesh.lookAt(bx, h, bz);
+              sheet.mesh.scale.set(1 + (1 - wave) * 1.8, 0.7 + wave * 1.4, 1);
+              sheet.mesh.material.opacity = wave * 0.55 * env;
             }
             for (const sp of repulseSparks) {
               const burst = burstT * (1 + sp.band * 0.12);
@@ -968,10 +1058,10 @@ export function createLdragoAbilityVfx(scene) {
                 Math.sin(sp.angle + flightSpin * 1.5) * dist
               );
               billboard(sp.mesh, camera);
-              sp.mesh.material.opacity = burst * 0.72 * env;
+              sp.mesh.material.opacity = burst * 0.78 * env;
             }
           } else {
-            for (const r of repulseRings) r.mesh.material.opacity = 0;
+            for (const r of repulseSheets) r.mesh.material.opacity = 0;
             for (const sp of repulseSparks) sp.mesh.material.opacity = 0;
           }
 
@@ -1044,6 +1134,13 @@ export function createLdragoAbilityVfx(scene) {
                 const seed = li * 23 + Math.floor(flightSpin * 14);
                 const topY = floorY + LIGHTNING_SKY_Y;
                 const botY = floorY + 0.08;
+
+                if (spot.flashT > 0.85 && lastLightningPulse !== li) {
+                  lightningBurst.setPosition(spot.x, floorY + 0.35, spot.z);
+                  lightningBurst.burst(36);
+                  lastLightningPulse = li;
+                }
+                if (spot.flashT < 0.1 && lastLightningPulse === li) lastLightningPulse = -1;
 
                 const mainPath = buildBoltPoints(seed, spot.x, spot.z, topY, botY, spread);
                 strike.mainBolts.forEach((line, bi) => {
