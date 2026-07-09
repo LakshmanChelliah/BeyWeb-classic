@@ -55,10 +55,13 @@ const DUST_TAN = 0xb5aea4;
 const DUST_DARK = 0x7a7268;
 const DEBRIS_TAN = 0x9a8b78;
 
-// Keep the same relative size as the previous Gale Force Wall VFX.
+// Funnel unit radius maps 1:1 to physics `lionWallReach` after XZ scale.
+// Keep the silhouette columnar so the visual never outruns the effectable range.
 const TORNADO_HEIGHT = 7.2;
-const TORNADO_BASE_R = 1.1;
-const TORNADO_TOP_R = 2.9;
+const TORNADO_BASE_R = 1.0;
+/** Top flare as a fraction of base — must stay ≤ 1 so world radius ≤ reach. */
+const TORNADO_TOP_FRAC = 0.92;
+const TORNADO_TOP_R = TORNADO_BASE_R * TORNADO_TOP_FRAC;
 const WALL_ACTIVE_DUR = LEONE_WALL_DURATION;
 
 const FUNNEL_SEGMENTS = 48;
@@ -151,8 +154,8 @@ function createGaleMistTexture() {
 }
 
 /**
- * Classic 3D funnel profile: pinched base, flared crown, slight mid waist
- * like a real mesocyclone / anime Gale Force Wall.
+ * Columnar gale funnel: slight mid pinch, no crown overshoot past max(baseR, topR).
+ * After XZ scale by `reach / TORNADO_BASE_R`, world radius stays ≤ physics reach.
  */
 function buildFunnelGeometry(baseR, topR, height, radialSegs, heightSegs) {
   const geo = new THREE.CylinderGeometry(
@@ -163,17 +166,22 @@ function buildFunnelGeometry(baseR, topR, height, radialSegs, heightSegs) {
     heightSegs,
     true
   );
-  // Pinch the mid-column for a more tornado-like silhouette.
+  const maxR = Math.max(baseR, topR);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
     const t = clamp01((v.y + height * 0.5) / height);
-    const waist = 1 - Math.sin(t * Math.PI) * 0.12;
-    // Extra flare near the top like a debris cloud.
-    const crown = 1 + Math.pow(t, 2.4) * 0.18;
-    v.x *= waist * crown;
-    v.z *= waist * crown;
+    // Soft waist only — never expand past the shell's design radius.
+    const waist = 1 - Math.sin(t * Math.PI) * 0.1;
+    v.x *= waist;
+    v.z *= waist;
+    const len = Math.hypot(v.x, v.z);
+    if (len > maxR && len > 1e-6) {
+      const s = maxR / len;
+      v.x *= s;
+      v.z *= s;
+    }
     pos.setXYZ(i, v.x, v.y, v.z);
   }
   pos.needsUpdate = true;
@@ -186,18 +194,20 @@ function buildRibbonGeometry(turns, height, baseR, topR, width, segs = 96) {
   const positions = [];
   const uvs = [];
   const indices = [];
+  const maxR = Math.max(baseR, topR);
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
     const ang = t * turns * Math.PI * 2;
     const y = t * height;
     const r = baseR + (topR - baseR) * t;
     const waist = 1 - Math.sin(t * Math.PI) * 0.1;
-    const rr = r * waist;
+    const rr = Math.min(maxR, r * waist);
     const c = Math.cos(ang);
     const s = Math.sin(ang);
-    // Inward / outward edge of the ribbon.
-    const rIn = rr * (1 - width * 0.5);
-    const rOut = rr * (1 + width * 0.5);
+    // Keep both ribbon edges inside the effect radius.
+    const half = Math.min(width * 0.45, rr * 0.12);
+    const rIn = Math.max(0.05, rr - half);
+    const rOut = Math.min(maxR, rr + half * 0.35);
     positions.push(c * rIn, y, s * rIn);
     positions.push(c * rOut, y, s * rOut);
     uvs.push(0, t);
@@ -283,11 +293,11 @@ export function createLeoneAbilityVfx(scene) {
   const funnelGroup = new THREE.Group();
   tornadoGroup.add(funnelGroup);
 
-  // Outer shell — dark green wall of wind.
+  // Outer shell — dark green wall of wind (unit radius = physics reach after scale).
   const outerShell = new THREE.Mesh(
     buildFunnelGeometry(
-      TORNADO_BASE_R * 1.15,
-      TORNADO_TOP_R * 1.05,
+      TORNADO_BASE_R,
+      TORNADO_TOP_R,
       TORNADO_HEIGHT,
       FUNNEL_SEGMENTS,
       FUNNEL_HEIGHT_SEGS
@@ -298,11 +308,11 @@ export function createLeoneAbilityVfx(scene) {
   outerShell.renderOrder = 5;
   funnelGroup.add(outerShell);
 
-  // Mid shell — brighter lime cyclone body.
+  // Mid shell — brighter lime cyclone body (inside the effect radius).
   const midShell = new THREE.Mesh(
     buildFunnelGeometry(
-      TORNADO_BASE_R * 0.92,
-      TORNADO_TOP_R * 0.88,
+      TORNADO_BASE_R * 0.82,
+      TORNADO_TOP_R * 0.82,
       TORNADO_HEIGHT * 0.96,
       FUNNEL_SEGMENTS,
       FUNNEL_HEIGHT_SEGS
@@ -316,8 +326,8 @@ export function createLeoneAbilityVfx(scene) {
   // Inner core — pale green eye wall.
   const innerShell = new THREE.Mesh(
     buildFunnelGeometry(
-      TORNADO_BASE_R * 0.55,
-      TORNADO_TOP_R * 0.55,
+      TORNADO_BASE_R * 0.48,
+      TORNADO_TOP_R * 0.48,
       TORNADO_HEIGHT * 0.9,
       36,
       FUNNEL_HEIGHT_SEGS
@@ -331,8 +341,8 @@ export function createLeoneAbilityVfx(scene) {
   // Bright axial core column (eye of the storm).
   const coreColumn = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      TORNADO_TOP_R * 0.12,
-      TORNADO_BASE_R * 0.22,
+      TORNADO_BASE_R * 0.1,
+      TORNADO_BASE_R * 0.18,
       TORNADO_HEIGHT * 0.85,
       20,
       1,
@@ -344,19 +354,19 @@ export function createLeoneAbilityVfx(scene) {
   coreColumn.renderOrder = 8;
   funnelGroup.add(coreColumn);
 
-  // Helical wind ribbons — solid 3D sheets wrapping the funnel.
+  // Helical wind ribbons — solid 3D sheets wrapping the funnel (stay inside reach).
   const ribbons = [];
   for (let i = 0; i < RIBBON_COUNT; i++) {
     const turns = 2.2 + (i % 3) * 0.35;
-    const baseScale = 0.78 + i * 0.06;
-    const topScale = 0.82 + i * 0.07;
-    const width = 0.08 + (i % 3) * 0.04;
+    const baseScale = 0.62 + i * 0.05;
+    const topScale = 0.58 + i * 0.05;
+    const width = 0.07 + (i % 3) * 0.03;
     const mesh = new THREE.Mesh(
       buildRibbonGeometry(
         turns,
         TORNADO_HEIGHT * (0.88 + (i % 2) * 0.08),
-        TORNADO_BASE_R * baseScale,
-        TORNADO_TOP_R * topScale,
+        TORNADO_BASE_R * Math.min(0.92, baseScale),
+        TORNADO_TOP_R * Math.min(0.92, topScale),
         width
       ),
       makeMat(i % 2 === 0 ? GALE_PALE : GALE_LIME, 0, {
@@ -435,7 +445,7 @@ export function createLeoneAbilityVfx(scene) {
         heightBias: rand(s + 1),
         orbitPhase: rand(s + 2) * Math.PI * 2,
         orbitSpeed: 0.85 + rand(s + 3) * 1.6,
-        radiusJitter: 0.78 + rand(s + 4) * 0.4,
+        radiusJitter: 0.72 + rand(s + 4) * 0.22,
         riseSpeed: 0.4 + rand(s + 5) * 0.95,
         tumble: rand(s + 7) * Math.PI * 2,
         tumbleRate: (rand(s + 8) - 0.5) * 5,
@@ -485,10 +495,10 @@ export function createLeoneAbilityVfx(scene) {
     mesh.quaternion.copy(camera.quaternion);
   }
 
-  /** World-space radius along funnel height — fills physics reach at the base. */
+  /** World-space radius along funnel height — max equals physics reach (effectable range). */
   function tornadoRadiusAt(t, reach) {
-    const base = reach * 0.92;
-    const top = reach * (TORNADO_TOP_R / TORNADO_BASE_R) * 0.85;
+    const base = reach;
+    const top = reach * TORNADO_TOP_FRAC;
     const pinch = 1 - Math.sin(t * Math.PI) * 0.08;
     return (base + (top - base) * t) * pinch;
   }
@@ -499,12 +509,16 @@ export function createLeoneAbilityVfx(scene) {
     const hNorm = (p.heightBias * 0.35 + cycle * p.riseSpeed) % 1;
     const h = hNorm * TORNADO_HEIGHT;
     const t = clamp01(h / TORNADO_HEIGHT);
-    const r = tornadoRadiusAt(t, reach) * p.radiusJitter;
+    // Keep grit inside the effect radius (no outward overshoot past reach).
+    const jitter = 0.72 + Math.min(0.22, (p.radiusJitter - 0.78) * 0.55);
+    const r = tornadoRadiusAt(t, reach) * jitter;
 
     const helix = spin * (1.5 + t * 2.0) + p.orbitPhase + t * Math.PI * 4.5;
-    const turb = Math.sin(spin * 3.1 + p.layer * 9) * r * 0.12
-      + Math.cos(spin * 2.3 + p.tumble) * r * 0.08;
-    mesh.position.set(Math.cos(helix) * (r + turb), h, Math.sin(helix) * (r + turb));
+    const turbAmp = r * 0.06;
+    const turb = Math.sin(spin * 3.1 + p.layer * 9) * turbAmp
+      + Math.cos(spin * 2.3 + p.tumble) * turbAmp * 0.7;
+    const rr = Math.min(reach * 0.98, r + turb);
+    mesh.position.set(Math.cos(helix) * rr, h, Math.sin(helix) * rr);
 
     if (kind === 'streak') {
       mesh.rotation.set(0.2, helix + Math.PI / 2, 0.35);
@@ -546,9 +560,9 @@ export function createLeoneAbilityVfx(scene) {
       r.mesh.material.opacity = (0.22 + (i % 3) * 0.06) * env;
     }
 
-    const crownR = TORNADO_TOP_R * 1.85 * g;
+    const crownR = TORNADO_BASE_R * 1.05 * g;
     crownMist.scale.setScalar(crownR);
-    crownMistOuter.scale.setScalar(crownR * 1.35);
+    crownMistOuter.scale.setScalar(crownR * 1.12);
   }
 
   function reset() {
@@ -586,7 +600,7 @@ export function createLeoneAbilityVfx(scene) {
       const floorY = CONFIG.FLOOR_Y + 0.02;
       const R = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
       const reach = body.userData.lionWallReach ?? R * LEONE_WALL_REACH_MULT;
-      // Scale funnel so base radius ≈ physics reach (volume sells range, not a floor circle).
+      // Scale funnel so outer shell world radius == physics reach (effectable range).
       const funnelXZ = reach / TORNADO_BASE_R;
 
       if (anchoring) {
@@ -655,7 +669,7 @@ export function createLeoneAbilityVfx(scene) {
               continue;
             }
             const ang = p.orbitPhase + preSpin;
-            const r = reach * (0.25 + e * 0.7) * p.radiusJitter;
+            const r = reach * (0.2 + e * 0.72) * Math.min(1, p.radiusJitter);
             p.mesh.position.set(Math.cos(ang) * r, 0.06 + e * 0.7, Math.sin(ang) * r);
             billboard(p.mesh, camera);
             setParticleVisible(p.mesh, 0.28 * e * (p.kind === 'debris' ? 1 : 0.6));
@@ -689,9 +703,11 @@ export function createLeoneAbilityVfx(scene) {
             r.mesh.rotation.y = r.phase + spin * r.spin * 0.22;
           }
 
-          const breath = 1 + Math.sin(spin * 0.7) * 0.03;
-          outerShell.scale.set(breath, 1, breath);
-          midShell.scale.set(1 / breath, 1, 1 / breath);
+          // Soft breath on inner shells only — outer wall stays locked to physics reach.
+          const breath = 1 + Math.sin(spin * 0.7) * 0.02;
+          outerShell.scale.set(1, 1, 1);
+          midShell.scale.set(breath, 1, breath);
+          innerShell.scale.set(1 / Math.max(0.92, breath), 1, 1 / Math.max(0.92, breath));
 
           crownMist.rotation.z = spin * 0.4;
           crownMistOuter.rotation.z = -spin * 0.25;
@@ -706,7 +722,7 @@ export function createLeoneAbilityVfx(scene) {
             v.flicker += dt * (8 + (i % 4));
             const ang = v.phase + spin * 1.8;
             const t = v.heightBias;
-            const r = tornadoRadiusAt(t, reach) * 0.92;
+            const r = Math.min(reach * 0.95, tornadoRadiusAt(t, reach) * 0.88);
             const h = t * TORNADO_HEIGHT;
             v.mesh.position.set(Math.cos(ang) * r, h, Math.sin(ang) * r);
             v.mesh.rotation.set(0.15, ang + Math.PI / 2, Math.sin(v.flicker) * 0.2);
