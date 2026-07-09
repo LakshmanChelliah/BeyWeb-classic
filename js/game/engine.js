@@ -301,8 +301,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       }
       if (sp.ability.id === 'ldrago_absorb_break') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
-        if (body?.userData.ldragoAbsorbImpact) {
-          return { color: '#fef2f2', intensity: 2.6 };
+        if (body?.userData.ldragoAbsorbImpact || body?.userData.ldragoAbsorbPhase === 'impact') {
+          return { color: '#fef2f2', intensity: 3.2 };
         }
         const phase = body?.userData.ldragoAbsorbPhase;
         const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.013);
@@ -312,9 +312,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
           phase === 'coil' ||
           phase === 'rush' ||
           phase === 'pierce' ||
+          phase === 'impact' ||
           body?.userData.ldragoAbsorbWindup ||
           body?.userData.ldragoAbsorbRush;
-        return { color: sp.ability.glow, intensity: intense ? pulse * 1.75 : pulse * 1.1 };
+        const devourBoost = (body?.userData.ldragoAbsorbDevour ?? 0) * 0.9;
+        return {
+          color: sp.ability.glow,
+          intensity: intense ? pulse * 2.15 + devourBoost : pulse * 1.2,
+        };
       }
       if (sp.ability.id === 'ldrago_soaring_destruction') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
