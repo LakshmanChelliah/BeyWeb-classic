@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
 import { CONFIG } from '../config.js';
 import {
+  LDRAGO_ABSORB_COIL_DUR,
+  LDRAGO_ABSORB_PIERCE_DUR,
   LDRAGO_FLIGHT_DURATION,
   LDRAGO_FLIGHT_LAND_DUR,
   LDRAGO_FLIGHT_LAUNCH_DUR,
@@ -16,7 +18,12 @@ import {
   ensureQuarksRuntime,
   Vector4,
 } from './vfx/quarksRuntime.js';
-import { createDarkVortexTrail, createImpactShockwave } from './vfx/presets.js';
+import {
+  createDarkVortexTrail,
+  createImpactShockwave,
+  createSparkBurst,
+  createSpeedTrail,
+} from './vfx/presets.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -363,13 +370,37 @@ export function createLdragoAbilityVfx(scene) {
     colorA: new Vector4(0.35, 0.08, 0.55, 0.9),
     colorB: new Vector4(0.15, 0.02, 0.3, 0),
   });
+  // Meteo Absorb Break — crimson rush trail + impact (grounded dragon charge).
+  const absorbTrail = createSpeedTrail(scene, { rate: 95, tint: 'crimson' });
+  const absorbImpact = createSparkBurst(scene, { tint: 'red' });
+  const absorbShock = createImpactShockwave(scene, { tint: 'purple' });
 
   const stealGroup = new THREE.Group();
+  const absorbGroup = new THREE.Group();
   const flightGroup = new THREE.Group();
   const upperGroup = new THREE.Group();
   root.add(stealGroup);
+  root.add(absorbGroup);
   root.add(flightGroup);
   root.add(upperGroup);
+
+  // Dragon-rush streaks for Absorb Break (elongated crimson blades).
+  const absorbStreaks = [];
+  for (let i = 0; i < 7; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.055, 1.85),
+      makeMat(i % 2 === 0 ? 0xfef2f2 : 0xef4444, 0, { additive: true })
+    );
+    mesh.renderOrder = 8;
+    absorbGroup.add(mesh);
+    absorbStreaks.push({ mesh, offset: i / 7 });
+  }
+  const absorbCore = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.35, 1.35),
+    makeMat(0xfef2f2, 0, { additive: true })
+  );
+  absorbCore.renderOrder = 9;
+  absorbGroup.add(absorbCore);
 
   function setVisible(mesh, opacity) {
     const show = opacity > 0.02;
@@ -632,6 +663,10 @@ export function createLdragoAbilityVfx(scene) {
   let flightSpin = 0;
   let flightT = 0;
   let upperSpin = 0;
+  let absorbSpin = 0;
+  let didAbsorbLaunchBurst = false;
+  let didAbsorbImpactBurst = false;
+  let lastAbsorbImpact = false;
 
   function hideSteal() {
     for (const p of drainPool) { p.mesh.visible = false; p.mesh.material.opacity = 0; }
@@ -639,6 +674,16 @@ export function createLdragoAbilityVfx(scene) {
     for (const b of stealBeams) { b.mesh.visible = false; b.mesh.material.opacity = 0; }
     stealCore.visible = false;
     stealCore.material.opacity = 0;
+  }
+
+  function hideAbsorb() {
+    for (const s of absorbStreaks) {
+      s.mesh.visible = false;
+      s.mesh.material.opacity = 0;
+    }
+    absorbCore.visible = false;
+    absorbCore.material.opacity = 0;
+    absorbTrail.stop();
   }
 
   function hideUpper() {
@@ -698,6 +743,7 @@ export function createLdragoAbilityVfx(scene) {
   function reset() {
     root.visible = false;
     hideSteal();
+    hideAbsorb();
     hideFlight();
     hideLightning();
     hideUpper();
@@ -705,6 +751,10 @@ export function createLdragoAbilityVfx(scene) {
     flightSpin = 0;
     flightT = 0;
     upperSpin = 0;
+    absorbSpin = 0;
+    didAbsorbLaunchBurst = false;
+    didAbsorbImpactBurst = false;
+    lastAbsorbImpact = false;
   }
 
   reset();
@@ -719,11 +769,24 @@ export function createLdragoAbilityVfx(scene) {
       const spinStealing = !!body.userData.spinStealing;
       const upperMode = !!body.userData.ldragoUpperMode;
       const flightWindup = !!body.userData.ldragoFlightWindup;
-      const absorbWindup = !!body.userData.ldragoAbsorbWindup;
-      const absorbRush = !!body.userData.ldragoAbsorbRush;
-      const inFlight = !!body.userData.airborne && !!body.userData.invulnerable;
+      const absorbPhase = body.userData.ldragoAbsorbPhase;
+      const absorbWindup =
+        !!body.userData.ldragoAbsorbWindup ||
+        absorbPhase === 'windup' ||
+        absorbPhase === 'coil';
+      const absorbRush =
+        !!body.userData.ldragoAbsorbRush ||
+        absorbPhase === 'rush' ||
+        absorbPhase === 'pierce';
+      const inAbsorb = absorbWindup || absorbRush || absorbPhase != null;
+      // Soaring Destruction only — Absorb Break must not share this gate.
+      const inFlight =
+        !!body.userData.airborne &&
+        !!body.userData.invulnerable &&
+        !inAbsorb &&
+        (flightWindup || body.userData.ldragoFlightT != null);
 
-      if (!spinStealing && !upperMode && !flightWindup && !absorbWindup && !absorbRush && !inFlight) {
+      if (!spinStealing && !upperMode && !flightWindup && !inAbsorb && !inFlight) {
         reset();
         return;
       }
@@ -737,8 +800,9 @@ export function createLdragoAbilityVfx(scene) {
       const yBase = body.position.y + (body.userData.visualYOffset ?? 0)
         + (body.userData.flightLift ?? 0);
 
-      if (upperMode && !spinStealing && !absorbWindup && !absorbRush && !flightWindup && !inFlight) {
+      if (upperMode && !spinStealing && !inAbsorb && !flightWindup && !inFlight) {
         hideSteal();
+        hideAbsorb();
         hideFlight();
         upperSpin += dt * 3.2;
         const pulse = 0.7 + 0.3 * Math.sin(upperSpin * 2.4);
@@ -766,16 +830,140 @@ export function createLdragoAbilityVfx(scene) {
 
       hideUpper();
 
-      if (spinStealing || absorbWindup || absorbRush) {
+      // Absorb Break — dedicated crimson coil / rush / pierce (not Soaring Destruction).
+      if (inAbsorb) {
+        hideFlight();
+        hideSteal();
+        absorbSpin += dt * (absorbRush ? 9 : 5.5);
+        absorbGroup.position.set(bx, floorY, bz);
+
+        const phaseT = body.userData.ldragoAbsorbPhaseT ?? 0;
+        const nx = body.userData.ldragoAbsorbNx ?? 0;
+        const nz = body.userData.ldragoAbsorbNz ?? 0;
+        const dirLen = Math.hypot(nx, nz) || 1;
+        const dx = nx / dirLen;
+        const dz = nz / dirLen;
+        const yaw = Math.atan2(dx, dz);
+        const impact = !!body.userData.ldragoAbsorbImpact;
+
+        if (absorbWindup && !absorbRush) {
+          const coilT =
+            absorbPhase === 'coil'
+              ? clamp01(phaseT / LDRAGO_ABSORB_COIL_DUR)
+              : 0.55;
+          const gather = 0.55 + 0.45 * coilT;
+          absorbCore.position.set(0, R * 0.42, 0);
+          billboard(absorbCore, camera);
+          absorbCore.scale.setScalar(topGroup.scale.x * (0.5 + coilT * 0.35));
+          setVisible(absorbCore, 0.16 + coilT * 0.34);
+
+          // Orbiting crimson blades tighten inward as the coil gathers.
+          for (let i = 0; i < absorbStreaks.length; i++) {
+            const s = absorbStreaks[i];
+            const ang = absorbSpin + s.offset * Math.PI * 2;
+            const orbitR = R * (1.55 - coilT * 0.7);
+            s.mesh.position.set(
+              Math.cos(ang) * orbitR,
+              R * (0.28 + 0.1 * Math.sin(ang * 2)),
+              Math.sin(ang) * orbitR
+            );
+            s.mesh.rotation.y = ang;
+            billboard(s.mesh, camera);
+            s.mesh.scale.set(1, 0.55 + coilT * 0.55, 1);
+            setVisible(s.mesh, (0.18 + coilT * 0.28) * gather);
+          }
+          absorbTrail.stop();
+          didAbsorbLaunchBurst = false;
+          didAbsorbImpactBurst = false;
+        } else if (absorbRush) {
+          if (!didAbsorbLaunchBurst) {
+            absorbImpact.setPosition(bx, floorY + R * 0.25, bz);
+            absorbImpact.burst(26);
+            absorbShock.setPosition(bx, floorY + 0.08, bz);
+            absorbShock.burst(18);
+            didAbsorbLaunchBurst = true;
+          }
+
+          if (impact && !lastAbsorbImpact) {
+            absorbImpact.setPosition(bx, floorY + R * 0.3, bz);
+            absorbImpact.burst(36);
+            absorbShock.setPosition(bx, floorY + 0.1, bz);
+            absorbShock.burst(22);
+            didAbsorbImpactBurst = true;
+          }
+          lastAbsorbImpact = impact;
+
+          const pierceT =
+            absorbPhase === 'pierce'
+              ? clamp01(phaseT / LDRAGO_ABSORB_PIERCE_DUR)
+              : 0;
+          const speedFactor = clamp01((body.userData.ldragoAbsorbSpeed ?? 10) / 18);
+          const intensity =
+            absorbPhase === 'pierce'
+              ? 0.85 * (1 - pierceT * 0.55)
+              : 0.55 + speedFactor * 0.45;
+
+          absorbTrail.follow(bx, yBase, bz, intensity > 0.2);
+          absorbCore.position.set(0, R * 0.4, 0);
+          billboard(absorbCore, camera);
+          absorbCore.scale.setScalar(topGroup.scale.x * (0.4 + intensity * 0.35));
+          setVisible(absorbCore, 0.14 + intensity * 0.28 + (impact ? 0.25 : 0));
+
+          const streakLen = 0.7 + intensity * 1.5;
+          for (let i = 0; i < absorbStreaks.length; i++) {
+            const s = absorbStreaks[i];
+            const lag = s.offset * R * (1.2 + intensity);
+            const side = (i - (absorbStreaks.length - 1) * 0.5) * 0.09;
+            s.mesh.position.set(-dx * lag + dz * side, R * 0.36, -dz * lag - dx * side);
+            s.mesh.rotation.y = yaw;
+            billboard(s.mesh, camera);
+            s.mesh.scale.set(1, streakLen * (1 - s.offset * 0.25), 1);
+            setVisible(
+              s.mesh,
+              Math.max(0.05, (0.38 - s.offset * 0.28) * intensity)
+            );
+          }
+        }
+
+        // Keep steal beams for impact devour read.
+        const burst = body.userData.spinStealBurstT ?? (impact ? 1 : 0);
+        if (burst > 0.05) {
+          const fromX = body.userData.spinStealFromX ?? bx;
+          const fromZ = body.userData.spinStealFromZ ?? bz;
+          for (let i = 0; i < stealBeams.length; i++) {
+            const beam = stealBeams[i];
+            const t = (beam.offset + performance.now() * 0.002) % 1;
+            const ease = t * t * (3 - 2 * t);
+            beam.mesh.position.set(
+              fromX + (bx - fromX) * ease,
+              yBase + 0.25 + Math.sin(t * Math.PI) * 0.35,
+              fromZ + (bz - fromZ) * ease
+            );
+            billboard(beam.mesh, camera);
+            setVisible(beam.mesh, burst * (1 - t) * 0.75);
+          }
+        } else {
+          for (const b of stealBeams) {
+            b.mesh.visible = false;
+            b.mesh.material.opacity = 0;
+          }
+        }
+        return;
+      }
+
+      hideAbsorb();
+      didAbsorbLaunchBurst = false;
+      didAbsorbImpactBurst = false;
+      lastAbsorbImpact = false;
+
+      if (spinStealing) {
         hideFlight();
         stealGroup.position.set(0, 0, 0);
-        stealSpin -= dt * (absorbRush ? 6.5 : 4.2);
+        stealSpin -= dt * 4.2;
 
-        const stealT = body.userData.spinStealT ?? body.userData.ldragoAbsorbPhaseT ?? 0;
-        const life = absorbRush
-          ? 1
-          : clamp01(1 - stealT / LDRAGO_SPIN_STEAL_DURATION);
-        const burst = body.userData.spinStealBurstT ?? (body.userData.ldragoAbsorbImpact ? 1 : 0);
+        const stealT = body.userData.spinStealT ?? 0;
+        const life = clamp01(1 - stealT / LDRAGO_SPIN_STEAL_DURATION);
+        const burst = body.userData.spinStealBurstT ?? 0;
         const fromX = body.userData.spinStealFromX ?? bx;
         const fromZ = body.userData.spinStealFromZ ?? bz;
 
@@ -835,6 +1023,7 @@ export function createLdragoAbilityVfx(scene) {
 
       if (flightWindup || inFlight) {
         hideSteal();
+        hideAbsorb();
         flightGroup.position.set(bx, floorY, bz);
         flightT += dt;
 
