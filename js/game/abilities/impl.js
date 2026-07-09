@@ -3887,7 +3887,6 @@ export function clearAbilityFlags(body) {
   delete body.userData.flightRepulseT;
   delete body.userData.ldragoLightningSpots;
   delete body.userData.ldragoLightningFired;
-  delete body.userData.ldragoUpperMode;
   delete body.userData.atkCombatMultMult;
   delete body.userData.ldragoAbsorbPhase;
   delete body.userData.ldragoAbsorbPhaseT;
