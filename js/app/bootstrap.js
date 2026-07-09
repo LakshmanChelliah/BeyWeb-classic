@@ -66,7 +66,13 @@ export function createAppBootstrap({
 
   function getPlayers() {
     if (gameMode === GAME_MODES.TWO_PLAYER) {
-      return [{ label: 'PLAYER 1' }, { label: 'PLAYER 2' }];
+      return [
+        { label: 'PLAYER 1', controls: 'WASD · Q power · E special' },
+        { label: 'PLAYER 2', controls: 'Arrows · N power · M special' },
+      ];
+    }
+    if (platform === 'pc') {
+      return [{ label: 'YOU', controls: 'WASD · Q power · E special' }];
     }
     return [{ label: 'YOU' }];
   }

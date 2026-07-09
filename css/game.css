@@ -383,9 +383,25 @@ body:not(.boot-ready) #select-overlay {
 
 .key-hints {
   display: flex;
-  gap: 6px;
+  gap: 18px;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 28px;
+}
+
+.key-hint-group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.key-hint-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #7a8cb8;
+  margin-right: 4px;
 }
 
 kbd {
@@ -1185,6 +1201,23 @@ body:not(.mobile) #campaign-hud {
   color: #7a8cb8;
 }
 
+.select-controls {
+  margin: 10px auto 0;
+  max-width: min(92vw, 420px);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #c8d4f0;
+  background: rgba(79, 140, 255, 0.12);
+  border: 1px solid rgba(79, 140, 255, 0.28);
+  border-radius: 10px;
+}
+
+.select-controls[hidden] {
+  display: none;
+}
+
 .carousel-scene {
   perspective: 1200px;
   width: 100%;
@@ -1665,11 +1698,13 @@ body:not(.mobile) #campaign-hud {
 .pick-slot {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  max-width: min(92vw, 280px);
 }
 .pick-slot.active {
   border-color: #4f8cff;
@@ -1687,6 +1722,13 @@ body:not(.mobile) #campaign-hud {
   color: var(--bey-color, #cdddff);
 }
 .pick-bey.empty { color: #5a6a90; font-weight: 500; font-style: italic; }
+.pick-controls {
+  flex: 1 1 100%;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #9eb0d8;
+}
 
 #controls-hint,
 #tilt-hint {

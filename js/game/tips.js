@@ -17,7 +17,7 @@ const GAME_TIPS = Object.freeze([
   { kind: 'tip', text: 'You can\'t steer once spin drops too low — protect your stamina in long battles.' },
   { kind: 'tip', text: 'Tournament is best of 3 vs seven bladers in rising order — Benkei to Masamune.' },
   { kind: 'tip', text: 'Casual is best of 3 vs a random CPU rival. Win the series, then face a new one.' },
-  { kind: 'tip', text: 'On PC: WASD to steer, Q for power, E for special. In 2P, P1 uses arrows + Q/E.' },
+  { kind: 'tip', text: 'On PC: WASD to steer, Q for power, E for special. In 2P, P2 uses arrows + N/M.' },
   { kind: 'tip', text: 'On mobile: tilt the phone or drag the joystick to steer, then tap a move button.' },
   { kind: 'tip', text: 'Lightning L-Drago and Meteo L-Drago spin left — opposite of most beys on the roster.' },
   { kind: 'tip', text: 'Earth Eagle\'s WD tip drifts in wide arcs — use that orbit to control the dish.' },

@@ -208,7 +208,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   function abilityKeyLabels() {
     if (mode !== 'pc') return { player: {}, ai: {} };
     if (isVsCpu?.()) return { player: { power: 'Q', special: 'E' }, ai: {} };
-    return { player: { power: 'Q', special: 'E' }, ai: { power: '.', special: '/' } };
+    return { player: { power: 'Q', special: 'E' }, ai: { power: 'N', special: 'M' } };
   }
   const abilityButtons = { player: [], ai: [] };
 

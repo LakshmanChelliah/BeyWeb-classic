@@ -35,7 +35,7 @@ createAppBootstrap({
     if (controlsHint) {
       controlsHint.innerHTML = vsCpu
         ? 'WASD to steer · <kbd>Q</kbd> power · <kbd>E</kbd> special'
-        : 'P1: Arrows · <kbd>Q</kbd> power · <kbd>E</kbd> special &nbsp;|&nbsp; P2: WASD · <kbd>.</kbd> power · <kbd>/</kbd> special';
+        : 'P1: WASD · <kbd>Q</kbd> power · <kbd>E</kbd> special &nbsp;|&nbsp; P2: Arrows · <kbd>N</kbd> power · <kbd>M</kbd> special';
     }
 
     if (startBlurb) startBlurb.textContent = modeBlurb(gameMode);
@@ -80,7 +80,7 @@ createAppBootstrap({
       clearKeys: keyboard.clearKeys,
       applySteering(state) {
         if (isVsCpu(getGameMode())) {
-          keyboard.applyPlayer2Steer(state.playerBody, state.playerSpin);
+          keyboard.applyPlayer1Steer(state.playerBody, state.playerSpin);
           applyAISteering(state.aiBody, state.playerBody, state.aiSpin, state.playerSpin);
           tickAIAbilities(state, (slot) => getGameRef().triggerAbility('ai', slot));
         } else {
