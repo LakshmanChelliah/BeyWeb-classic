@@ -4,6 +4,10 @@ import { applyAISteering, tickAIAbilities } from './input/ai.js';
 import { createAppBootstrap } from './app/bootstrap.js';
 import { modeBlurb } from './game/modes.js';
 import { installTouchZoomGuard } from './touchZoomGuard.js';
+import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
+
+// Kick off the boot icon GLB before the rest of app bootstrap work.
+preloadGreyPegasusIcon();
 
 installTouchZoomGuard();
 
