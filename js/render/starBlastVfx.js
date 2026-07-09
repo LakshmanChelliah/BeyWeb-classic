@@ -185,31 +185,41 @@ export function createStarBlastVfx(scene) {
   root.add(starBloom);
 
   const diveTrail = createTrailSystem(scene, {
-    rate: 70,
-    startSize: [0.25, 0.7],
-    startLife: [0.2, 0.45],
-    colorA: new Vector4(0.55, 0.8, 1, 0.95),
-    colorB: new Vector4(0.9, 0.97, 1, 0),
+    rate: 95,
+    startSize: [0.3, 0.85],
+    startLife: [0.22, 0.5],
+    colorA: new Vector4(0.55, 0.85, 1, 1),
+    colorB: new Vector4(0.95, 0.98, 1, 0),
   });
 
   const bounceDust = createBurstSystem(scene, {
     additive: false,
     dustyColor: 0xd6c4a0,
-    startSpeed: [3, 10],
-    startSize: [0.2, 0.7],
-    gravity: -14,
-    coneAngle: 1.15,
-    colorA: new Vector4(0.85, 0.78, 0.6, 0.9),
+    startSpeed: [4, 12],
+    startSize: [0.25, 0.85],
+    gravity: -16,
+    coneAngle: 1.25,
+    colorA: new Vector4(0.9, 0.82, 0.65, 0.95),
     colorB: new Vector4(0.55, 0.48, 0.35, 0),
   });
 
   const bounceSparks = createBurstSystem(scene, {
     additive: true,
-    startSpeed: [4, 14],
-    startSize: [0.08, 0.28],
-    gravity: -4,
-    colorA: new Vector4(0.75, 0.9, 1, 1),
-    colorB: new Vector4(0.4, 0.7, 1, 0),
+    startSpeed: [6, 18],
+    startSize: [0.1, 0.35],
+    gravity: -5,
+    colorA: new Vector4(0.8, 0.95, 1, 1),
+    colorB: new Vector4(0.4, 0.75, 1, 0),
+  });
+
+  const apexBurst = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [5, 16],
+    startSize: [0.15, 0.55],
+    gravity: -2,
+    coneAngle: 1.5,
+    colorA: new Vector4(0.9, 0.97, 1, 1),
+    colorB: new Vector4(0.45, 0.75, 1, 0),
   });
 
   const history = Array.from({ length: HISTORY_LEN }, () => new THREE.Vector3());
@@ -306,9 +316,17 @@ export function createStarBlastVfx(scene) {
       if (phase !== lastPhase) {
         if (phase === 'bounce' || (phase === 'ascend' && lastPhase === 'dash')) {
           bounceDust.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.15, _pos.z);
-          bounceDust.burst(phase === 'bounce' ? 36 : 22);
+          bounceDust.burst(phase === 'bounce' ? 48 : 28);
           bounceSparks.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.2, _pos.z);
-          bounceSparks.burst(phase === 'bounce' ? 28 : 16);
+          bounceSparks.burst(phase === 'bounce' ? 36 : 20);
+        }
+        if (phase === 'ascend' && lastPhase === 'dash') {
+          apexBurst.setPosition(_pos.x, _pos.y + 1.2, _pos.z);
+          apexBurst.burst(32);
+        }
+        if (phase === 'dive' && lastPhase === 'ascend') {
+          apexBurst.setPosition(_pos.x, _pos.y + 1.6, _pos.z);
+          apexBurst.burst(40);
         }
         lastPhase = phase;
       }

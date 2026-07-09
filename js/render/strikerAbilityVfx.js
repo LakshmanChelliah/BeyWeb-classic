@@ -43,27 +43,27 @@ export function createStrikerAbilityVfx(scene) {
   scene.add(root);
 
   const blitzTrail = createTrailSystem(scene, {
-    rate: 50,
-    startSize: [0.12, 0.4],
-    startLife: [0.15, 0.35],
-    colorA: new Vector4(0.15, 0.85, 0.75, 0.9),
-    colorB: new Vector4(0.7, 0.98, 0.92, 0),
+    rate: 75,
+    startSize: [0.15, 0.5],
+    startLife: [0.18, 0.4],
+    colorA: new Vector4(0.2, 0.95, 0.85, 0.95),
+    colorB: new Vector4(0.75, 1, 0.95, 0),
   });
   const flashBurst = createBurstSystem(scene, {
     additive: true,
-    startSpeed: [6, 16],
-    startSize: [0.1, 0.4],
+    startSpeed: [8, 20],
+    startSize: [0.12, 0.5],
     gravity: -2,
-    colorA: new Vector4(0.2, 0.95, 0.85, 1),
-    colorB: new Vector4(0.8, 1, 0.95, 0),
+    colorA: new Vector4(0.25, 1, 0.9, 1),
+    colorB: new Vector4(0.85, 1, 0.98, 0),
   });
   const bounceDust = createBurstSystem(scene, {
     additive: false,
     dustyColor: 0x5eead4,
-    startSpeed: [3, 9],
-    startSize: [0.12, 0.4],
-    gravity: -10,
-    colorA: new Vector4(0.3, 0.85, 0.75, 0.85),
+    startSpeed: [4, 12],
+    startSize: [0.15, 0.55],
+    gravity: -12,
+    colorA: new Vector4(0.35, 0.9, 0.8, 0.9),
     colorB: new Vector4(0.15, 0.4, 0.35, 0),
   });
 
@@ -349,7 +349,7 @@ export function createStrikerAbilityVfx(scene) {
 
         if (!didVanishBurst) {
           flashBurst.setPosition(vx, floorY + R * 0.3, vz);
-          flashBurst.burst(30);
+          flashBurst.burst(42);
           didVanishBurst = true;
           didReappearBurst = false;
         }
@@ -397,7 +397,7 @@ export function createStrikerAbilityVfx(scene) {
         const flash = phase === 'reappear' ? reappear : 0;
         if (!didReappearBurst) {
           flashBurst.setPosition(body.position.x, floorY + R * 0.35, body.position.z);
-          flashBurst.burst(28);
+          flashBurst.burst(40);
           didReappearBurst = true;
           didVanishBurst = false;
         }

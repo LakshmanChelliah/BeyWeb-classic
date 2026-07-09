@@ -210,14 +210,21 @@ export function createLibraAbilityVfx(scene) {
   pillarSandFill.renderOrder = 7;
   pillarGroup.add(pillarSandFill);
 
-  const pillarBase = new THREE.Mesh(
-    new THREE.RingGeometry(PILLAR_CORE_R * 0.55, PILLAR_OUTER_R * 1.08, 36),
-    getMat(SAND_DARK)
-  );
-  pillarBase.rotation.x = -Math.PI / 2;
-  pillarBase.position.y = 0.06;
-  pillarBase.renderOrder = 11;
-  pillarGroup.add(pillarBase);
+  // Soft sand mound billboards at pillar base (no flat RingGeometry).
+  const pillarBaseMotes = [];
+  for (let i = 0; i < 10; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.35 + (i % 3) * 0.12, 0.18 + (i % 2) * 0.08),
+      getMat(i % 2 === 0 ? SAND_DARK : SAND_MID)
+    );
+    mesh.renderOrder = 11;
+    pillarGroup.add(mesh);
+    pillarBaseMotes.push({
+      mesh,
+      angle: (i / 10) * Math.PI * 2,
+      radius: PILLAR_OUTER_R * (0.55 + (i % 4) * 0.12),
+    });
+  }
 
   const pillarStreaks = [];
   for (let i = 0; i < PILLAR_STREAK_COUNT; i++) {
@@ -242,22 +249,7 @@ export function createLibraAbilityVfx(scene) {
     });
   }
 
-  const pitRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.55, 1.0, 32),
-    getMat(SAND_DARK)
-  );
-  pitRing.rotation.x = -Math.PI / 2;
-  pitRing.renderOrder = 2;
-  pitGroup.add(pitRing);
-
-  const sandWave = new THREE.Mesh(
-    new THREE.RingGeometry(0.94, 1.0, 40),
-    getMat(SAND_LIGHT)
-  );
-  sandWave.rotation.x = -Math.PI / 2;
-  sandWave.renderOrder = 4;
-  pitGroup.add(sandWave);
-
+  // Sand pit sold by particles + haze + soft disc — no flat range rings.
   const pitInner = new THREE.Mesh(
     new THREE.CircleGeometry(0.54, 32),
     getMat(SAND_MID)
@@ -265,6 +257,21 @@ export function createLibraAbilityVfx(scene) {
   pitInner.rotation.x = -Math.PI / 2;
   pitInner.renderOrder = 1;
   pitGroup.add(pitInner);
+
+  const pitRimMotes = [];
+  for (let i = 0; i < 16; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.22 + (i % 3) * 0.1, 0.1 + (i % 2) * 0.06),
+      getMat(i % 2 === 0 ? SAND_DARK : SAND_DEEP)
+    );
+    mesh.renderOrder = 4;
+    pitGroup.add(mesh);
+    pitRimMotes.push({
+      mesh,
+      phase: (i / 16) * Math.PI * 2,
+      band: 0.85 + (i % 4) * 0.04,
+    });
+  }
 
   const pitParticles = [];
   const sandColors = [SAND_LIGHT, SAND_MID, SAND_DARK, SAND_DUST, SAND_DEEP];
@@ -321,15 +328,14 @@ export function createLibraAbilityVfx(scene) {
     pillarMid.material.opacity = 0;
     pillarCore.material.opacity = 0;
     pillarSandFill.material.opacity = 0;
-    pillarBase.material.opacity = 0;
+    for (const m of pillarBaseMotes) m.mesh.material.opacity = 0;
     for (const s of pillarStreaks) s.mesh.material.opacity = 0;
     pillarGroup.scale.set(1, 0.001, 1);
   }
 
   function hidePit() {
-    pitRing.material.opacity = 0;
-    sandWave.material.opacity = 0;
     pitInner.material.opacity = 0;
+    for (const m of pitRimMotes) m.mesh.material.opacity = 0;
     for (const p of pitParticles) p.mesh.material.opacity = 0;
     for (const d of sandDust) d.mesh.material.opacity = 0;
   }
@@ -347,17 +353,26 @@ export function createLibraAbilityVfx(scene) {
     const spreadT = clamp01(pitT / LIBRA_BUSTER_SPREAD_DUR);
     const stillGrowing = spreadT < 0.98;
 
-    pitRing.scale.set(pitR, pitR, 1);
-    pitRing.material.opacity = 0.42 * env * Math.min(1, pitR / (reach * 0.2 + 0.01));
+    pitInner.scale.set(pitR * 0.72, pitR * 0.72, 1);
+    pitInner.material.opacity = 0.38 * env * Math.min(1, pitR / (reach * 0.15 + 0.01));
 
-    pitInner.scale.set(pitR * 0.7, pitR * 0.7, 1);
-    pitInner.material.opacity = 0.34 * env * Math.min(1, pitR / (reach * 0.15 + 0.01));
-
-    sandWave.position.y = 0.05;
-    sandWave.scale.set(pitR, pitR, 1);
-    sandWave.material.opacity = stillGrowing
-      ? (0.2 + 0.14 * Math.sin(pitT * 10)) * env
-      : 0;
+    // Growing rim sold by billboard motes + quarks (no flat RingGeometry).
+    for (const m of pitRimMotes) {
+      m.phase += dt * (1.2 + (stillGrowing ? 2.4 : 0.6));
+      const pr = pitR * m.band;
+      m.mesh.position.set(
+        Math.cos(m.phase + pitSpin * 0.5) * pr,
+        0.06 + Math.abs(Math.sin(m.phase * 2)) * 0.08,
+        Math.sin(m.phase + pitSpin * 0.5) * pr
+      );
+      billboard(m.mesh, camera);
+      m.mesh.material.opacity =
+        (stillGrowing ? 0.42 : 0.28) * env * (0.55 + 0.45 * Math.sin(m.phase * 3));
+    }
+    if (stillGrowing && Math.floor(pitT * 8) !== Math.floor((pitT - dt) * 8)) {
+      sandBurst.setPosition(cx, CONFIG.FLOOR_Y + 0.15, cz);
+      sandBurst.burst(10 + Math.floor(spreadT * 14));
+    }
 
     for (const p of pitParticles) {
       p.phase += dt * p.speed * (1 + pitSpin * 0.08);
@@ -414,7 +429,16 @@ export function createLibraAbilityVfx(scene) {
     pillarMid.material.opacity = midOp;
     pillarCore.material.opacity = coreOp;
     pillarSandFill.material.opacity = baseOp;
-    pillarBase.material.opacity = baseOp * 0.8;
+
+    for (const m of pillarBaseMotes) {
+      m.mesh.position.set(
+        Math.cos(m.angle + pitT * 1.5) * m.radius,
+        0.08 + Math.abs(Math.sin(m.angle * 2 + pitT * 3)) * 0.06,
+        Math.sin(m.angle + pitT * 1.5) * m.radius
+      );
+      billboard(m.mesh, camera);
+      m.mesh.material.opacity = baseOp * 0.85;
+    }
 
     for (const s of pillarStreaks) {
       s.phase = (s.phase + s.speed * dt) % PILLAR_HEIGHT;

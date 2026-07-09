@@ -54,7 +54,8 @@ function bodySnapshot(body) {
     bullUpperPhase: ud.bullUpperPhase ?? null,
     eagleDivePhase: ud.eagleDivePhase ?? null,
     strikerFlashPhase: ud.strikerFlashPhase ?? null,
-    starBlastPhase: ud.starBlastPhase ?? null,
+    starBlastPhase: ud.starPhase ?? ud.starBlastPhase ?? null,
+    starPhase: ud.starPhase ?? null,
     launchBouncePhase: ud.launchBounce?.phase ?? ud.launchBouncePhase ?? null,
     ldragoFlightPhase: ud.ldragoFlightPhase ?? null,
   };

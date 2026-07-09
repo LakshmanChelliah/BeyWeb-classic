@@ -84,30 +84,30 @@ export function createEagleAbilityVfx(scene) {
   root.add(diveCore);
 
   const featherTrail = createTrailSystem(scene, {
-    rate: 45,
-    startSize: [0.12, 0.4],
-    startLife: [0.25, 0.55],
-    colorA: new Vector4(0.98, 0.75, 0.2, 0.85),
-    colorB: new Vector4(0.95, 0.55, 0.1, 0),
+    rate: 70,
+    startSize: [0.15, 0.5],
+    startLife: [0.28, 0.6],
+    colorA: new Vector4(0.98, 0.8, 0.25, 0.95),
+    colorB: new Vector4(0.95, 0.5, 0.1, 0),
   });
 
   const impactDust = createBurstSystem(scene, {
     additive: false,
     dustyColor: 0xd4b896,
-    startSpeed: [4, 12],
-    startSize: [0.2, 0.65],
-    gravity: -12,
-    colorA: new Vector4(0.9, 0.78, 0.5, 0.9),
+    startSpeed: [6, 16],
+    startSize: [0.25, 0.85],
+    gravity: -14,
+    colorA: new Vector4(0.95, 0.82, 0.55, 0.95),
     colorB: new Vector4(0.55, 0.42, 0.25, 0),
   });
 
   const featherBurst = createBurstSystem(scene, {
     additive: true,
-    startSpeed: [3, 10],
-    startSize: [0.1, 0.35],
+    startSpeed: [5, 14],
+    startSize: [0.12, 0.45],
     gravity: -3,
-    colorA: new Vector4(0.98, 0.8, 0.3, 1),
-    colorB: new Vector4(0.95, 0.5, 0.1, 0),
+    colorA: new Vector4(1, 0.85, 0.35, 1),
+    colorB: new Vector4(0.95, 0.45, 0.1, 0),
   });
 
   let hasLast = false;
@@ -249,9 +249,9 @@ export function createEagleAbilityVfx(scene) {
 
       if (impact && !lastImpact) {
         impactDust.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.15, _pos.z);
-        impactDust.burst(34);
+        impactDust.burst(48);
         featherBurst.setPosition(_pos.x, _pos.y, _pos.z);
-        featherBurst.burst(26);
+        featherBurst.burst(40);
         body.userData.eagleImpactFlash = false;
       }
       lastImpact = impact;

@@ -41,31 +41,39 @@ export function createBullAbilityVfx(scene) {
   scene.add(root);
 
   const dirtTrail = createTrailSystem(scene, {
-    rate: 40,
-    startSize: [0.15, 0.5],
-    startLife: [0.2, 0.5],
-    gravity: -8,
-    colorA: new Vector4(0.75, 0.35, 0.15, 0.85),
-    colorB: new Vector4(0.4, 0.2, 0.1, 0),
+    rate: 55,
+    startSize: [0.18, 0.6],
+    startLife: [0.22, 0.55],
+    gravity: -10,
+    colorA: new Vector4(0.85, 0.4, 0.15, 0.95),
+    colorB: new Vector4(0.4, 0.18, 0.08, 0),
   });
   const impactGeyser = createBurstSystem(scene, {
     additive: false,
     dustyColor: 0xb45309,
-    startSpeed: [5, 14],
-    startSize: [0.2, 0.7],
-    gravity: -16,
-    coneAngle: 1.2,
-    colorA: new Vector4(0.85, 0.45, 0.15, 0.95),
+    startSpeed: [7, 18],
+    startSize: [0.25, 0.9],
+    gravity: -18,
+    coneAngle: 1.3,
+    colorA: new Vector4(0.95, 0.5, 0.15, 1),
     colorB: new Vector4(0.45, 0.2, 0.08, 0),
   });
   const bounceDust = createBurstSystem(scene, {
     additive: false,
     dustyColor: 0xd6a15c,
-    startSpeed: [3, 9],
-    startSize: [0.15, 0.5],
-    gravity: -12,
-    colorA: new Vector4(0.8, 0.55, 0.3, 0.9),
+    startSpeed: [4, 12],
+    startSize: [0.2, 0.65],
+    gravity: -14,
+    colorA: new Vector4(0.9, 0.6, 0.3, 0.95),
     colorB: new Vector4(0.45, 0.3, 0.15, 0),
+  });
+  const hornBurst = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [5, 14],
+    startSize: [0.1, 0.4],
+    gravity: -4,
+    colorA: new Vector4(1, 0.45, 0.2, 1),
+    colorB: new Vector4(0.9, 0.2, 0.1, 0),
   });
 
   const dustStreaks = [];
@@ -279,6 +287,10 @@ export function createBullAbilityVfx(scene) {
         } else if (phase === 'dash') {
           for (const g of gatherPool) g.mesh.material.opacity = 0;
           const build = clamp01(phaseT / BULL_DASH_BUILD_DUR);
+          if (build < 0.08 && phaseT < 0.05) {
+            hornBurst.setPosition(_pos.x, yBase + 0.25, _pos.z);
+            hornBurst.burst(28);
+          }
           const intensity = 0.3 + build * 0.4;
           const streakLen = 0.8 + build * 1.25;
           const yaw = Math.atan2(_smoothDir.x, _smoothDir.z);
@@ -316,7 +328,9 @@ export function createBullAbilityVfx(scene) {
         const ix = body.userData.bullImpactX ?? _pos.x;
         const iz = body.userData.bullImpactZ ?? _pos.z;
         impactGeyser.setPosition(ix, CONFIG.FLOOR_Y + 0.15, iz);
-        impactGeyser.burst(40);
+        impactGeyser.burst(56);
+        hornBurst.setPosition(ix, CONFIG.FLOOR_Y + 0.35, iz);
+        hornBurst.burst(32);
         body.userData.bullImpactFlash = false;
 
         for (const d of debrisPool) {
