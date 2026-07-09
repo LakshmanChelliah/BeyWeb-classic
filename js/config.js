@@ -95,3 +95,17 @@ export const CONFIG = Object.freeze({
   /** TEMP: set false before release — skips charge, cooldown, and special windup. */
   ABILITY_TEST_NO_DELAYS: false,
 });
+
+/**
+ * Mutable runtime overrides (capture / QA). Prefer these over mutating frozen CONFIG.
+ * `abilityTestNoDelays` mirrors CONFIG.ABILITY_TEST_NO_DELAYS when enabled via ?capture=1.
+ */
+export const RUNTIME_FLAGS = {
+  abilityTestNoDelays: false,
+  captureMode: false,
+};
+
+/** True when abilities skip charge / cooldown / windup (config or capture override). */
+export function isAbilityTestNoDelays() {
+  return CONFIG.ABILITY_TEST_NO_DELAYS || RUNTIME_FLAGS.abilityTestNoDelays;
+}

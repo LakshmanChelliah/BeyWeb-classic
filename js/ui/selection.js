@@ -373,6 +373,20 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
     remaining() {
       return BEYS.filter((b) => isBeyPlayable(b) && !locked.has(b.id));
     },
+    /** Focus carousel on a playable bey id (for capture / automation). */
+    focusBey(beyId) {
+      const idx = ROSTER.findIndex((b) => b.id === beyId);
+      if (idx < 0) return false;
+      currentIndex = idx;
+      render();
+      return true;
+    },
+    /** Confirm the currently centered bey (for capture / automation). */
+    confirmCurrent() {
+      if (turn >= players.length) return false;
+      confirmPick(currentIndex);
+      return true;
+    },
     /** Restart picks (e.g. when switching VS CPU / 2-player). */
     reset(newPlayers, { keepCarousel = false, preserveBeyId = null, autoPick = false } = {}) {
       const prevId = preserveBeyId ?? (keepCarousel ? ROSTER[currentIndex]?.id : null);
