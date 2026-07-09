@@ -851,5 +851,15 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
 
   gameLoop();
 
-  return { state, startGame, resetGame, returnToMenu, spawnTops, triggerAbility, playerGroup, aiGroup };
+  return {
+    state,
+    startGame,
+    resetGame,
+    returnToMenu,
+    spawnTops,
+    triggerAbility,
+    playerGroup,
+    aiGroup,
+    renderer,
+  };
 }
