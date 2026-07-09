@@ -7,6 +7,7 @@ import { createCampaignController } from '../game/campaignController.js';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
+import { installCaptureApi } from '../debug/captureApi.js';
 
 /**
  * Shared mobile/PC bootstrap: campaign, play setup, bey selection, and game wiring.
@@ -229,5 +230,7 @@ export function createAppBootstrap({
       finishBoot();
     });
 
-  return { gameRef, selection, campaignCtrl, playSetup, get gameMode() { return gameMode; } };
+  const app = { gameRef, selection, campaignCtrl, playSetup, get gameMode() { return gameMode; } };
+  installCaptureApi(app);
+  return app;
 }

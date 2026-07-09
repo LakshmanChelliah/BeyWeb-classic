@@ -19,7 +19,7 @@
  * so physics / input / contact code can read them without touching this module.
  */
 import * as CANNON from 'cannon-es';
-import { CONFIG } from '../../config.js';
+import { CONFIG, isAbilityTestNoDelays } from '../../config.js';
 import { setBodyCollisions } from '../../physics/top.js';
 import { isAtPocketAngle } from '../../physics/arena.js';
 import { clamp01 } from '../../utils/math.js';
@@ -2117,7 +2117,7 @@ export const ABILITY_REGISTRY = {
 function makeSlot(id) {
   const ability = id ? ABILITY_REGISTRY[id] || null : null;
   if (!ability) return null;
-  const initialCharge = CONFIG.ABILITY_TEST_NO_DELAYS
+  const initialCharge = isAbilityTestNoDelays()
     ? 0
     : (ability.charge ?? ability.cooldown ?? 0);
   return {
@@ -2250,7 +2250,7 @@ export function triggerAbility(state, side, slotName) {
   const slot = runtime[slotName];
   if (!slot) return null;
   if (state[spinKey(side)] < CONFIG.SLEEP_THRESHOLD) return null;
-  const testInstant = CONFIG.ABILITY_TEST_NO_DELAYS;
+  const testInstant = isAbilityTestNoDelays();
   if (
     (!testInstant && slot.cooldownRemaining > 0) ||
     slot.active ||
