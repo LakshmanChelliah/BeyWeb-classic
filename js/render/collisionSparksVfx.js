@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { clamp01 } from '../utils/math.js';
+import {
+  createBurstSystem,
+  ensureQuarksRuntime,
+  Vector4,
+} from './vfx/quarksRuntime.js';
+import { createSparkBurst } from './vfx/presets.js';
 
 const POOL_SIZE_DEFAULT = 128;
 const WHITE_HOT = 0xffffff;
@@ -88,8 +94,9 @@ function initParticle(p, burst, i, x, z, dir, tint) {
   p.mesh.visible = true;
 }
 
-/** Pooled billboard sparks for bey clashes and rim wall impacts. */
+/** Pooled billboard sparks + Quarks burst on special-flagged clashes. */
 export function createCollisionSparksVfx(scene, { poolSize = POOL_SIZE_DEFAULT, countScale = 1 } = {}) {
+  ensureQuarksRuntime(scene);
   const root = new THREE.Group();
   scene.add(root);
 
@@ -101,6 +108,16 @@ export function createCollisionSparksVfx(scene, { poolSize = POOL_SIZE_DEFAULT, 
     root.add(mesh);
     pool.push({ mesh, active: false, life: 0, maxLife: 0, vx: 0, vz: 0, vy: 0 });
   }
+
+  const specialQuarks = createSparkBurst(scene, { tint: 'white' });
+  const specialQuarksHot = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [8, 22],
+    startSize: [0.12, 0.5],
+    gravity: -5,
+    colorA: new Vector4(1, 0.95, 0.7, 1),
+    colorB: new Vector4(1, 0.55, 0.15, 0),
+  });
 
   function acquire() {
     for (const p of pool) {
@@ -140,6 +157,15 @@ export function createCollisionSparksVfx(scene, { poolSize = POOL_SIZE_DEFAULT, 
       if (!p) break;
       const tint = kind === 'wall' ? colorA : i % 2 === 0 ? colorA : colorB;
       initParticle(p, burst, i, x, z, dir, tint);
+    }
+
+    // Quarks layer on special-flagged clashes for flamboyant impact density.
+    if (special && !sustained) {
+      const y = SPARK_Y + 0.1;
+      specialQuarks.setPosition(x, y, z);
+      specialQuarks.burst(18 + Math.min(24, Math.floor(speed * 0.4)));
+      specialQuarksHot.setPosition(x, y, z);
+      specialQuarksHot.burst(12 + Math.min(16, Math.floor(speed * 0.25)));
     }
   }
 

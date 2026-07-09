@@ -8,6 +8,7 @@ import {
   ensureQuarksRuntime,
   Vector4,
 } from './vfx/quarksRuntime.js';
+import { createDebrisBurst, createSparkBurst } from './vfx/presets.js';
 
 const _pos = new THREE.Vector3();
 const _lastPos = new THREE.Vector3();
@@ -48,32 +49,19 @@ export function createBullAbilityVfx(scene) {
     colorA: new Vector4(0.85, 0.4, 0.15, 0.95),
     colorB: new Vector4(0.4, 0.18, 0.08, 0),
   });
-  const impactGeyser = createBurstSystem(scene, {
+  const impactGeyser = createDebrisBurst(scene, { dustyColor: 0xb45309, hot: true });
+  const bounceDust = createDebrisBurst(scene, { dustyColor: 0xd6a15c, hot: false });
+  const hornBurst = createSparkBurst(scene, { tint: 'red' });
+  // Dig-under dirt curtain during Red Horn Uppercut windup (canon underground dig).
+  const digGeyser = createBurstSystem(scene, {
     additive: false,
-    dustyColor: 0xb45309,
-    startSpeed: [7, 18],
-    startSize: [0.25, 0.9],
-    gravity: -18,
-    coneAngle: 1.3,
-    colorA: new Vector4(0.95, 0.5, 0.15, 1),
-    colorB: new Vector4(0.45, 0.2, 0.08, 0),
-  });
-  const bounceDust = createBurstSystem(scene, {
-    additive: false,
-    dustyColor: 0xd6a15c,
-    startSpeed: [4, 12],
-    startSize: [0.2, 0.65],
-    gravity: -14,
-    colorA: new Vector4(0.9, 0.6, 0.3, 0.95),
-    colorB: new Vector4(0.45, 0.3, 0.15, 0),
-  });
-  const hornBurst = createBurstSystem(scene, {
-    additive: true,
-    startSpeed: [5, 14],
-    startSize: [0.1, 0.4],
-    gravity: -4,
-    colorA: new Vector4(1, 0.45, 0.2, 1),
-    colorB: new Vector4(0.9, 0.2, 0.1, 0),
+    dustyColor: 0x92400e,
+    startSpeed: [3, 10],
+    startSize: [0.2, 0.7],
+    gravity: -10,
+    coneAngle: 1.4,
+    colorA: new Vector4(0.75, 0.45, 0.18, 0.95),
+    colorB: new Vector4(0.35, 0.2, 0.08, 0),
   });
 
   const dustStreaks = [];
@@ -141,6 +129,8 @@ export function createBullAbilityVfx(scene) {
   let wasStampede = false;
   let wasUpper = false;
   let lastBouncePulse = -1;
+  let lastDigBurst = 0;
+  let didDigOpen = false;
 
   function billboard(mesh, camera) {
     mesh.quaternion.copy(camera.quaternion);
@@ -154,6 +144,8 @@ export function createBullAbilityVfx(scene) {
     wasStampede = false;
     wasUpper = false;
     lastBouncePulse = -1;
+    lastDigBurst = 0;
+    didDigOpen = false;
     _smoothVel.set(0, 0, 0);
     _smoothDir.set(0, 0, -1);
     for (const s of dustStreaks) s.visible = false;
@@ -265,13 +257,26 @@ export function createBullAbilityVfx(scene) {
 
         if (phase === 'windup') {
           const wind = clamp01(phaseT / BULL_UPPERCUT_WINDUP);
+          if (!didDigOpen) {
+            digGeyser.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.08, _pos.z);
+            digGeyser.burst(36);
+            didDigOpen = true;
+          }
+          lastDigBurst += dt;
+          if (lastDigBurst > 0.18) {
+            lastDigBurst = 0;
+            digGeyser.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.06, _pos.z);
+            digGeyser.burst(10 + Math.floor(wind * 14));
+          }
           for (let i = 0; i < gatherPool.length; i++) {
             const g = gatherPool[i];
             const tr = g.phase + phaseT * 3.5;
+            // Dig-under gather: particles sink toward floor then pull inward.
             const orbit = R * (1.65 - wind * 1.0);
+            const digY = yBase + 0.18 * (1 - wind) + Math.sin(tr * 2) * 0.08 * (1 - wind * 0.6);
             g.mesh.position.set(
               _pos.x + Math.cos(tr) * orbit,
-              yBase + 0.18 + Math.sin(tr * 2) * 0.08,
+              Math.max(CONFIG.FLOOR_Y + 0.05, digY - wind * 0.25),
               _pos.z + Math.sin(tr) * orbit
             );
             billboard(g.mesh, camera);
@@ -285,6 +290,8 @@ export function createBullAbilityVfx(scene) {
           hornGlow.material.opacity = 0.15 + wind * 0.28;
           for (const s of dustStreaks) s.visible = false;
         } else if (phase === 'dash') {
+          didDigOpen = false;
+          lastDigBurst = 0;
           for (const g of gatherPool) g.mesh.material.opacity = 0;
           const build = clamp01(phaseT / BULL_DASH_BUILD_DUR);
           if (build < 0.08 && phaseT < 0.05) {

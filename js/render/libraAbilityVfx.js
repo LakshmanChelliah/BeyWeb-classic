@@ -16,6 +16,7 @@ import {
   ensureQuarksRuntime,
   Vector4,
 } from './vfx/quarksRuntime.js';
+import { createSandStorm, createImpactShockwave } from './vfx/presets.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -156,16 +157,7 @@ export function createLibraAbilityVfx(scene) {
     colorB: new Vector4(0.85, 1, 0.7, 0),
   });
 
-  const sandStorm = createTrailSystem(scene, {
-    rate: 50,
-    startSize: [0.15, 0.55],
-    startLife: [0.35, 0.8],
-    startSpeed: [0.5, 2.5],
-    gravity: -1,
-    colorA: new Vector4(0.85, 0.72, 0.4, 0.75),
-    colorB: new Vector4(0.55, 0.42, 0.22, 0),
-  });
-
+  const sandStorm = createSandStorm(scene);
   const sandBurst = createBurstSystem(scene, {
     additive: false,
     dustyColor: 0xc4a35a,
@@ -175,6 +167,9 @@ export function createLibraAbilityVfx(scene) {
     colorA: new Vector4(0.9, 0.78, 0.45, 0.9),
     colorB: new Vector4(0.5, 0.38, 0.2, 0),
   });
+  // Piercing shriek — radial sonic pulse bursts (particles, not flat rings).
+  const shriekPulse = createImpactShockwave(scene, { tint: 'sand' });
+  let lastShriekPulse = 0;
 
   // --- Sonic Buster energy column (anime-style vertical pillar) ----------------
   const pillarShell = new THREE.Mesh(
@@ -463,6 +458,7 @@ export function createLibraAbilityVfx(scene) {
     pitSpin = 0;
     pitT = 0;
     pillarScroll = 0;
+    lastShriekPulse = 0;
   }
 
   reset();
@@ -556,8 +552,18 @@ export function createLibraAbilityVfx(scene) {
           sandBurst.setPosition(bx, floorY + 0.15, bz);
           sandBurst.burst(28);
         }
+        // Piercing shriek pulses — radial particle shockwaves (canon Sonic Buster).
+        if (sonicBuster && env > 0.2) {
+          lastShriekPulse += dt;
+          if (lastShriekPulse > 0.55) {
+            lastShriekPulse = 0;
+            shriekPulse.setPosition(bx, floorY + 0.35 + pitR * 0.05, bz);
+            shriekPulse.burst(22 + Math.floor(spread * 16));
+          }
+        }
       } else {
         sandStorm.stop();
+        lastShriekPulse = 0;
       }
     },
     reset,

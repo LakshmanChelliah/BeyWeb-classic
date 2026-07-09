@@ -16,6 +16,7 @@ import {
   ensureQuarksRuntime,
   Vector4,
 } from './vfx/quarksRuntime.js';
+import { createDarkVortexTrail, createImpactShockwave } from './vfx/presets.js';
 
 function makeMat(color, opacity, { additive = false, doubleSide = false, map = null } = {}) {
   return new THREE.MeshBasicMaterial({
@@ -343,23 +344,8 @@ export function createLdragoAbilityVfx(scene) {
     colorA: new Vector4(0.72, 0.45, 1, 1),
     colorB: new Vector4(0.35, 0.12, 0.65, 0),
   });
-  const flightTrail = createTrailSystem(scene, {
-    rate: 55,
-    startSize: [0.18, 0.55],
-    startLife: [0.2, 0.45],
-    gravity: -2,
-    colorA: new Vector4(0.85, 0.55, 1, 0.95),
-    colorB: new Vector4(0.45, 0.15, 0.75, 0),
-  });
-  const launchShock = createBurstSystem(scene, {
-    additive: true,
-    startSpeed: [8, 22],
-    startSize: [0.12, 0.55],
-    gravity: -6,
-    coneAngle: 1.35,
-    colorA: new Vector4(1, 0.95, 1, 1),
-    colorB: new Vector4(0.55, 0.25, 0.95, 0),
-  });
+  const flightTrail = createDarkVortexTrail(scene);
+  const launchShock = createImpactShockwave(scene, { tint: 'purple' });
   const lightningBurst = createBurstSystem(scene, {
     additive: true,
     startSpeed: [6, 18],
@@ -367,6 +353,15 @@ export function createLdragoAbilityVfx(scene) {
     gravity: -3,
     colorA: new Vector4(0.95, 0.9, 1, 1),
     colorB: new Vector4(0.55, 0.35, 0.95, 0),
+  });
+  // Electrified dark-energy vortex shell around Soaring Destruction flight.
+  const darkVortex = createTrailSystem(scene, {
+    rate: 85,
+    startSize: [0.3, 0.85],
+    startLife: [0.3, 0.65],
+    gravity: 1,
+    colorA: new Vector4(0.35, 0.08, 0.55, 0.9),
+    colorB: new Vector4(0.15, 0.02, 0.3, 0),
   });
 
   const stealGroup = new THREE.Group();
@@ -671,6 +666,7 @@ export function createLdragoAbilityVfx(scene) {
     for (const r of repulseSheets) { r.mesh.visible = false; r.mesh.material.opacity = 0; }
     for (const s of repulseSparks) { s.mesh.visible = false; s.mesh.material.opacity = 0; }
     flightTrail.stop();
+    darkVortex.stop();
     lastLaunchPulse = false;
     lastLightningPulse = -1;
     hideLightning();
@@ -909,6 +905,7 @@ export function createLdragoAbilityVfx(scene) {
           for (const r of repulseSheets) r.mesh.material.opacity = 0;
           for (const s of repulseSparks) s.mesh.material.opacity = 0;
           flightTrail.stop();
+          darkVortex.stop();
         } else {
           flightSpin += dt * 3.6;
           const ft = body.userData.ldragoFlightT ?? 0;
@@ -936,8 +933,9 @@ export function createLdragoAbilityVfx(scene) {
           for (const c of windupCraterSparks) c.mesh.material.opacity = 0;
           windupPillar.material.opacity = launch > 0 ? (1 - launch) * 0.35 : 0;
 
-          // Quarks fire trail while hovering / launching.
+          // Dark-energy vortex + electrified trail (Soaring Destruction canon).
           flightTrail.follow(bx, floorY + hoverY + 0.4, bz, env > 0.2);
+          darkVortex.follow(bx, floorY + hoverY * 0.55 + 0.2, bz, env > 0.15);
           // Energy column anchored at the stadium floor around the bey.
           const colH = FLIGHT_COLUMN_HEIGHT * R * 0.55 * launchBoost * landFade;
           const colPulse = 0.92 + 0.08 * Math.sin(flightSpin * 3.2);
