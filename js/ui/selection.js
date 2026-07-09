@@ -54,13 +54,19 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
       <div class="carousel-container"></div>
     </div>
     <div class="carousel-indicators"></div>
+    <div class="select-confirm">
+      <button class="select-confirm-btn" type="button">SELECT</button>
+    </div>
   `;
 
   const titleEl = mount.querySelector('.select-title');
   const carousel = mount.querySelector('.carousel-container');
+  const scene = mount.querySelector('.carousel-scene');
   const indicators = mount.querySelector('.carousel-indicators');
   const prevBtn = mount.querySelector('.carousel-arrow.left');
   const nextBtn = mount.querySelector('.carousel-arrow.right');
+  const confirmWrap = mount.querySelector('.select-confirm');
+  const confirmBtn = mount.querySelector('.select-confirm-btn');
 
   const statsBlock = (bey) =>
     isBeyPlayable(bey)
@@ -106,10 +112,13 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
       </div>`;
     carousel.appendChild(item);
 
-    const dot = document.createElement('div');
+    const dot = document.createElement('button');
+    dot.type = 'button';
     dot.className = 'carousel-dot';
+    dot.setAttribute('aria-label', `Show ${bey.name}`);
     indicators.appendChild(dot);
 
+    // Side cards stay tappable so players can jump to any roster bey (not only arrows).
     item.addEventListener('click', () => {
       if (i !== currentIndex) {
         currentIndex = i;
@@ -120,11 +129,22 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
       e.stopPropagation();
       confirmPick(i);
     });
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (locked.has(bey.id) && turn < players.length) return;
+      currentIndex = i;
+      render();
+    });
     return item;
   });
 
   const dots = Array.from(indicators.children);
   const isMobile = document.body.classList.contains('mobile');
+
+  confirmBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    confirmPick(currentIndex);
+  });
 
   function nextOpenIndex(from) {
     for (let step = 0; step < ROSTER.length; step++) {
@@ -155,6 +175,9 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
   function render() {
     const total = ROSTER.length;
     const radius = isMobile ? Math.max(198, total * 46) : Math.max(360, total * 95);
+    const picking = turn < players.length;
+    const centerBey = ROSTER[currentIndex];
+    const centerTaken = locked.has(centerBey.id);
 
     cards.forEach((item, i) => {
       const bey = ROSTER[i];
@@ -175,17 +198,34 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
       item.style.opacity = String(opacity);
       item.style.filter = isCenter ? 'none' : isMobile ? 'blur(2px) brightness(0.58)' : 'blur(3px) brightness(0.55)';
       item.style.zIndex = String(Math.round(z + radius));
-      item.style.pointerEvents = isCenter ? 'auto' : 'none';
+      // Keep side cards clickable so any roster bey can be brought to center.
+      item.style.pointerEvents = 'auto';
 
       card.classList.toggle('active', isCenter);
       card.classList.toggle('taken', taken);
-      btn.disabled = taken || !isCenter;
+      // Card-local SELECT stays as a fallback; primary confirm is outside the 3D transform.
+      btn.disabled = taken || !isCenter || !picking;
       btn.textContent = taken ? 'TAKEN' : 'SELECT';
+      btn.hidden = isMobile;
     });
 
-    dots.forEach((d, i) => d.classList.toggle('on', i === currentIndex));
+    dots.forEach((d, i) => {
+      d.classList.toggle('on', i === currentIndex);
+      d.disabled = locked.has(ROSTER[i].id) && picking;
+    });
 
-    if (turn < players.length) {
+    if (confirmWrap && confirmBtn) {
+      confirmWrap.hidden = !picking;
+      confirmBtn.disabled = !picking || centerTaken;
+      confirmBtn.textContent = centerTaken ? 'TAKEN' : 'SELECT';
+      confirmBtn.style.setProperty('--bey-color', centerBey.color || '#4f8cff');
+      confirmBtn.setAttribute(
+        'aria-label',
+        centerTaken ? `${centerBey.name} already taken` : `Select ${centerBey.name}`
+      );
+    }
+
+    if (picking) {
       titleEl.textContent = isMobile ? 'CHOOSE YOUR BEY' : `${players[turn].label}: CHOOSE YOUR BEY`;
     } else {
       titleEl.textContent = 'BATTLE READY';
@@ -238,6 +278,92 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
   nextBtn.addEventListener('click', () => {
     currentIndex = nextOpenIndex((currentIndex + 1) % ROSTER.length);
     render();
+  });
+
+  // Swipe / drag on the carousel so mobile players can reach every bey without
+  // relying only on the side arrows (Pegasus is the default center card).
+  let swipeX = null;
+  let swipeY = null;
+  let swipeLocked = false;
+  const SWIPE_THRESHOLD = 42;
+
+  function onSwipeStart(clientX, clientY) {
+    swipeX = clientX;
+    swipeY = clientY;
+    swipeLocked = false;
+  }
+
+  function onSwipeMove(clientX, clientY, event) {
+    if (swipeX == null) return;
+    const dx = clientX - swipeX;
+    const dy = clientY - swipeY;
+    if (!swipeLocked && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+      swipeLocked = true;
+    }
+    if (swipeLocked) event.preventDefault();
+  }
+
+  function onSwipeEnd(clientX) {
+    if (swipeX == null) return;
+    const dx = clientX - swipeX;
+    swipeX = null;
+    swipeY = null;
+    if (!swipeLocked || Math.abs(dx) < SWIPE_THRESHOLD) {
+      swipeLocked = false;
+      return;
+    }
+    if (dx < 0) currentIndex = nextOpenIndex((currentIndex + 1) % ROSTER.length);
+    else currentIndex = prevOpenIndex(currentIndex);
+    swipeLocked = false;
+    render();
+  }
+
+  scene.addEventListener(
+    'touchstart',
+    (e) => {
+      if (e.touches.length !== 1) return;
+      onSwipeStart(e.touches[0].clientX, e.touches[0].clientY);
+    },
+    { passive: true }
+  );
+  scene.addEventListener(
+    'touchmove',
+    (e) => {
+      if (e.touches.length !== 1 || swipeX == null) return;
+      onSwipeMove(e.touches[0].clientX, e.touches[0].clientY, e);
+    },
+    { passive: false }
+  );
+  scene.addEventListener(
+    'touchend',
+    (e) => {
+      const t = e.changedTouches[0];
+      if (t) onSwipeEnd(t.clientX);
+    },
+    { passive: true }
+  );
+  scene.addEventListener('touchcancel', () => {
+    swipeX = null;
+    swipeY = null;
+    swipeLocked = false;
+  });
+
+  scene.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch' || e.button !== 0) return;
+    onSwipeStart(e.clientX, e.clientY);
+  });
+  scene.addEventListener('pointermove', (e) => {
+    if (swipeX == null || e.pointerType === 'touch') return;
+    onSwipeMove(e.clientX, e.clientY, e);
+  });
+  scene.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'touch') return;
+    onSwipeEnd(e.clientX);
+  });
+  scene.addEventListener('pointercancel', () => {
+    swipeX = null;
+    swipeY = null;
+    swipeLocked = false;
   });
 
   render();

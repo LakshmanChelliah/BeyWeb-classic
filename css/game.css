@@ -1261,15 +1261,56 @@ body:not(.mobile) #campaign-hud {
   z-index: 10;
 }
 .carousel-dot {
+  appearance: none;
+  border: none;
+  padding: 0;
   width: 26px;
   height: 4px;
   border-radius: 2px;
   background: rgba(122, 140, 184, 0.3);
   transition: background 0.4s, box-shadow 0.4s;
+  cursor: pointer;
+}
+.carousel-dot:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 .carousel-dot.on {
   background: #4f8cff;
   box-shadow: 0 0 8px rgba(79, 140, 255, 0.6);
+}
+
+.select-confirm {
+  display: none;
+  width: min(320px, calc(100% - 24px));
+  margin: 0 auto;
+  z-index: 30;
+  flex: 0 0 auto;
+}
+.select-confirm-btn {
+  appearance: none;
+  cursor: pointer;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  background: var(--bey-color, #4f8cff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: filter 0.15s, transform 0.15s;
+}
+.select-confirm-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.select-confirm-btn:active:not(:disabled) { transform: scale(0.97); }
+.select-confirm-btn:disabled {
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.12);
+  color: #6a7aa0;
+  box-shadow: none;
 }
 
 .select-picks {
@@ -1856,8 +1897,9 @@ body.mobile .carousel-scene {
   align-items: flex-end;
   justify-content: center;
   position: relative;
-  padding-top: 20px;
+  padding-top: 12px;
   padding-bottom: 2px;
+  touch-action: pan-y;
 }
 
 body.mobile .carousel-container {
@@ -1891,6 +1933,22 @@ body.mobile .carousel-indicators {
 body.mobile .carousel-dot {
   width: 28px;
   height: 5px;
+  min-width: 28px;
+  min-height: 18px;
+  background-clip: content-box;
+  padding: 6px 0;
+  box-sizing: content-box;
+}
+
+body.mobile .select-confirm {
+  display: block;
+  width: min(300px, calc(100vw - 48px));
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+}
+
+body.mobile .select-confirm-btn {
+  min-height: 52px;
+  font-size: 15px;
 }
 
 body.mobile .bey-item {
@@ -1902,6 +1960,7 @@ body.mobile .bey-item {
   max-height: none;
   display: block;
   overflow: visible;
+  cursor: pointer;
 }
 
 body.mobile .bey-card {
@@ -2005,6 +2064,10 @@ body.mobile .bey-select-btn {
   padding: 14px;
   font-size: 14px;
   flex-shrink: 0;
+}
+
+body.mobile .bey-card.active .bey-select-btn[hidden] {
+  display: none !important;
 }
 
 body.mobile .select-picks-chips {
