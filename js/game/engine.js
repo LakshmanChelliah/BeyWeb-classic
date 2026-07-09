@@ -375,7 +375,11 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       }
       if (pw.ability.id === 'pegasus_speed_boost') {
         const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.014);
-        return { color: pw.ability.glow, intensity: pulse * 1.15 };
+        return { color: pw.ability.glow, intensity: pulse * 1.05 };
+      }
+      if (pw.ability.id === 'striker_blitz_charge') {
+        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.015);
+        return { color: pw.ability.glow, intensity: pulse * 1.1 };
       }
       if (pw.ability.id === 'ldrago_spin_steal') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
@@ -386,9 +390,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         return { color: pw.ability.glow, intensity };
       }
       if (pw.ability.id === 'ldrago_upper_mode') {
-        // Pulsing purple aura while Upper Mode is active (+50% knockback window).
-        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.013);
-        return { color: pw.ability.glow, intensity: pulse * 1.7 };
+        // Moderate purple rim while Upper Mode is active (+50% knockback window).
+        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.012);
+        return { color: pw.ability.glow, intensity: pulse * 1.25 };
       }
       if (pw.ability.id === 'libra_sonic_shield') {
         const body = side === 'player' ? state.playerBody : state.aiBody;
