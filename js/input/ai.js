@@ -1,5 +1,5 @@
 import * as CANNON from 'cannon-es';
-import { CONFIG } from '../config.js';
+import { CONFIG, isAbilityTestNoDelays } from '../config.js';
 import { applySteerForce, computeSteerForce } from '../physics/steer.js';
 import { isAtPocketAngle } from '../physics/arena.js';
 
@@ -433,7 +433,7 @@ export function tickAIAbilities(state, onTrigger) {
   if (!state.abilities?.ai || state.launchGrace > 0 || !state.gameRunning || state.gameFrozen) {
     return;
   }
-  if (CONFIG.ABILITY_TEST_NO_DELAYS) return;
+  if (isAbilityTestNoDelays()) return;
 
   const { decisionInterval, specialReach, powerReach } = decisionConfig();
 

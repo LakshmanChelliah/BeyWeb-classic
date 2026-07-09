@@ -17,6 +17,7 @@
     "color-striker": "node scripts/color-ray-striker.mjs",
     "recolor-leone": "node scripts/recolor-leone-top.mjs",
     "dev": "npx --yes http-server -p 8000 -c-1 -a 127.0.0.1 .",
+    "capture-fight": "node scripts/capture-fight.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

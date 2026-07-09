@@ -9,6 +9,7 @@ import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
 import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
+import { installCaptureApi } from '../debug/captureApi.js';
 
 /**
  * Shared mobile/PC bootstrap: campaign, play setup, bey selection, and game wiring.
@@ -283,5 +284,7 @@ export function createAppBootstrap({
       finishBoot();
     });
 
-  return { gameRef, selection, campaignCtrl, playSetup, get gameMode() { return gameMode; } };
+  const app = { gameRef, selection, campaignCtrl, playSetup, get gameMode() { return gameMode; } };
+  installCaptureApi(app);
+  return app;
 }
