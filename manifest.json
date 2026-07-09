@@ -1,6 +1,6 @@
 {
-  "name": "Spin Sumo",
-  "short_name": "Spin Sumo",
+  "name": "Bey Web",
+  "short_name": "Bey Web",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "./index.html",
