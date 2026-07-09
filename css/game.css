@@ -84,7 +84,7 @@ body.mobile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(100%, 300px);
+  width: min(100%, 340px);
 }
 
 .boot-overlay .bey-icon {
@@ -133,6 +133,30 @@ body.mobile {
   font-weight: 700;
   letter-spacing: 0.12em;
   color: #6b7da8;
+}
+
+.boot-overlay-tip {
+  margin-top: 18px;
+  max-width: 320px;
+  min-height: 3.6em;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #9aaccf;
+  opacity: 0.95;
+  transition: opacity 0.35s ease;
+}
+
+.boot-overlay-tip .boot-tip-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #6b9fff;
+}
+
+.boot-overlay-tip.boot-tip-fade {
+  opacity: 0;
 }
 
 body:not(.boot-ready) #select-overlay {

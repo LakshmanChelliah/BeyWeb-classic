@@ -6,6 +6,7 @@ import { queryGameUi } from '../ui/domRefs.js';
 import { createCampaignController } from '../game/campaignController.js';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
+import { pickLoadingTip } from '../game/tips.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
 import { mountBeyIcon } from '../ui/beyIcon.js';
 
@@ -204,7 +205,35 @@ export function createAppBootstrap({
   const bootFill = document.getElementById('boot-progress-fill');
   const bootProgress = document.getElementById('boot-progress');
   const bootPct = document.getElementById('boot-pct');
+  const bootTip = document.getElementById('boot-tip');
   const playable = BEYS.filter(isBeyPlayable);
+  let tipIndex = -1;
+  let tipRotateTimer = null;
+
+  function renderBootTip(entry) {
+    if (!bootTip || !entry) return;
+    tipIndex = entry.index;
+    bootTip.replaceChildren();
+    const label = document.createElement('span');
+    label.className = 'boot-tip-label';
+    label.textContent = entry.label;
+    bootTip.append(label, document.createTextNode(entry.tip.text));
+  }
+
+  function showBootTip(fade = false) {
+    const entry = pickLoadingTip(tipIndex);
+    if (!bootTip) return;
+    if (!fade || !bootTip.textContent) {
+      renderBootTip(entry);
+      return;
+    }
+    bootTip.classList.add('boot-tip-fade');
+    window.setTimeout(() => {
+      if (!bootTip || document.body.classList.contains('boot-ready')) return;
+      renderBootTip(entry);
+      bootTip.classList.remove('boot-tip-fade');
+    }, 280);
+  }
 
   function setBootProgress(done, total, bey) {
     const pct = total > 0 ? Math.round((done / total) * 100) : 100;
@@ -219,6 +248,10 @@ export function createAppBootstrap({
   }
 
   function finishBoot() {
+    if (tipRotateTimer != null) {
+      clearInterval(tipRotateTimer);
+      tipRotateTimer = null;
+    }
     document.body.classList.add('boot-ready');
     if (bootOverlay) {
       bootOverlay.classList.add('hidden');
@@ -227,6 +260,9 @@ export function createAppBootstrap({
   }
 
   if (bootStatus) bootStatus.textContent = 'Loading beys…';
+  showBootTip(false);
+  tipRotateTimer = setInterval(() => showBootTip(true), 4500);
+
   const bootSafety = setTimeout(() => {
     if (!document.body.classList.contains('boot-ready')) {
       if (bootStatus) bootStatus.textContent = 'Almost ready…';
