@@ -39,6 +39,53 @@ function createMatCache() {
   };
 }
 
+/**
+ * Floor sand-pit disc — radial gradient stronger toward the center
+ * (old Sonic Buster sand circle: dense core, soft fade at the rim).
+ */
+function createSandPitTexture() {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext('2d');
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2;
+
+  // Stronger sand density inward; transparent at the outer edge.
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, 'rgba(143,111,69,0.95)');   // SAND_DEEP core
+  g.addColorStop(0.22, 'rgba(168,132,85,0.82)'); // SAND_DARK
+  g.addColorStop(0.48, 'rgba(201,168,122,0.62)'); // SAND_MID
+  g.addColorStop(0.72, 'rgba(217,191,152,0.38)'); // SAND_DUST
+  g.addColorStop(0.88, 'rgba(232,212,184,0.16)'); // SAND_LIGHT
+  g.addColorStop(1, 'rgba(232,212,184,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Soft grit speckles so the disc reads as sand, not a flat paint fill.
+  for (let i = 0; i < 180; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = Math.pow(Math.random(), 0.55) * r * 0.92;
+    const x = cx + Math.cos(a) * d;
+    const y = cy + Math.sin(a) * d;
+    const inward = 1 - d / r;
+    const alpha = (0.08 + Math.random() * 0.18) * inward;
+    ctx.fillStyle = Math.random() > 0.5
+      ? `rgba(120,90,55,${alpha})`
+      : `rgba(240,220,185,${alpha * 0.7})`;
+    ctx.fillRect(x, y, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 /** Vertical rain-streak texture for the Sonic Buster energy column (show-accurate). */
 function createPillarStreakTexture() {
   const c = document.createElement('canvas');
@@ -244,14 +291,27 @@ export function createLibraAbilityVfx(scene) {
     });
   }
 
-  // Sand pit sold by particles + haze + soft disc — no flat range rings.
-  const pitInner = new THREE.Mesh(
-    new THREE.CircleGeometry(0.54, 32),
-    getMat(SAND_MID)
+  // Floor sand circle — radial gradient denser toward center (old Sonic Buster pit).
+  // This is the sand field itself, not an attack-range telegraph ring.
+  const sandPitTex = createSandPitTexture();
+  const pitSand = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 64),
+    makeMat(0xffffff, 0, { map: sandPitTex, doubleSide: true })
   );
-  pitInner.rotation.x = -Math.PI / 2;
-  pitInner.renderOrder = 1;
-  pitGroup.add(pitInner);
+  pitSand.rotation.x = -Math.PI / 2;
+  pitSand.position.y = 0.01;
+  pitSand.renderOrder = 1;
+  pitGroup.add(pitSand);
+
+  // Slightly raised inner core for depth (stronger center read).
+  const pitCore = new THREE.Mesh(
+    new THREE.CircleGeometry(0.42, 40),
+    makeMat(0xffffff, 0, { map: sandPitTex, doubleSide: true })
+  );
+  pitCore.rotation.x = -Math.PI / 2;
+  pitCore.position.y = 0.025;
+  pitCore.renderOrder = 2;
+  pitGroup.add(pitCore);
 
   const pitRimMotes = [];
   for (let i = 0; i < 16; i++) {
@@ -329,7 +389,8 @@ export function createLibraAbilityVfx(scene) {
   }
 
   function hidePit() {
-    pitInner.material.opacity = 0;
+    pitSand.material.opacity = 0;
+    pitCore.material.opacity = 0;
     for (const m of pitRimMotes) m.mesh.material.opacity = 0;
     for (const p of pitParticles) p.mesh.material.opacity = 0;
     for (const d of sandDust) d.mesh.material.opacity = 0;
@@ -348,8 +409,12 @@ export function createLibraAbilityVfx(scene) {
     const spreadT = clamp01(pitT / LIBRA_BUSTER_SPREAD_DUR);
     const stillGrowing = spreadT < 0.98;
 
-    pitInner.scale.set(pitR * 0.72, pitR * 0.72, 1);
-    pitInner.material.opacity = 0.38 * env * Math.min(1, pitR / (reach * 0.15 + 0.01));
+    // Full-radius sand disc with inward-stronger gradient (matches old pit fill).
+    const sandVis = env * Math.min(1, pitR / (reach * 0.12 + 0.01));
+    pitSand.scale.set(pitR, pitR, 1);
+    pitSand.material.opacity = 0.92 * sandVis;
+    pitCore.scale.set(pitR * 0.55, pitR * 0.55, 1);
+    pitCore.material.opacity = 0.55 * sandVis;
 
     // Growing rim sold by billboard motes + quarks (no flat RingGeometry).
     for (const m of pitRimMotes) {
