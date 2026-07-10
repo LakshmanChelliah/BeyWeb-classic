@@ -124,16 +124,52 @@ function boltRand(seed) {
 
 function buildBoltPoints(seed, x, z, topY, bottomY, spread) {
   const pts = [];
-  const segs = 10;
+  const segs = 14;
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
     const y = topY + (bottomY - topY) * t;
-    const wobble = (1 - t) * spread;
+    const wobble = (1 - t * 0.55) * spread;
     const ox = boltRand(seed + i * 3.1) * wobble;
     const oz = boltRand(seed + i * 5.7 + 11) * wobble;
     pts.push(new THREE.Vector3(x + ox, y, z + oz));
   }
   return pts;
+}
+
+function buildBranchPoints(seed, mainPts, startIdx, spread) {
+  const start = mainPts[Math.min(startIdx, mainPts.length - 1)];
+  const dir = boltRand(seed) > 0 ? 1 : -1;
+  const pts = [start.clone()];
+  const segs = 7;
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    pts.push(
+      new THREE.Vector3(
+        start.x + dir * spread * t * (0.55 + boltRand(seed + i) * 0.45),
+        start.y - t * (2.8 + boltRand(seed + i + 3) * 1.4),
+        start.z + boltRand(seed + i + 7) * spread * 0.4 * t
+      )
+    );
+  }
+  return pts;
+}
+
+function makeBoltLine(color, segs = 14) {
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array((segs + 1) * 3);
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const line = new THREE.Line(geo, mat);
+  line.visible = false;
+  line.renderOrder = 12;
+  line.frustumCulled = false;
+  return line;
 }
 
 export function createLdragoSoaringVfx(scene) {
@@ -236,33 +272,75 @@ export function createLdragoSoaringVfx(scene) {
   apexFlare.renderOrder = 7;
   root.add(apexFlare);
 
-  // Impact lightning bolts (dive connect / wall hit twist).
+  // Impact + continuous crackle bolts (dive / wall / soar electrify).
+  const IMPACT_BOLT_COUNT = 12;
+  const BRANCH_BOLT_COUNT = 10;
+  const CRACKLE_BOLT_COUNT = 8;
   const impactBolts = [];
-  for (let i = 0; i < 5; i++) {
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(11 * 3);
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.LineBasicMaterial({
-      color: i === 0 ? WHITE_HOT : i < 3 ? LILAC : VIOLET_LIGHT,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    const line = new THREE.Line(geo, mat);
-    line.visible = false;
-    line.renderOrder = 12;
+  for (let i = 0; i < IMPACT_BOLT_COUNT; i++) {
+    const line = makeBoltLine(
+      i === 0 ? WHITE_HOT : i < 4 ? LILAC : i < 8 ? VIOLET_LIGHT : CRIMSON,
+      14
+    );
     root.add(line);
     impactBolts.push(line);
   }
+  const branchBolts = [];
+  for (let i = 0; i < BRANCH_BOLT_COUNT; i++) {
+    const line = makeBoltLine(i % 2 === 0 ? LILAC : WHITE_HOT, 7);
+    line.renderOrder = 11;
+    root.add(line);
+    branchBolts.push(line);
+  }
+  const crackleBolts = [];
+  for (let i = 0; i < CRACKLE_BOLT_COUNT; i++) {
+    const line = makeBoltLine(i % 2 === 0 ? VIOLET_LIGHT : LILAC, 10);
+    line.renderOrder = 10;
+    root.add(line);
+    crackleBolts.push(line);
+  }
+
+  // Thick bolt ribbons — LineBasicMaterial is 1px on WebGL; planes sell mass.
+  const BOLT_RIBBON_COUNT = 6;
+  const boltRibbons = [];
+  for (let i = 0; i < BOLT_RIBBON_COUNT; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.18 + (i % 3) * 0.06, 14),
+      makeTrailMat(i < 2 ? WHITE_HOT : i < 4 ? LILAC : VIOLET_LIGHT, 0)
+    );
+    mesh.visible = false;
+    mesh.renderOrder = 13;
+    root.add(mesh);
+    boltRibbons.push(mesh);
+  }
+  const CRACKLE_RIBBON_COUNT = 4;
+  const crackleRibbons = [];
+  for (let i = 0; i < CRACKLE_RIBBON_COUNT; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.1 + (i % 2) * 0.04, 5.5),
+      makeTrailMat(i % 2 === 0 ? LILAC : WHITE_HOT, 0)
+    );
+    mesh.visible = false;
+    mesh.renderOrder = 11;
+    root.add(mesh);
+    crackleRibbons.push(mesh);
+  }
 
   const skyFlash = new THREE.Mesh(
-    new THREE.PlaneGeometry(4.2, 2.2),
+    new THREE.PlaneGeometry(5.5, 2.8),
     makeTrailMat(WHITE_HOT, 0)
   );
   skyFlash.visible = false;
   skyFlash.renderOrder = 11;
   root.add(skyFlash);
+
+  const skyFlashOuter = new THREE.Mesh(
+    new THREE.PlaneGeometry(8.5, 4.2),
+    makeTrailMat(VIOLET_LIGHT, 0)
+  );
+  skyFlashOuter.visible = false;
+  skyFlashOuter.renderOrder = 10;
+  root.add(skyFlashOuter);
 
   const diveTrail = createTrailSystem(scene, {
     rate: 95,
@@ -304,12 +382,22 @@ export function createLdragoSoaringVfx(scene) {
 
   const lightningBurst = createBurstSystem(scene, {
     additive: true,
-    startSpeed: [8, 22],
-    startSize: [0.12, 0.45],
+    startSpeed: [10, 28],
+    startSize: [0.14, 0.55],
     gravity: -3,
-    coneAngle: 1.6,
+    coneAngle: 1.75,
     colorA: new Vector4(1, 0.95, 1, 1),
     colorB: new Vector4(0.6, 0.3, 1, 0),
+  });
+
+  const crackleBurst = createBurstSystem(scene, {
+    additive: true,
+    startSpeed: [4, 14],
+    startSize: [0.08, 0.28],
+    gravity: -1,
+    coneAngle: 1.8,
+    colorA: new Vector4(0.95, 0.85, 1, 1),
+    colorB: new Vector4(0.5, 0.25, 0.95, 0),
   });
 
   const history = Array.from({ length: HISTORY_LEN }, () => new THREE.Vector3());
@@ -320,6 +408,7 @@ export function createLdragoSoaringVfx(scene) {
   let lastBouncePulse = -1;
   let lastLightningPulse = false;
   let lastApexCharge = false;
+  let crackleAcc = 0;
 
   function phaseHint(body, phase, out) {
     out.set(0, 0, 0);
@@ -350,6 +439,7 @@ export function createLdragoSoaringVfx(scene) {
     lastBouncePulse = -1;
     lastLightningPulse = false;
     lastApexCharge = false;
+    crackleAcc = 0;
     _smoothVel.set(0, 0, 0);
     _smoothDir.set(0, 0, -1);
     for (const g of ghosts) g.visible = false;
@@ -361,6 +451,22 @@ export function createLdragoSoaringVfx(scene) {
     for (const b of impactBolts) {
       b.visible = false;
       b.material.opacity = 0;
+    }
+    for (const b of branchBolts) {
+      b.visible = false;
+      b.material.opacity = 0;
+    }
+    for (const b of crackleBolts) {
+      b.visible = false;
+      b.material.opacity = 0;
+    }
+    for (const r of boltRibbons) {
+      r.visible = false;
+      r.material.opacity = 0;
+    }
+    for (const r of crackleRibbons) {
+      r.visible = false;
+      r.material.opacity = 0;
     }
     bodyGlow.visible = false;
     bodyGlow.material.opacity = 0;
@@ -374,6 +480,8 @@ export function createLdragoSoaringVfx(scene) {
     apexFlare.material.opacity = 0;
     skyFlash.visible = false;
     skyFlash.material.opacity = 0;
+    skyFlashOuter.visible = false;
+    skyFlashOuter.material.opacity = 0;
     diveTrail.stop();
   }
 
@@ -395,11 +503,7 @@ export function createLdragoSoaringVfx(scene) {
   }
 
   function writeBolt(line, points) {
-    const attr = line.geometry.getAttribute('position');
-    for (let i = 0; i < points.length; i++) {
-      attr.setXYZ(i, points[i].x, points[i].y, points[i].z);
-    }
-    attr.needsUpdate = true;
+    line.geometry.setFromPoints(points);
     line.geometry.computeBoundingSphere();
   }
 
@@ -437,11 +541,15 @@ export function createLdragoSoaringVfx(scene) {
         }
         if (phase === 'ascend' && lastPhase === 'dash') {
           apexBurst.setPosition(_pos.x, _pos.y + 1.2, _pos.z);
-          apexBurst.burst(32);
+          apexBurst.burst(36);
+          lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.35, _pos.z);
+          lightningBurst.burst(36);
         }
         if (phase === 'dive' && lastPhase === 'ascend') {
           apexBurst.setPosition(_pos.x, _pos.y + 1.6, _pos.z);
-          apexBurst.burst(40);
+          apexBurst.burst(48);
+          lightningBurst.setPosition(_pos.x, _pos.y + 0.5, _pos.z);
+          lightningBurst.burst(40);
         }
         lastPhase = phase;
       }
@@ -459,54 +567,174 @@ export function createLdragoSoaringVfx(scene) {
       }
 
       // Apex charge spark burst (lightning twist before dive).
-      const apexCharge = (body.userData.ldragoApexChargeT ?? 0) > 0.55;
+      const apexCharge = (body.userData.ldragoApexChargeT ?? 0) > 0.4;
       if (apexCharge && !lastApexCharge) {
         apexBurst.setPosition(_pos.x, _pos.y + 1.8, _pos.z);
-        apexBurst.burst(28);
+        apexBurst.burst(40);
         lightningBurst.setPosition(_pos.x, _pos.y + 0.8, _pos.z);
-        lightningBurst.burst(22);
+        lightningBurst.burst(48);
       }
       lastApexCharge = apexCharge;
 
-      // Dive / wall lightning impact twist.
-      const impactT = body.userData.ldragoLightningImpactT ?? 0;
-      if (impactT > 0.02) {
-        const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.045));
-        const pow = impactT * flicker;
-        const seed = Math.floor(performance.now() * 0.02);
-        const topY = CONFIG.FLOOR_Y + 22;
-        const botY = CONFIG.FLOOR_Y + 0.1;
-        if (impactT > 0.7 && !lastLightningPulse) {
-          lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.4, _pos.z);
-          lightningBurst.burst(40);
-          lastLightningPulse = true;
-        }
-        if (impactT < 0.15) lastLightningPulse = false;
-
-        impactBolts.forEach((line, bi) => {
-          const spread = 1.1 + bi * 0.22;
-          const ox = boltRand(seed + bi * 4.1) * spread * 0.35;
-          const oz = boltRand(seed + bi * 6.3) * spread * 0.35;
+      // Continuous crackle during soar / dive / apex charge (electrified dragon).
+      // Stadium camera pullback makes near-bey arcs tiny — use sky→floor columns.
+      const crackleOn =
+        phase === 'ascend' ||
+        phase === 'dive' ||
+        apexCharge ||
+        (body.userData.ldragoApexChargeT ?? 0) > 0.05;
+      if (crackleOn) {
+        crackleAcc += dt;
+        const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.065));
+        const liftFrac = clamp01((body.userData.flightLift ?? 0) / 38);
+        const cracklePow =
+          (phase === 'dive' ? 0.85 : 0.55 + liftFrac * 0.4) * flicker;
+        const seed = Math.floor(performance.now() * 0.045);
+        const topY = CONFIG.FLOOR_Y + 24 + liftFrac * 6;
+        const botY = CONFIG.FLOOR_Y + 0.12;
+        crackleBolts.forEach((line, bi) => {
+          const spread = 1.1 + bi * 0.35;
+          const ring = 0.4 + bi * 0.55;
+          const ang = (bi / CRACKLE_BOLT_COUNT) * Math.PI * 2 + performance.now() * 0.003;
+          const ox = Math.cos(ang) * ring + boltRand(seed + bi * 5.3) * 0.35;
+          const oz = Math.sin(ang) * ring + boltRand(seed + bi * 7.1) * 0.35;
           writeBolt(
             line,
-            buildBoltPoints(seed + bi * 7, _pos.x + ox, _pos.z + oz, topY, botY, spread)
+            buildBoltPoints(seed + bi * 9, _pos.x + ox, _pos.z + oz, topY, botY, spread)
           );
-          line.material.opacity = pow * (bi === 0 ? 1 : 0.7 - bi * 0.1);
+          line.material.opacity = cracklePow * (1 - bi * 0.06);
+          line.visible = line.material.opacity > 0.03;
+        });
+        crackleRibbons.forEach((ribbonMesh, ri) => {
+          const ang = (ri / CRACKLE_RIBBON_COUNT) * Math.PI * 2 + performance.now() * 0.004;
+          const ring = 0.25 + ri * 0.4;
+          ribbonMesh.visible = true;
+          ribbonMesh.position.set(
+            _pos.x + Math.cos(ang) * ring,
+            (topY + botY) * 0.5,
+            _pos.z + Math.sin(ang) * ring
+          );
+          ribbonMesh.rotation.order = 'YXZ';
+          ribbonMesh.rotation.y = ang + Math.PI * 0.5;
+          ribbonMesh.rotation.x = -Math.PI * 0.48 + boltRand(seed + ri) * 0.1;
+          ribbonMesh.rotation.z = boltRand(seed + ri * 2) * 0.18;
+          const h = topY - botY;
+          ribbonMesh.scale.set(1.35 + flicker * 0.5, h / 5.5, 1);
+          ribbonMesh.material.opacity = cracklePow * (0.65 - ri * 0.08);
+        });
+        if (crackleAcc > 0.08) {
+          crackleAcc = 0;
+          crackleBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.35, _pos.z);
+          crackleBurst.burst(phase === 'dive' ? 22 : 14);
+          crackleBurst.setPosition(_pos.x, _pos.y + 0.3, _pos.z);
+          crackleBurst.burst(phase === 'dive' ? 12 : 8);
+        }
+      } else {
+        for (const b of crackleBolts) {
+          b.visible = false;
+          b.material.opacity = 0;
+        }
+        for (const r of crackleRibbons) {
+          r.visible = false;
+          r.material.opacity = 0;
+        }
+        crackleAcc = 0;
+      }
+
+      // Dive / wall lightning impact twist — denser main + branch bolts + thick ribbons.
+      const impactT = body.userData.ldragoLightningImpactT ?? 0;
+      if (impactT > 0.02) {
+        const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.06));
+        const pow = impactT * flicker;
+        const seed = Math.floor(performance.now() * 0.03);
+        const topY = CONFIG.FLOOR_Y + 28;
+        const botY = CONFIG.FLOOR_Y + 0.1;
+        if (impactT > 0.5 && !lastLightningPulse) {
+          lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.4, _pos.z);
+          lightningBurst.burst(72);
+          crackleBurst.setPosition(_pos.x, _pos.y + 0.6, _pos.z);
+          crackleBurst.burst(36);
+          lastLightningPulse = true;
+        }
+        if (impactT < 0.12) lastLightningPulse = false;
+
+        let mainPath = null;
+        impactBolts.forEach((line, bi) => {
+          const spread = 1.5 + bi * 0.3;
+          const ox = boltRand(seed + bi * 4.1) * spread * 0.45;
+          const oz = boltRand(seed + bi * 6.3) * spread * 0.45;
+          const pts = buildBoltPoints(
+            seed + bi * 7,
+            _pos.x + ox,
+            _pos.z + oz,
+            topY,
+            botY,
+            spread
+          );
+          if (bi === 0) mainPath = pts;
+          writeBolt(line, pts);
+          line.material.opacity = pow * (bi === 0 ? 1 : Math.max(0.22, 0.88 - bi * 0.06));
           line.visible = line.material.opacity > 0.02;
+        });
+
+        if (mainPath) {
+          branchBolts.forEach((line, bi) => {
+            const startIdx = 3 + (bi % 6);
+            writeBolt(
+              line,
+              buildBranchPoints(seed + 40 + bi * 11, mainPath, startIdx, 1.55 + bi * 0.2)
+            );
+            line.material.opacity = pow * (0.75 - bi * 0.05);
+            line.visible = line.material.opacity > 0.02;
+          });
+        }
+
+        boltRibbons.forEach((ribbonMesh, ri) => {
+          const ang = (ri / BOLT_RIBBON_COUNT) * Math.PI * 2 + boltRand(seed + ri) * 0.4;
+          const off = 0.2 + ri * 0.12;
+          ribbonMesh.visible = true;
+          ribbonMesh.position.set(
+            _pos.x + Math.cos(ang) * off,
+            (topY + botY) * 0.5,
+            _pos.z + Math.sin(ang) * off
+          );
+          ribbonMesh.rotation.order = 'YXZ';
+          ribbonMesh.rotation.y = ang + Math.PI * 0.5;
+          ribbonMesh.rotation.x = -Math.PI * 0.48 + boltRand(seed + ri * 2) * 0.12;
+          ribbonMesh.rotation.z = boltRand(seed + ri * 3) * 0.15;
+          const h = topY - botY;
+          ribbonMesh.scale.set(1.3 + pow * 0.6, h / 14, 1);
+          ribbonMesh.material.opacity = pow * (0.7 - ri * 0.07);
         });
 
         skyFlash.position.set(_pos.x, topY - 0.6, _pos.z);
         billboard(skyFlash, camera);
-        skyFlash.scale.set(1.5 + impactT * 2, 0.7 + impactT, 1);
-        skyFlash.material.opacity = pow * 0.75;
+        skyFlash.scale.set(2.1 + impactT * 2.6, 1.0 + impactT * 1.2, 1);
+        skyFlash.material.opacity = pow * 0.95;
         skyFlash.visible = true;
+
+        skyFlashOuter.position.set(_pos.x, topY - 0.2, _pos.z);
+        billboard(skyFlashOuter, camera);
+        skyFlashOuter.scale.set(2.8 + impactT * 3.0, 1.3 + impactT * 1.5, 1);
+        skyFlashOuter.material.opacity = pow * 0.5;
+        skyFlashOuter.visible = true;
       } else {
         for (const b of impactBolts) {
           b.visible = false;
           b.material.opacity = 0;
         }
+        for (const b of branchBolts) {
+          b.visible = false;
+          b.material.opacity = 0;
+        }
+        for (const r of boltRibbons) {
+          r.visible = false;
+          r.material.opacity = 0;
+        }
         skyFlash.visible = false;
         skyFlash.material.opacity = 0;
+        skyFlashOuter.visible = false;
+        skyFlashOuter.material.opacity = 0;
         lastLightningPulse = false;
       }
 
@@ -629,8 +857,9 @@ export function createLdragoSoaringVfx(scene) {
         billboard(bodyGlow, camera);
         const pulse = 1 + Math.sin(performance.now() * 0.012) * 0.08;
         bodyGlow.scale.setScalar(topGroup.scale.x * (1.1 + speedFactor * 0.4) * pulse);
-        bodyGlow.material.color.setHex(impactT > 0.3 ? WHITE_HOT : VIOLET);
-        bodyGlow.material.opacity = phase === 'dive' ? 0.34 + intensity * 0.2 : 0.2;
+        bodyGlow.material.color.setHex(impactT > 0.3 || phase === 'dive' ? WHITE_HOT : VIOLET);
+        bodyGlow.material.opacity =
+          phase === 'dive' ? 0.42 + intensity * 0.28 : impactT > 0.2 ? 0.32 : 0.22;
       } else {
         bodyGlow.material.opacity = 0;
       }
