@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=54';
-import { createBackdropTexture } from './arenaBackdrop.js?v=54';
+} from './arenaSkins.js?v=55';
+import { createBackdropTexture } from './arenaBackdrop.js?v=55';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -576,8 +576,8 @@ function createWbbaBowl(_skin) {
     side: THREE.DoubleSide,
   });
 
-  // Plaza ends ~18; stands start immediately outside so the bowl hugs the dish.
-  const innerR = PLATFORM_OUTER_RADIUS + 0.15;
+  // Stands hug the dish — only a short tiled apron (not a huge empty plaza).
+  const innerR = DISH_RADIUS + 2.6;
 
   // Low arena wall + glowing blue rail
   const lowWall = new THREE.Mesh(
@@ -595,16 +595,16 @@ function createWbbaBowl(_skin) {
   wallCap.position.y = 1.55;
   group.add(wallCap);
 
-  // Steep tiered stands — 10 rows rising tightly around the plaza
+  // Steep tiered stands — 10 rows rising tightly around the apron
   const tiers = 10;
   const bodyGeo = new THREE.BoxGeometry(0.34, 0.68, 0.26);
   const headGeo = new THREE.SphereGeometry(0.13, 5, 5);
   const dummy = new THREE.Object3D();
 
   for (let t = 0; t < tiers; t++) {
-    const r0 = innerR + 0.45 + t * 1.85;
-    const r1 = r0 + 1.7;
-    const y = 0.35 + t * 1.35;
+    const r0 = innerR + 0.35 + t * 1.55;
+    const r1 = r0 + 1.4;
+    const y = 0.55 + t * 1.45;
     const seat = new THREE.Mesh(
       new THREE.RingGeometry(r0, r1, 80),
       t % 2 === 0 ? seatMatA : seatMatB
@@ -674,7 +674,34 @@ function createWbbaBowl(_skin) {
     group.add(headMesh);
   }
 
-  const topR = innerR + 0.45 + (tiers - 1) * 1.85 + 1.7;
+  const topR = innerR + 0.35 + (tiers - 1) * 1.55 + 1.4;
+
+  // Apron lane rings (reads as tournament floor, not empty tile void)
+  for (const [rr, w] of [
+    [DISH_RADIUS + 0.9, 0.08],
+    [DISH_RADIUS + 1.7, 0.06],
+    [innerR - 0.15, 0.1],
+  ]) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(rr, w, 6, 64),
+      accentMat
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.03;
+    group.add(ring);
+  }
+  // Pocket approach chevrons toward each exit
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const chev = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.04, 0.35),
+      accentMat
+    );
+    const rr = DISH_RADIUS + 1.35;
+    chev.position.set(Math.cos(a) * rr, 0.04, Math.sin(a) * rr);
+    chev.rotation.y = -a;
+    group.add(chev);
+  }
 
   // Vertical columns + hanging WBBA banners
   for (let i = 0; i < 20; i++) {
@@ -1139,9 +1166,9 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   ground.castShadow = false;
   group.add(ground);
 
-  // WBBA: finite tiled plaza (not an infinite empty floor).
+  // WBBA: short tiled apron between dish rim and stands (not a huge empty floor).
   const plaza = new THREE.Mesh(
-    new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS + 0.5, 80),
+    new THREE.RingGeometry(DISH_RADIUS + 0.02, DISH_RADIUS + 2.85, 80),
     new THREE.MeshStandardMaterial({
       map: createPlatformTexture(skin),
       roughness: skin.platformRoughness ?? 0.42,

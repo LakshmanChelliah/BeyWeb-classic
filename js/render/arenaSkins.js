@@ -131,9 +131,9 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'eagle_aerie',
     beyId: 'eagle',
-    ambience: 0x0c1424,
-    fogNear: 38,
-    fogFar: 72,
+    ambience: 0x101828,
+    fogNear: 48,
+    fogFar: 95,
     name: 'WBBA Headquarters',
     desc: "Tsubasa's indoor tournament arena — dark dish under packed stands",
     placement: 'ground',
