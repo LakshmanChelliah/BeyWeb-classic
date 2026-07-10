@@ -95,8 +95,8 @@ export const LDRAGO_LIGHTNING_CHARGE_DUR = 0;
 export const LDRAGO_LIGHTNING_STRIKE_INTERVAL = 0;
 export const LDRAGO_LIGHTNING_RADIUS = 0;
 export const LDRAGO_SPIN_STEAL_DURATION = 4;
-const LDRAGO_LIGHTNING_IMPACT_DECAY = 3.4; // visual bolt flash decay rate
-const LDRAGO_APEX_CHARGE_DECAY = 2.8;
+const LDRAGO_LIGHTNING_IMPACT_DECAY = 2.2; // longer bolt flash so lightning reads
+const LDRAGO_APEX_CHARGE_DECAY = 1.85;
 const GUARD_IMPULSE_MULT = 3.4;
 const GUARD_SPIN_MULT = 2.2;
 const GUARD_SELF_IMPULSE = 0.04;
@@ -3599,7 +3599,7 @@ export function tickLdragoAbilityVisuals(state, dt) {
           body.userData.ldragoPhaseT = 0;
           body.userData.ldragoImpactFlash = true;
           // Wall-hit lightning crackle (visual twist).
-          body.userData.ldragoLightningImpactT = 0.55;
+          body.userData.ldragoLightningImpactT = 0.85;
           delete body.userData.ldragoDashFromX;
           delete body.userData.ldragoDashFromZ;
         }
@@ -3690,7 +3690,7 @@ export function tickLdragoAbilityVisuals(state, dt) {
           body.userData.ldragoBouncePulseT = 0;
           applyStarBounceKnockback(body, opp, STAR_BOUNCE_VELOCITY);
           if (starBlastOverlap(body, opp)) markLdragoSoaringHit(state, side, body, opp);
-          else body.userData.ldragoLightningImpactT = 0.7; // ground strike crackle on whiff land
+          else body.userData.ldragoLightningImpactT = 1; // ground strike crackle on whiff land
           body.userData.ldragoPhase = 'bounce';
           body.userData.ldragoPhaseT = 0;
           setBodyCollisions(body, true);
