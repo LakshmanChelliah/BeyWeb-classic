@@ -263,44 +263,50 @@ function paintIsland(ctx, w, h) {
   ctx.fillRect(0, h * 0.75, w, h * 0.25);
 }
 
-/** Metal Bey Rooftop — elevated deck over a bright city skyline. */
+/** Metal Bey Rooftop — elevated deck; painted skyline with towers taller than the stadium. */
 function paintRooftop(ctx, w, h) {
-  // Full vertical sky so looking past the rooftop edge still reads as open air.
-  paintSky(ctx, w, h, '#3a88c8', '#87ceeb', '#c8e0f0');
-  paintSun(ctx, w * 0.82, h * 0.14, 100, 'rgba(255,250,220,0.75)');
-  paintClouds(ctx, w, h, h * 0.12, 'rgba(255,255,255,0.5)', 6);
+  paintSky(ctx, w, h, '#2a78c0', '#6ab0e0', '#a8d0f0');
+  paintSun(ctx, w * 0.8, h * 0.12, 110, 'rgba(255,250,220,0.8)');
+  paintClouds(ctx, w, h, h * 0.1, 'rgba(255,255,255,0.45)', 6);
 
-  // Mid skyline (horizon band)
-  for (let i = 0; i < 24; i++) {
-    const x = (i / 24) * w;
-    const bh = 70 + ((i * 47) % 170);
-    const bw = 26 + (i % 3) * 12;
-    ctx.fillStyle = i % 3 === 0 ? '#5a6878' : i % 3 === 1 ? '#4a5868' : '#3a4858';
-    ctx.fillRect(x, h * 0.48 - bh, bw, bh);
-    ctx.fillStyle = 'rgba(220,235,250,0.4)';
-    for (let wy = 0; wy < Math.floor(bh / 14); wy++) {
-      for (let wx = 0; wx < Math.floor(bw / 10); wx++) {
+  // Far skyline — very tall towers that rise into the upper sky
+  for (let i = 0; i < 28; i++) {
+    const x = (i / 28) * w;
+    const bh = 120 + ((i * 61) % 220);
+    const bw = 22 + (i % 4) * 10;
+    ctx.fillStyle = i % 3 === 0 ? '#4a5868' : i % 3 === 1 ? '#3a4858' : '#2a3848';
+    // Tops reach well into the upper third of the canvas (above stadium eye-line)
+    ctx.fillRect(x, h * 0.55 - bh, bw, bh);
+    ctx.fillStyle = 'rgba(200,220,240,0.35)';
+    for (let wy = 0; wy < Math.floor(bh / 12); wy++) {
+      for (let wx = 0; wx < Math.floor(bw / 9); wx++) {
         if ((wx + wy + i) % 2 === 0) continue;
-        ctx.fillRect(x + 4 + wx * 10, h * 0.48 - bh + 6 + wy * 14, 5, 7);
+        ctx.fillRect(x + 3 + wx * 9, h * 0.55 - bh + 5 + wy * 12, 4, 6);
       }
     }
   }
 
-  // Lower sphere = looking down past the building: distant streets / haze, not a solid floor.
-  const below = ctx.createLinearGradient(0, h * 0.48, 0, h);
-  below.addColorStop(0, 'rgba(100,130,160,0)');
-  below.addColorStop(0.35, 'rgba(90,120,150,0.35)');
-  below.addColorStop(1, '#6a8aa8');
-  ctx.fillStyle = below;
-  ctx.fillRect(0, h * 0.48, w, h * 0.52);
-
-  // Tiny distant rooftops / streets under the deck
-  ctx.fillStyle = 'rgba(40,50,60,0.45)';
-  for (let i = 0; i < 30; i++) {
-    const x = (i / 30) * w;
-    const y = h * 0.62 + ((i * 37) % 80);
-    ctx.fillRect(x, y, 18 + (i % 4) * 8, 10 + (i % 3) * 6);
+  // Near taller towers (looming past the deck)
+  for (let i = 0; i < 8; i++) {
+    const x = w * (0.05 + i * 0.12);
+    const bh = 200 + (i % 3) * 60;
+    const bw = 36 + (i % 2) * 14;
+    ctx.fillStyle = '#2a3545';
+    ctx.fillRect(x, h * 0.62 - bh, bw, bh);
+    ctx.fillStyle = 'rgba(180,210,240,0.4)';
+    for (let wy = 0; wy < 18; wy++) {
+      ctx.fillRect(x + 6, h * 0.62 - bh + 10 + wy * 12, 10, 7);
+      ctx.fillRect(x + bw - 16, h * 0.62 - bh + 10 + wy * 12, 10, 7);
+    }
   }
+
+  // Below-deck haze / distant streets
+  const below = ctx.createLinearGradient(0, h * 0.55, 0, h);
+  below.addColorStop(0, 'rgba(80,110,140,0)');
+  below.addColorStop(0.4, 'rgba(70,100,130,0.4)');
+  below.addColorStop(1, '#5a7a98');
+  ctx.fillStyle = below;
+  ctx.fillRect(0, h * 0.55, w, h * 0.45);
 }
 
 /** Dark Nebula HQ Rooftop — elevated night deck over a stormy city. */

@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=50';
-import { createBackdropTexture } from './arenaBackdrop.js?v=50';
+} from './arenaSkins.js?v=51';
+import { createBackdropTexture } from './arenaBackdrop.js?v=51';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -190,7 +190,7 @@ function paintVenueFloor(ctx, size, skin, style, nearField) {
       paintFloorTiles(ctx, size, skin, nearField ? 5 : 8);
       break;
     case 'rooftop_day':
-      paintFloorTiles(ctx, size, skin, nearField ? 4 : 7);
+      paintFloorRooftopTar(ctx, size, skin);
       break;
     case 'koma_village':
       paintFloorCrackedEarth(ctx, size, skin);
@@ -338,7 +338,7 @@ function paintFloorCrackedEarth(ctx, size, skin) {
   }
 }
 
-function paintFloorRooftopDark(ctx, size, skin) {
+function paintFloorRooftopTar(ctx, size, skin) {
   ctx.fillStyle = skin.platformBase;
   ctx.fillRect(0, 0, size, size);
   ctx.strokeStyle = skin.platformGrid;
@@ -354,6 +354,16 @@ function paintFloorRooftopDark(ctx, size, skin) {
     ctx.lineTo(size, p);
     ctx.stroke();
   }
+  ctx.fillStyle = skin.platformVein || '#5a5048';
+  for (let i = 0; i < 10; i++) {
+    const x = ((i * 97) % (size - 80)) + 20;
+    const y = ((i * 53) % (size - 60)) + 15;
+    ctx.fillRect(x, y, 36, 22);
+  }
+}
+
+function paintFloorRooftopDark(ctx, size, skin) {
+  paintFloorRooftopTar(ctx, size, skin);
   ctx.fillStyle = 'rgba(120,40,80,0.12)';
   ctx.fillRect(0, 0, size, size);
 }
@@ -495,6 +505,170 @@ function applyPlacement(parts, skin) {
   if (parts.ground) parts.ground.visible = !elevated;
   if (parts.platform) parts.platform.visible = elevated;
   if (parts.base) parts.base.visible = elevated;
+  if (parts.supports) parts.supports.visible = elevated;
+  if (parts.city) parts.city.visible = elevated;
+}
+
+function tintCityForSkin(city, skin) {
+  if (!city) return;
+  const night = skin.backdrop?.style === 'dn_rooftop_night';
+  city.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const mat = obj.material;
+    if (obj.userData.cityPart === 'building') {
+      mat.color.setHex(night ? 0x12101c : 0x5a6878);
+      mat.emissive?.setHex?.(night ? 0x4a2080 : 0x000000);
+      mat.emissiveIntensity = night ? 0.15 : 0;
+    } else if (obj.userData.cityPart === 'window') {
+      mat.color.setHex(night ? 0xc084fc : 0xc8dce8);
+      mat.emissive?.setHex?.(night ? 0xa855f7 : 0x88aacc);
+      mat.emissiveIntensity = night ? 0.55 : 0.2;
+    } else if (obj.userData.cityPart === 'support') {
+      mat.color.setHex(night ? 0x2a2030 : 0x6a7888);
+    }
+  });
+}
+
+/**
+ * Steel supports under the rooftop deck — reads as a stadium in the sky.
+ */
+function createRooftopSupports(skin) {
+  const group = new THREE.Group();
+  group.userData.arenaPart = 'supports';
+  const steel = new THREE.MeshStandardMaterial({
+    color: skin.base ?? 0x6a7888,
+    metalness: 0.65,
+    roughness: 0.35,
+  });
+
+  // Tall building shaft under the deck
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(PLATFORM_OUTER_RADIUS * 0.55, PLATFORM_OUTER_RADIUS * 0.7, 22, 24),
+    steel.clone()
+  );
+  shaft.userData.cityPart = 'support';
+  shaft.position.y = -11.5;
+  shaft.castShadow = true;
+  shaft.receiveShadow = true;
+  group.add(shaft);
+
+  // Outer ring of pillars at the deck edge
+  const pillarGeo = new THREE.BoxGeometry(0.7, 14, 0.7);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const r = PLATFORM_OUTER_RADIUS - 1.2;
+    const pillar = new THREE.Mesh(pillarGeo, steel.clone());
+    pillar.userData.cityPart = 'support';
+    pillar.position.set(Math.cos(a) * r, -7.2, Math.sin(a) * r);
+    pillar.castShadow = true;
+    group.add(pillar);
+  }
+
+  // Diagonal braces under the deck
+  const braceGeo = new THREE.BoxGeometry(0.35, 10, 0.35);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + 0.15;
+    const r = PLATFORM_OUTER_RADIUS - 2.5;
+    const brace = new THREE.Mesh(braceGeo, steel.clone());
+    brace.userData.cityPart = 'support';
+    brace.position.set(Math.cos(a) * r, -5.5, Math.sin(a) * r);
+    brace.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.45;
+    brace.rotation.y = -a;
+    group.add(brace);
+  }
+
+  // Underside ring / lip
+  const lip = new THREE.Mesh(
+    new THREE.TorusGeometry(PLATFORM_OUTER_RADIUS - 0.4, 0.35, 8, 48),
+    steel.clone()
+  );
+  lip.userData.cityPart = 'support';
+  lip.rotation.x = Math.PI / 2;
+  lip.position.y = -0.4;
+  group.add(lip);
+
+  return group;
+}
+
+/**
+ * 3D city around an elevated rooftop — skyscrapers taller than the stadium
+ * so the venue reads as a deck in the sky, not a pad in a blue void.
+ */
+function createRooftopCity(skin) {
+  const group = new THREE.Group();
+  group.userData.arenaPart = 'city';
+  const night = skin.backdrop?.style === 'dn_rooftop_night';
+
+  const buildingMat = new THREE.MeshStandardMaterial({
+    color: night ? 0x12101c : 0x5a6878,
+    roughness: 0.72,
+    metalness: 0.25,
+    emissive: night ? 0x4a2080 : 0x000000,
+    emissiveIntensity: night ? 0.12 : 0,
+  });
+  const windowMat = new THREE.MeshStandardMaterial({
+    color: night ? 0xc084fc : 0xc8dce8,
+    roughness: 0.35,
+    metalness: 0.4,
+    emissive: night ? 0xa855f7 : 0x88aacc,
+    emissiveIntensity: night ? 0.5 : 0.18,
+  });
+
+  // Deterministic layout — buildings surround the deck and rise above wall height (~2).
+  const specs = [
+    { a: 0.15, r: 28, w: 5, d: 5, h: 36 },
+    { a: 0.55, r: 32, w: 4, d: 6, h: 28 },
+    { a: 1.0, r: 26, w: 6, d: 4, h: 42 },
+    { a: 1.4, r: 34, w: 5, d: 5, h: 24 },
+    { a: 1.85, r: 29, w: 4, d: 7, h: 38 },
+    { a: 2.3, r: 36, w: 7, d: 4, h: 30 },
+    { a: 2.7, r: 27, w: 5, d: 5, h: 44 },
+    { a: 3.15, r: 33, w: 4, d: 4, h: 22 },
+    { a: 3.55, r: 30, w: 6, d: 5, h: 40 },
+    { a: 4.0, r: 38, w: 5, d: 6, h: 26 },
+    { a: 4.4, r: 28, w: 4, d: 5, h: 34 },
+    { a: 4.85, r: 35, w: 6, d: 4, h: 48 },
+    { a: 5.3, r: 31, w: 5, d: 5, h: 32 },
+    { a: 5.75, r: 40, w: 4, d: 4, h: 20 },
+    { a: 0.35, r: 45, w: 8, d: 6, h: 52 },
+    { a: 2.0, r: 48, w: 6, d: 8, h: 46 },
+    { a: 3.8, r: 46, w: 7, d: 5, h: 55 },
+    { a: 5.1, r: 44, w: 5, d: 7, h: 38 },
+  ];
+
+  for (const s of specs) {
+    const building = new THREE.Mesh(
+      new THREE.BoxGeometry(s.w, s.h, s.d),
+      buildingMat.clone()
+    );
+    building.userData.cityPart = 'building';
+    // Bottom of building well below deck; top rises far above stadium walls.
+    building.position.set(
+      Math.cos(s.a) * s.r,
+      s.h * 0.5 - 18,
+      Math.sin(s.a) * s.r
+    );
+    building.castShadow = true;
+    building.receiveShadow = true;
+    group.add(building);
+
+    // Simple window strip on the face toward the stadium
+    const win = new THREE.Mesh(
+      new THREE.BoxGeometry(s.w * 0.7, s.h * 0.85, 0.15),
+      windowMat.clone()
+    );
+    win.userData.cityPart = 'window';
+    const inward = Math.atan2(-Math.sin(s.a), -Math.cos(s.a));
+    win.position.set(
+      Math.cos(s.a) * (s.r - s.d * 0.52),
+      s.h * 0.5 - 18,
+      Math.sin(s.a) * (s.r - s.d * 0.52)
+    );
+    win.rotation.y = inward;
+    group.add(win);
+  }
+
+  return group;
 }
 
 function applySkinToParts(parts, skin) {
@@ -526,6 +700,9 @@ function applySkinToParts(parts, skin) {
     parts.base.material.color.setHex(skin.base ?? 0x333333);
     parts.base.material.needsUpdate = true;
   }
+
+  tintCityForSkin(parts.city, skin);
+  tintCityForSkin(parts.supports, skin);
 
   disposeMap(parts.dish.material);
   const dishMap = createDishTexture(skin);
@@ -630,25 +807,31 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   platform.castShadow = false;
   group.add(platform);
 
-  // Building mass under the rooftop deck.
+  // Building mass under the rooftop deck (short cap — tall shaft is in supports).
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      PLATFORM_OUTER_RADIUS - 0.35,
-      PLATFORM_OUTER_RADIUS + 0.6,
-      1.4,
+      PLATFORM_OUTER_RADIUS - 0.2,
+      PLATFORM_OUTER_RADIUS + 0.4,
+      2.2,
       80
     ),
     new THREE.MeshStandardMaterial({
       color: skin.base ?? 0x333333,
-      metalness: 0.22,
-      roughness: 0.82,
+      metalness: 0.35,
+      roughness: 0.7,
     })
   );
   base.userData.arenaPart = 'base';
-  base.position.y = -0.85;
+  base.position.y = -1.2;
   base.receiveShadow = true;
   base.castShadow = true;
   group.add(base);
+
+  const supports = createRooftopSupports(skin);
+  group.add(supports);
+
+  const city = createRooftopCity(skin);
+  group.add(city);
 
   // Battle dish — slightly recessed into the deck / ground.
   const dish = new THREE.Mesh(
@@ -695,6 +878,8 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     ground,
     platform,
     base,
+    supports,
+    city,
     dish,
     dishLip,
     wallMat,
@@ -702,6 +887,8 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   };
   group.userData.arenaParts = parts;
   applyPlacement(parts, skin);
+  tintCityForSkin(city, skin);
+  tintCityForSkin(supports, skin);
 
   scene.add(group);
   return group;
