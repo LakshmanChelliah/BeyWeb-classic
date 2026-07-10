@@ -29,8 +29,8 @@ import {
 import { createGameState, resetRoundState } from './state.js';
 import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
-import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=45';
-import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=45';
+import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=46';
+import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=46';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
 import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';
@@ -960,5 +960,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
     playerGroup,
     aiGroup,
     renderer,
+    scene,
+    camera,
   };
 }
