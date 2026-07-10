@@ -322,10 +322,24 @@ function topFloorY(body) {
   return CONFIG.FLOOR_Y + r + CONFIG.FLOOR_EPSILON;
 }
 
-/** Elevates a freshly spawned bey and gives it inward launch velocity. */
-export function beginLaunchDrop(body) {
+/** Elevates a freshly spawned bey and holds it until beginLaunchDrop. */
+export function prepareLaunchHold(body) {
   if (!body) return;
   const floorY = topFloorY(body);
+  body.userData.launching = true;
+  body.userData.launchFloorY = floorY;
+  body.userData.launchDropProgress = 0;
+  const startY = floorY + CONFIG.LAUNCH_DROP_HEIGHT;
+  body.position.y = startY;
+  body.previousPosition.y = startY;
+  body.velocity.set(0, 0, 0);
+  body.angularVelocity.set(0, body.angularVelocity.y, 0);
+}
+
+/** Elevates a freshly spawned bey and gives it inward launch velocity. */
+export function beginLaunchDrop(body, speedScale = 1) {
+  if (!body) return;
+  const floorY = body.userData.launchFloorY ?? topFloorY(body);
   body.userData.launching = true;
   body.userData.launchFloorY = floorY;
   body.userData.launchDropProgress = 0;
@@ -337,8 +351,8 @@ export function beginLaunchDrop(body) {
   const x = body.position.x;
   const z = body.position.z;
   const dist = Math.hypot(x, z);
+  const speed = CONFIG.LAUNCH_INWARD_SPEED * Math.max(0.55, speedScale);
   if (dist > 0.01) {
-    const speed = CONFIG.LAUNCH_INWARD_SPEED;
     body.velocity.x = (-x / dist) * speed;
     body.velocity.z = (-z / dist) * speed;
   } else {

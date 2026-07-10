@@ -74,6 +74,7 @@ export function installCaptureApi(app) {
 
   RUNTIME_FLAGS.captureMode = true;
   RUNTIME_FLAGS.abilityTestNoDelays = true;
+  RUNTIME_FLAGS.autoLaunch = true;
   document.body.classList.add('capture-mode');
   document.documentElement.dataset.capture = '1';
 
@@ -106,6 +107,7 @@ export function installCaptureApi(app) {
       return Boolean(
         s?.gameRunning &&
           !s.gameFrozen &&
+          !s.awaitingLaunch &&
           s.launchGrace <= 0 &&
           s.playerBody &&
           s.aiBody &&
@@ -176,8 +178,9 @@ export function installCaptureApi(app) {
   function setSpin(playerSpin, aiSpin) {
     const s = gameRef?.state;
     if (!s) return false;
-    if (playerSpin != null) s.playerSpin = Math.max(0, Math.min(1, playerSpin));
-    if (aiSpin != null) s.aiSpin = Math.max(0, Math.min(1, aiSpin));
+    const max = 1.2;
+    if (playerSpin != null) s.playerSpin = Math.max(0, Math.min(max, playerSpin));
+    if (aiSpin != null) s.aiSpin = Math.max(0, Math.min(max, aiSpin));
     return true;
   }
 

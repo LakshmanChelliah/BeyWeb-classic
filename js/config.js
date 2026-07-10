@@ -45,6 +45,14 @@ export const CONFIG = Object.freeze({
   LAUNCH_DROP_HEIGHT: 3.0,
   /** Initial inward speed toward arena center during launch intro. */
   LAUNCH_INWARD_SPEED: 6.0,
+  /** Starting spin from the Let-it-rip launch mini-game (1 = 100%). */
+  LAUNCH_SPIN_MISS: 0.7,
+  LAUNCH_SPIN_WEAK: 0.85,
+  LAUNCH_SPIN_GOOD: 1.0,
+  LAUNCH_SPIN_GREAT: 1.1,
+  LAUNCH_SPIN_PERFECT: 1.2,
+  /** Hard cap for the spin gauge (perfect launch can start at 120%). */
+  SPIN_GAUGE_MAX: 1.2,
 
   COLLISION_BOWL: 1,
   COLLISION_PLAYER: 2,
@@ -103,6 +111,8 @@ export const CONFIG = Object.freeze({
 export const RUNTIME_FLAGS = {
   abilityTestNoDelays: false,
   captureMode: false,
+  /** Skip the launch mini-game and use a fixed good rip (QA / capture). */
+  autoLaunch: false,
 };
 
 /** True when abilities skip charge / cooldown / windup (config or capture override). */

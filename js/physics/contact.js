@@ -114,7 +114,7 @@ function applySpinDelta(state, side, delta, body) {
     if (!delta) return;
   }
   const key = side === 'player' ? 'playerSpin' : 'aiSpin';
-  state[key] = Math.max(0, Math.min(1, state[key] + delta));
+  state[key] = Math.max(0, Math.min(CONFIG.SPIN_GAUGE_MAX, state[key] + delta));
 }
 
 function buildImpact(bodyA, bodyB, closingSpeed) {
