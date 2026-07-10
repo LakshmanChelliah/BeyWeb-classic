@@ -160,12 +160,12 @@ export const ARENA_SKINS = Object.freeze([
     barrier: 0xd4a84a,
     barrierMetalness: 0.35,
     barrierRoughness: 0.35,
-    // Gold raised platform top (flush OOB around dish)
-    platformBase: '#d4a84a',
-    platformVein: '#c49838',
-    platformGrid: '#a87828',
-    platformRoughness: 0.32,
-    platformMetalness: 0.55,
+    // Gold raised platform top (flush OOB around dish) — keep saturated under blue lights
+    platformBase: '#f0c45a',
+    platformVein: '#e0b040',
+    platformGrid: '#b88828',
+    platformRoughness: 0.4,
+    platformMetalness: 0.28,
     // Teal stadium floor around the gold platform
     tealFloor: '#2a9aaa',
     tealFloorDark: '#1e7888',

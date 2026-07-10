@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=56';
-import { createBackdropTexture } from './arenaBackdrop.js?v=56';
+} from './arenaSkins.js?v=57';
+import { createBackdropTexture } from './arenaBackdrop.js?v=57';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -607,16 +607,18 @@ function createWbbaBowl(skin) {
   const standsInner = goldR + 9;
 
   const goldMat = new THREE.MeshStandardMaterial({
-    color: 0xd4a84a,
-    metalness: 0.62,
-    roughness: 0.3,
-    emissive: 0x6a4810,
-    emissiveIntensity: 0.08,
+    color: 0xf0c45a,
+    metalness: 0.3,
+    roughness: 0.38,
+    emissive: 0xc49220,
+    emissiveIntensity: 0.22,
   });
   const goldDarkMat = new THREE.MeshStandardMaterial({
-    color: 0xa87828,
-    metalness: 0.55,
-    roughness: 0.38,
+    color: 0xb88828,
+    metalness: 0.35,
+    roughness: 0.42,
+    emissive: 0x8a6010,
+    emissiveIntensity: 0.1,
   });
   const seatMatA = new THREE.MeshStandardMaterial({
     color: 0x1a2230,
@@ -1149,9 +1151,12 @@ function applySkinToParts(parts, skin) {
     const plazaMap = createPlatformTexture(skin);
     plazaMap.needsUpdate = true;
     parts.plaza.material.map = plazaMap;
-    parts.plaza.material.color.setHex(0xffffff);
-    parts.plaza.material.roughness = skin.platformRoughness ?? 0.32;
-    parts.plaza.material.metalness = skin.platformMetalness ?? 0.55;
+    const wbba = isWbba(skin);
+    parts.plaza.material.color.setHex(wbba ? 0xffd56a : 0xffffff);
+    parts.plaza.material.emissive?.setHex?.(wbba ? 0xc49220 : 0x000000);
+    parts.plaza.material.emissiveIntensity = wbba ? 0.28 : 0;
+    parts.plaza.material.roughness = skin.platformRoughness ?? (wbba ? 0.4 : 0.42);
+    parts.plaza.material.metalness = skin.platformMetalness ?? (wbba ? 0.28 : 0.12);
     parts.plaza.material.needsUpdate = true;
   }
 
@@ -1173,10 +1178,10 @@ function applySkinToParts(parts, skin) {
   parts.dish.material.needsUpdate = true;
 
   parts.dishLip.material.color.setHex(skin.dishLip);
-  parts.dishLip.material.metalness = 0.45;
-  parts.dishLip.material.roughness = 0.4;
+  parts.dishLip.material.metalness = isWbba(skin) ? 0.35 : 0.45;
+  parts.dishLip.material.roughness = isWbba(skin) ? 0.35 : 0.4;
   parts.dishLip.material.emissive.setHex(skin.dishLip);
-  parts.dishLip.material.emissiveIntensity = 0.06;
+  parts.dishLip.material.emissiveIntensity = isWbba(skin) ? 0.22 : 0.06;
   parts.dishLip.material.needsUpdate = true;
 
   parts.wallMat.color.setHex(skin.wall);
@@ -1255,8 +1260,11 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS, 80),
     new THREE.MeshStandardMaterial({
       map: createPlatformTexture(skin),
-      roughness: skin.platformRoughness ?? 0.32,
-      metalness: skin.platformMetalness ?? 0.55,
+      color: isWbba(skin) ? 0xffd56a : 0xffffff,
+      emissive: isWbba(skin) ? 0xc49220 : 0x000000,
+      emissiveIntensity: isWbba(skin) ? 0.28 : 0,
+      roughness: skin.platformRoughness ?? (isWbba(skin) ? 0.4 : 0.42),
+      metalness: skin.platformMetalness ?? (isWbba(skin) ? 0.28 : 0.12),
     })
   );
   plaza.userData.arenaPart = 'plaza';
@@ -1331,10 +1339,10 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     new THREE.RingGeometry(DISH_RADIUS - 0.08, DISH_RADIUS + 0.16, 80),
     new THREE.MeshStandardMaterial({
       color: skin.dishLip,
-      metalness: 0.45,
-      roughness: 0.4,
+      metalness: isWbba(skin) ? 0.35 : 0.45,
+      roughness: isWbba(skin) ? 0.35 : 0.4,
       emissive: skin.dishLip,
-      emissiveIntensity: 0.06,
+      emissiveIntensity: isWbba(skin) ? 0.22 : 0.06,
     })
   );
   dishLip.userData.arenaPart = 'dishLip';
