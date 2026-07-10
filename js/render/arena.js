@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=52';
-import { createBackdropTexture } from './arenaBackdrop.js?v=52';
+} from './arenaSkins.js?v=53';
+import { createBackdropTexture } from './arenaBackdrop.js?v=53';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -24,6 +24,10 @@ const DISH_RECESS = 0.07;
 
 function isElevated(skin) {
   return skin?.placement === 'elevated';
+}
+
+function isWbba(skin) {
+  return skin?.backdrop?.style === 'wbba_hq';
 }
 
 function createDishTexture(skin) {
@@ -502,11 +506,166 @@ function createSkyDome(skin) {
 
 function applyPlacement(parts, skin) {
   const elevated = isElevated(skin);
-  if (parts.ground) parts.ground.visible = !elevated;
+  const wbba = isWbba(skin);
+  // Huge open ground only for outdoor ground venues — not WBBA (indoor bowl).
+  if (parts.ground) parts.ground.visible = !elevated && !wbba;
+  if (parts.plaza) parts.plaza.visible = wbba;
+  if (parts.wbbaBowl) parts.wbbaBowl.visible = wbba;
   if (parts.platform) parts.platform.visible = elevated;
   if (parts.base) parts.base.visible = elevated;
   if (parts.supports) parts.supports.visible = elevated;
   if (parts.city) parts.city.visible = elevated;
+}
+
+/**
+ * Indoor WBBA tournament bowl: low wall, steep packed stands, ceiling beams.
+ * Makes the venue read as a packed arena — not an empty room with a dish.
+ */
+function createWbbaBowl(skin) {
+  const group = new THREE.Group();
+  group.userData.arenaPart = 'wbbaBowl';
+
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x2a3038,
+    roughness: 0.55,
+    metalness: 0.25,
+  });
+  const seatMat = new THREE.MeshStandardMaterial({
+    color: 0x1a2230,
+    roughness: 0.7,
+    metalness: 0.1,
+  });
+  const crowdMats = [
+    new THREE.MeshStandardMaterial({ color: 0x2a3040, roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ color: 0x3a4558, roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ color: 0x343c4c, roughness: 0.85 }),
+  ];
+  const headMat = new THREE.MeshStandardMaterial({
+    color: 0xd4b898,
+    roughness: 0.9,
+    metalness: 0,
+  });
+  const beamMat = new THREE.MeshStandardMaterial({
+    color: 0x151c28,
+    metalness: 0.55,
+    roughness: 0.4,
+  });
+
+  const innerR = PLATFORM_OUTER_RADIUS + 0.3; // ~18.3
+  // Low arena wall separating floor from stands
+  const lowWall = new THREE.Mesh(
+    new THREE.CylinderGeometry(innerR + 0.35, innerR + 0.35, 1.35, 64, 1, true),
+    wallMat
+  );
+  lowWall.position.y = 0.65;
+  group.add(lowWall);
+  const wallCap = new THREE.Mesh(
+    new THREE.TorusGeometry(innerR + 0.35, 0.12, 8, 64),
+    new THREE.MeshStandardMaterial({ color: 0x4a5568, metalness: 0.4, roughness: 0.35 })
+  );
+  wallCap.rotation.x = Math.PI / 2;
+  wallCap.position.y = 1.35;
+  group.add(wallCap);
+
+  // Steep tiered stands — 8 rows rising outward
+  const tiers = 8;
+  for (let t = 0; t < tiers; t++) {
+    const r0 = innerR + 0.6 + t * 2.4;
+    const r1 = r0 + 2.2;
+    const y = 0.4 + t * 1.55;
+    const seat = new THREE.Mesh(
+      new THREE.RingGeometry(r0, r1, 72),
+      seatMat.clone()
+    );
+    seat.rotation.x = -Math.PI / 2;
+    seat.position.y = y;
+    seat.receiveShadow = true;
+    group.add(seat);
+
+    // Riser face
+    const riser = new THREE.Mesh(
+      new THREE.CylinderGeometry(r0, r0, 1.5, 64, 1, true),
+      seatMat.clone()
+    );
+    riser.position.y = y - 0.7;
+    group.add(riser);
+
+    // Packed crowd on this tier (still-crowd anime look)
+    const crowdCount = 90 + t * 12;
+    const bodyGeo = new THREE.BoxGeometry(0.35, 0.7, 0.28);
+    const headGeo = new THREE.SphereGeometry(0.14, 6, 6);
+    for (let i = 0; i < crowdCount; i++) {
+      const a = (i / crowdCount) * Math.PI * 2 + (t % 2) * 0.03;
+      const rr = (r0 + r1) * 0.5 + ((i % 5) - 2) * 0.12;
+      const body = new THREE.Mesh(bodyGeo, crowdMats[i % crowdMats.length]);
+      body.position.set(Math.cos(a) * rr, y + 0.45, Math.sin(a) * rr);
+      body.rotation.y = -a + Math.PI;
+      group.add(body);
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.set(Math.cos(a) * rr, y + 0.9, Math.sin(a) * rr);
+      group.add(head);
+    }
+  }
+
+  // Vertical structural beams around the bowl
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const r = innerR + 10;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, 18, 0.45), beamMat);
+    beam.position.set(Math.cos(a) * r, 9, Math.sin(a) * r);
+    group.add(beam);
+  }
+
+  // Overhead rafters / ceiling ring
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 28), beamMat);
+    rafter.position.set(Math.cos(a) * 6, 16.5, Math.sin(a) * 6);
+    rafter.lookAt(0, 16.5, 0);
+    group.add(rafter);
+  }
+  const ceiling = new THREE.Mesh(
+    new THREE.CircleGeometry(42, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0x0c1424,
+      roughness: 0.9,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+    })
+  );
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.y = 17.2;
+  group.add(ceiling);
+
+  // Soft overhead spotlight glow disc
+  const lamp = new THREE.Mesh(
+    new THREE.CircleGeometry(10, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xa8c8ff,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    })
+  );
+  lamp.rotation.x = Math.PI / 2;
+  lamp.position.y = 16.8;
+  group.add(lamp);
+
+  // Outer dark bowl wall behind the top stands
+  const outerWall = new THREE.Mesh(
+    new THREE.CylinderGeometry(innerR + 20, innerR + 20, 20, 64, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x101820,
+      roughness: 0.85,
+      metalness: 0.1,
+      side: THREE.BackSide,
+    })
+  );
+  outerWall.position.y = 8;
+  group.add(outerWall);
+
+  return group;
 }
 
 function tintCityForSkin(city, skin) {
@@ -958,6 +1117,8 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
 
   const parts = {
     ground,
+    plaza,
+    wbbaBowl,
     platform,
     base,
     supports,
