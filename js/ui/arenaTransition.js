@@ -1,6 +1,6 @@
 /**
  * Full-screen stadium reveal used when a tournament rival's arena loads.
- * Geometry never changes — only the skin swap happens mid-fade.
+ * Shown for the first rival on Start, and again on each Next Rival.
  */
 
 function sleep(ms) {
@@ -16,7 +16,6 @@ function ensureOverlay() {
   el.className = 'arena-transition';
   el.setAttribute('aria-hidden', 'true');
   el.innerHTML = `
-    <div class="arena-transition-veil"></div>
     <div class="arena-transition-card">
       <p class="arena-transition-kicker">Entering</p>
       <h2 class="arena-transition-title"></h2>
@@ -48,18 +47,20 @@ export async function playArenaTransition(opts) {
   }
   el.style.setProperty('--arena-accent', accent);
 
-  el.classList.remove('is-out', 'is-hold');
+  el.classList.remove('is-out', 'is-hold', 'is-in', 'is-active');
+  // Force reflow so the next class add restarts transitions.
+  void el.offsetWidth;
   el.classList.add('is-active', 'is-in');
   el.setAttribute('aria-hidden', 'false');
 
-  await sleep(420);
+  await sleep(380);
   onMidpoint?.();
   el.classList.add('is-hold');
-  await sleep(780);
+  await sleep(1100);
 
   el.classList.remove('is-in', 'is-hold');
   el.classList.add('is-out');
-  await sleep(480);
+  await sleep(360);
 
   el.classList.remove('is-active', 'is-out');
   el.setAttribute('aria-hidden', 'true');

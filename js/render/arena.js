@@ -4,7 +4,7 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=37';
+} from './arenaSkins.js?v=38';
 
 /**
  * Stadium geometry is fixed. Skins only swap canvas textures and material
