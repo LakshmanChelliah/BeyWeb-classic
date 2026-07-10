@@ -257,6 +257,7 @@ export function createAppBootstrap({
       mode: platform === 'mobile' ? 'mobile' : 'pc',
       canvas,
       isVsCpu: () => isVsCpu(gameMode),
+      getDifficulty: () => difficulty,
       ui: queryGameUi(queryUiOptions),
       input,
     });

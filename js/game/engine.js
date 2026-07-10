@@ -14,6 +14,7 @@ import {
   settleSleepingTop,
   updateTopCollisions,
   beginLaunchDrop,
+  prepareLaunchHold,
   stepLaunchDrop,
   applyCenterPull,
   applyOrbitDrift,
@@ -65,6 +66,7 @@ import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
 import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
+import { runLaunchMinigame } from '../ui/launchMinigame.js';
 import {
   ensureQuarksRuntime,
   updateQuarks,
@@ -74,7 +76,7 @@ import {
 /**
  * Boots the shared game engine for PC (2-player) or mobile (gyro + AI).
  */
-export function createGame({ mode, canvas, ui, input, isVsCpu }) {
+export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) {
   const state = createGameState();
   const { renderer, scene, camera } = createScene(canvas, mode);
   const { world, topMaterial, bowlMaterial, wallMaterial } = createPhysicsWorld();
@@ -469,7 +471,15 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   }
 
   function triggerAbility(side, slot) {
-    if (!state.gameRunning || state.gameFrozen || state.launchGrace > 0 || state.pendingKo) return null;
+    if (
+      !state.gameRunning ||
+      state.gameFrozen ||
+      state.awaitingLaunch ||
+      state.launchGrace > 0 ||
+      state.pendingKo
+    ) {
+      return null;
+    }
     const ability = triggerAbilityCore(state, side, slot);
     if (ability && slot === 'special') {
       const bey = side === 'player' ? state.playerBey : state.aiBey;
@@ -483,8 +493,11 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     const aPct = Math.round(state.aiSpin * 100);
     dom.playerSpinEl.textContent = `${pPct}%`;
     dom.aiSpinEl.textContent = `${aPct}%`;
-    dom.playerBar.style.width = `${pPct}%`;
-    dom.aiBar.style.width = `${aPct}%`;
+    // Bar fill caps at 100%; perfect launches still show 120% in the label.
+    dom.playerBar.style.width = `${Math.min(100, pPct)}%`;
+    dom.aiBar.style.width = `${Math.min(100, aPct)}%`;
+    dom.playerBar.classList.toggle('is-overdrive', state.playerSpin > 1.001);
+    dom.aiBar.classList.toggle('is-overdrive', state.aiSpin > 1.001);
   }
 
   /** Points each HUD avatar at the bey that side actually chose */
@@ -542,7 +555,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     input.onMatchEnd?.(result);
   }
 
-  function spawnTops() {
+  async function spawnTops() {
     resetStarBlastCamera();
     resetMobileCameraFraming();
     resetAllAbilityVfx();
@@ -554,6 +567,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     }
 
     resetRoundState(state);
+    state.awaitingLaunch = true;
+    // Hold grace frozen until the rip mini-game resolves.
+    state.launchGrace = CONFIG.LAUNCH_GRACE;
     const spawnAngle = 0.7;
 
     state.playerBody = createTopPhysicsBody(
@@ -612,21 +628,51 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     buildAbilityButtons('player');
     buildAbilityButtons('ai');
 
+    prepareLaunchHold(state.playerBody);
+    prepareLaunchHold(state.aiBody);
     stabilizeTop(state.playerBody, 0.15, state.playerBody.userData.spinSign ?? 1, state.launchGrace);
     stabilizeTop(state.aiBody, 0.15, state.aiBody.userData.spinSign ?? -0.95, state.launchGrace);
-    beginLaunchDrop(state.playerBody);
-    beginLaunchDrop(state.aiBody);
     updateTopCollisions(state);
     updateHud();
     updateAvatars();
 
     loadTopModel(playerBey.model, beyColorHex(playerBey.color), playerGroup, state.playerBody);
     loadTopModel(aiBey.model, beyColorHex(aiBey.color), aiGroup, state.aiBody);
+
+    const vsCpu = Boolean(isVsCpu?.());
+    const twoPlayer = mode === 'pc' && !vsCpu;
+    let launch;
+    try {
+      launch = await runLaunchMinigame({
+        vsCpu,
+        twoPlayer,
+        difficulty: getDifficulty?.() ?? 1,
+        accent: playerBey.color || '#4f8cff',
+      });
+    } catch (err) {
+      console.warn('[launch] mini-game failed, using good rip', err);
+      launch = { playerSpin: 1, aiSpin: 1, playerGrade: 'good', aiGrade: 'good' };
+    }
+
+    state.playerSpin = launch.playerSpin;
+    state.aiSpin = launch.aiSpin;
+    state.awaitingLaunch = false;
+    state.launchGrace = CONFIG.LAUNCH_GRACE;
+
+    const playerSpeed = 0.75 + (launch.playerSpin - CONFIG.LAUNCH_SPIN_MISS) /
+      (CONFIG.LAUNCH_SPIN_PERFECT - CONFIG.LAUNCH_SPIN_MISS) * 0.45;
+    const aiSpeed = 0.75 + (launch.aiSpin - CONFIG.LAUNCH_SPIN_MISS) /
+      (CONFIG.LAUNCH_SPIN_PERFECT - CONFIG.LAUNCH_SPIN_MISS) * 0.45;
+    beginLaunchDrop(state.playerBody, playerSpeed);
+    beginLaunchDrop(state.aiBody, aiSpeed);
+    updateTopCollisions(state);
+    updateHud();
   }
 
   function returnToMenu() {
     state.gameRunning = false;
     state.gameFrozen = false;
+    state.awaitingLaunch = false;
     resetAllAbilityVfx();
     dom.gameoverOverlay.classList.remove('visible');
     dom.hud.classList.remove('visible');
@@ -643,21 +689,26 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     input.clearKeys?.();
     input.resetControls?.();
     await ensureMatchModelsReady(state.playerBey, state.aiBey);
-    spawnTops();
+    // Keep the match "running" so held beys render during the rip mini-game.
+    state.gameRunning = true;
+    state.awaitingLaunch = true;
+    await spawnTops();
     state.gameRunning = true;
     clock.getDelta();
   }
 
   async function startGame() {
-    if (state.gameRunning) return;
+    if (state.gameRunning && !state.awaitingLaunch) return;
     dom.btnStart.disabled = true;
     await ensureMatchModelsReady(state.playerBey, state.aiBey);
-    spawnTops();
     dom.startOverlay.classList.add('hidden');
     dom.hud.classList.add('visible');
     dom.controlsHint?.classList.add('visible');
-    state.gameRunning = true;
     state.gameFrozen = false;
+    state.gameRunning = true;
+    state.awaitingLaunch = true;
+    await spawnTops();
+    state.gameRunning = true;
     clock.getDelta();
   }
 
@@ -679,7 +730,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
       pinTopToFloor(state.aiBody);
     }
 
-    if (!state.pendingKo) {
+    if (!state.pendingKo && !state.awaitingLaunch) {
       input.applySteering?.(state);
       applyCenterPull(state.playerBody, state.playerSpin);
       applyCenterPull(state.aiBody, state.aiSpin);
@@ -689,8 +740,22 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
 
     world.step(CONFIG.FIXED_DT);
 
-    stepLaunchDrop(state.playerBody, state.launchGrace);
-    stepLaunchDrop(state.aiBody, state.launchGrace);
+    if (!state.awaitingLaunch) {
+      stepLaunchDrop(state.playerBody, state.launchGrace);
+      stepLaunchDrop(state.aiBody, state.launchGrace);
+    } else {
+      // Keep beys hovering until the rip resolves.
+      for (const body of [state.playerBody, state.aiBody]) {
+        if (!body?.userData?.launching) continue;
+        const floorY = body.userData.launchFloorY ?? CONFIG.FLOOR_Y;
+        const startY = floorY + CONFIG.LAUNCH_DROP_HEIGHT;
+        body.position.y = startY;
+        body.previousPosition.y = startY;
+        body.velocity.x = 0;
+        body.velocity.y = 0;
+        body.velocity.z = 0;
+      }
+    }
 
     contacts.resolve(state, CONFIG.FIXED_DT);
     contacts.resolveWallContacts(state, CONFIG.FIXED_DT);
@@ -726,7 +791,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     const dt = Math.min(clock.getDelta(), 0.05);
 
     if (state.gameRunning && !state.gameFrozen) {
-      if (state.launchGrace > 0) {
+      if (state.launchGrace > 0 && !state.awaitingLaunch) {
         state.launchGrace = Math.max(0, state.launchGrace - dt);
       }
       updateTopCollisions(state);
@@ -742,33 +807,35 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
         state.accumulator = Math.min(state.accumulator, CONFIG.FIXED_DT);
       }
 
-      const playerSandMult =
-        state.playerBody?.userData.sonicSlow > 0 &&
-        !isLibraBusterChannelingBody(state, state.playerBody)
-          ? 2
-          : 1;
-      const aiSandMult =
-        state.aiBody?.userData.sonicSlow > 0 &&
-        !isLibraBusterChannelingBody(state, state.aiBody)
-          ? 2
-          : 1;
+      if (!state.awaitingLaunch) {
+        const playerSandMult =
+          state.playerBody?.userData.sonicSlow > 0 &&
+          !isLibraBusterChannelingBody(state, state.playerBody)
+            ? 2
+            : 1;
+        const aiSandMult =
+          state.aiBody?.userData.sonicSlow > 0 &&
+          !isLibraBusterChannelingBody(state, state.aiBody)
+            ? 2
+            : 1;
 
-      state.playerSpin = state.playerBody?.userData.controlLocked
-        ? state.playerSpin
-        : decaySpin(
-            state.playerSpin,
-            dt,
-            state.playerBody.userData.beyStats.sta,
-            playerSandMult
-          );
-      state.aiSpin = state.aiBody?.userData.controlLocked
-        ? state.aiSpin
-        : decaySpin(
-            state.aiSpin,
-            dt,
-            state.aiBody.userData.beyStats.sta,
-            aiSandMult
-          );
+        state.playerSpin = state.playerBody?.userData.controlLocked
+          ? state.playerSpin
+          : decaySpin(
+              state.playerSpin,
+              dt,
+              state.playerBody.userData.beyStats.sta,
+              playerSandMult
+            );
+        state.aiSpin = state.aiBody?.userData.controlLocked
+          ? state.aiSpin
+          : decaySpin(
+              state.aiSpin,
+              dt,
+              state.aiBody.userData.beyStats.sta,
+              aiSandMult
+            );
+      }
       cancelAbilitiesOnSpinStop(state, dt);
       tickAbilityTimers(state, dt);
       syncSpecialFlashOverlay();

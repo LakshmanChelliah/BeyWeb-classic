@@ -432,7 +432,13 @@ function shouldUseAbility(wants, aiRimDanger) {
 
 /** Periodically triggers CPU power/special when conditions are favorable. */
 export function tickAIAbilities(state, onTrigger) {
-  if (!state.abilities?.ai || state.launchGrace > 0 || !state.gameRunning || state.gameFrozen) {
+  if (
+    !state.abilities?.ai ||
+    state.awaitingLaunch ||
+    state.launchGrace > 0 ||
+    !state.gameRunning ||
+    state.gameFrozen
+  ) {
     return;
   }
   if (isAbilityTestNoDelays()) return;

@@ -633,7 +633,10 @@ function applyLdragoAbsorbHit(state, side, body, opp) {
   const attackerSpinKey = spinKey(side);
   const stolen = Math.min(state[victimSpinKey], LDRAGO_ABSORB_HIT_SPIN);
   state[victimSpinKey] = Math.max(0, state[victimSpinKey] - stolen);
-  state[attackerSpinKey] = Math.min(1, state[attackerSpinKey] + stolen * 0.65 + LDRAGO_ABSORB_STEAL_GAIN);
+  state[attackerSpinKey] = Math.min(
+    CONFIG.SPIN_GAUGE_MAX,
+    state[attackerSpinKey] + stolen * 0.65 + LDRAGO_ABSORB_STEAL_GAIN
+  );
   body.userData.spinStealBurstT = 1.35;
   body.userData.spinStealFromX = opp.position.x;
   body.userData.spinStealFromZ = opp.position.z;
@@ -2424,7 +2427,7 @@ function makeCtx(state, side, dt) {
         if (b?.userData?.invulnerable) return;
       }
       const k = spinKey(s);
-      state[k] = Math.max(0, Math.min(1, state[k] + delta));
+      state[k] = Math.max(0, Math.min(CONFIG.SPIN_GAUGE_MAX ?? 1.2, state[k] + delta));
     },
   };
 }
