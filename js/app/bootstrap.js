@@ -147,7 +147,12 @@ export function createAppBootstrap({
 
   const playSetup = createPlaySetup(playSetupEl, {
     show2Player,
-    onChange({ mode, difficulty: diff }) {
+    onChange({ mode, difficulty: diff, arenaSkin }) {
+      if (arenaSkin) gameRef?.setArenaSkin?.(arenaSkin);
+
+      // Skin-only changes must not reset campaign / bey picks.
+      if (mode === gameMode && diff === difficulty) return;
+
       const prevBey = beysChosen ? gameRef?.state.playerBey : null;
       const hadVsCpuPick = beysChosen && isVsCpu(gameMode);
       gameMode = mode;

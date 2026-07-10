@@ -757,7 +757,8 @@ body.mobile #btn-recalibrate.hidden {
 }
 
 .play-setup-mode-btn,
-.play-setup-diff-btn {
+.play-setup-diff-btn,
+.play-setup-arena-btn {
   appearance: none;
   border: none;
   cursor: pointer;
@@ -784,7 +785,8 @@ body.mobile #btn-recalibrate.hidden {
 }
 
 .play-setup-mode-btn.active,
-.play-setup-diff-btn.active {
+.play-setup-diff-btn.active,
+.play-setup-arena-btn.active {
   color: #fff;
   background: linear-gradient(135deg, #2563eb, #4f8cff);
   box-shadow: 0 2px 12px rgba(37, 99, 235, 0.4);
@@ -801,6 +803,33 @@ body.mobile #btn-recalibrate.hidden {
   display: none;
 }
 
+.play-setup-arena {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.play-setup-arena-label,
+.play-setup-diff-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7a8cb8;
+}
+
+.play-setup-arena-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+}
+
+.play-setup-arena-btn {
+  padding: 8px 10px;
+  font-size: 9px;
+}
+
 /* Tournament — no CPU difficulty block; tighter top section */
 .play-setup.play-setup--tournament {
   gap: 6px;
@@ -809,13 +838,6 @@ body.mobile #btn-recalibrate.hidden {
 .play-setup.play-setup--tournament .play-setup-hint {
   margin-top: 8px;
   margin-bottom: 6px;
-}
-
-.play-setup-diff-label {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #7a8cb8;
 }
 
 .play-setup-diff-btns {
@@ -2176,11 +2198,13 @@ body.mobile .play-setup-diff {
   gap: 6px;
 }
 
-body.mobile .play-setup-diff-label {
+body.mobile .play-setup-diff-label,
+body.mobile .play-setup-arena-label {
   display: none;
 }
 
-body.mobile .play-setup-diff-btns {
+body.mobile .play-setup-diff-btns,
+body.mobile .play-setup-arena-btns {
   gap: 4px;
   width: 100%;
   max-width: 100%;
@@ -2189,13 +2213,30 @@ body.mobile .play-setup-diff-btns {
   box-sizing: border-box;
 }
 
-body.mobile .play-setup-diff-btn {
+body.mobile .play-setup-arena {
+  width: 100%;
+  gap: 4px;
+}
+
+body.mobile .play-setup-arena-btns {
+  flex-wrap: wrap;
+}
+
+body.mobile .play-setup-diff-btn,
+body.mobile .play-setup-arena-btn {
   flex: 1 1 0;
   min-width: 0;
   min-height: 36px;
   padding: 8px 2px;
   font-size: 10px;
   letter-spacing: 0.02em;
+}
+
+body.mobile .play-setup-arena-btn {
+  flex: 1 1 calc(33% - 4px);
+  font-size: 9px;
+  min-height: 32px;
+  padding: 6px 2px;
 }
 
 body.mobile .play-setup-hint {
