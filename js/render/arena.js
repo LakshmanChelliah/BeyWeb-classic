@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=45';
-import { createBackdropTexture } from './arenaBackdrop.js?v=45';
+} from './arenaSkins.js?v=46';
+import { createBackdropTexture } from './arenaBackdrop.js?v=46';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -157,7 +157,7 @@ function createGroundTexture(skin) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 8);
+  tex.repeat.set(4, 4);
   return tex;
 }
 
@@ -417,6 +417,8 @@ function createWedgeShape() {
 function addWallSegments(group, wallMat) {
   const wedge = createWedgeShape();
   const radius = CONFIG.WALL_RADIUS + 0.1;
+  // Bury wall bases under the floor so they read as pit walls, not a floating pad.
+  const wallEmbedY = -0.45;
 
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -443,9 +445,10 @@ function addWallSegments(group, wallMat) {
 
       const wall = new THREE.Mesh(geo, wallMat);
       wall.userData.arenaPart = 'wall';
-      wall.position.set(x, 0.02, z);
+      wall.position.set(x, wallEmbedY, z);
       wall.rotation.y = -angle;
-      wall.castShadow = true;
+      // No cast shadow — under-wall shadows were reading as a floating stadium pad.
+      wall.castShadow = false;
       wall.receiveShadow = true;
       group.add(wall);
     }
@@ -453,35 +456,31 @@ function addWallSegments(group, wallMat) {
 }
 
 /**
- * Dark exit ramps at KO pockets — bridges dish rim to the flat OOB floor
- * (anime stadiums show these as recessed openings in the ring).
+ * Flush dark exit plates at KO pockets — coplanar with the floor (no raised ramps).
  */
-function addPocketRamps(group, skin) {
-  const rampMat = new THREE.MeshStandardMaterial({
+function addPocketExits(group, skin) {
+  const exitMat = new THREE.MeshStandardMaterial({
     color: skin.base ?? 0x1a1a1a,
-    roughness: 0.72,
-    metalness: 0.15,
+    roughness: 0.85,
+    metalness: 0.08,
   });
-  const ramps = [];
-  const rampLen = 3.2;
-  const rampWidth = CONFIG.POCKET_HALF_WIDTH * DISH_RADIUS * 1.65;
+  const exits = [];
+  const len = 2.8;
+  const width = CONFIG.POCKET_HALF_WIDTH * DISH_RADIUS * 1.55;
 
   for (const angle of CONFIG.POCKET_ANGLES) {
-    const ramp = new THREE.Mesh(
-      new THREE.BoxGeometry(rampWidth, 0.06, rampLen),
-      rampMat
-    );
-    ramp.userData.arenaPart = 'pocketRamp';
-    const midR = DISH_RADIUS + rampLen * 0.35;
-    ramp.position.set(Math.cos(angle) * midR, CONFIG.FLOOR_Y - 0.02, Math.sin(angle) * midR);
-    ramp.rotation.y = -angle + Math.PI / 2;
-    // Tip slightly down toward outside so it reads as an exit chute.
-    ramp.rotation.x = 0.08;
-    ramp.receiveShadow = true;
-    group.add(ramp);
-    ramps.push(ramp);
+    const exit = new THREE.Mesh(new THREE.PlaneGeometry(width, len), exitMat);
+    exit.userData.arenaPart = 'pocketExit';
+    const midR = DISH_RADIUS + len * 0.42;
+    exit.rotation.x = -Math.PI / 2;
+    exit.rotation.z = -angle + Math.PI / 2;
+    exit.position.set(Math.cos(angle) * midR, CONFIG.FLOOR_Y + 0.004, Math.sin(angle) * midR);
+    exit.receiveShadow = true;
+    exit.castShadow = false;
+    group.add(exit);
+    exits.push(exit);
   }
-  return { rampMat, ramps };
+  return { exitMat, exits };
 }
 
 /** Horizon sky only — upper dome; the ground ring owns the floor. */
@@ -503,23 +502,15 @@ function createSkyDome(skin) {
 }
 
 function applySkinToParts(parts, skin) {
+  // One continuous OOB floor (no separate raised platform pad).
   disposeMap(parts.ground.material);
   const groundMap = createGroundTexture(skin);
   groundMap.needsUpdate = true;
   parts.ground.material.map = groundMap;
   parts.ground.material.color.setHex(0xffffff);
-  parts.ground.material.roughness = Math.min(0.95, (skin.platformRoughness ?? 0.6) + 0.12);
-  parts.ground.material.metalness = Math.max(0.02, (skin.platformMetalness ?? 0.1) * 0.5);
+  parts.ground.material.roughness = skin.platformRoughness ?? 0.6;
+  parts.ground.material.metalness = skin.platformMetalness ?? 0.1;
   parts.ground.material.needsUpdate = true;
-
-  disposeMap(parts.platform.material);
-  const platformMap = createPlatformTexture(skin);
-  platformMap.needsUpdate = true;
-  parts.platform.material.map = platformMap;
-  parts.platform.material.color.setHex(0xffffff);
-  parts.platform.material.roughness = skin.platformRoughness;
-  parts.platform.material.metalness = skin.platformMetalness;
-  parts.platform.material.needsUpdate = true;
 
   disposeMap(parts.dish.material);
   const dishMap = createDishTexture(skin);
@@ -531,10 +522,10 @@ function applySkinToParts(parts, skin) {
   parts.dish.material.needsUpdate = true;
 
   parts.dishLip.material.color.setHex(skin.dishLip);
-  parts.dishLip.material.metalness = 0.55;
-  parts.dishLip.material.roughness = 0.32;
+  parts.dishLip.material.metalness = 0.45;
+  parts.dishLip.material.roughness = 0.4;
   parts.dishLip.material.emissive.setHex(skin.dishLip);
-  parts.dishLip.material.emissiveIntensity = 0.1;
+  parts.dishLip.material.emissiveIntensity = 0.06;
   parts.dishLip.material.needsUpdate = true;
 
   parts.wallMat.color.setHex(skin.wall);
@@ -544,14 +535,16 @@ function applySkinToParts(parts, skin) {
   parts.wallMat.roughness = skin.wallRoughness;
   parts.wallMat.needsUpdate = true;
 
-  parts.barrier.material.color.setHex(skin.barrier);
-  parts.barrier.material.metalness = skin.barrierMetalness;
-  parts.barrier.material.roughness = skin.barrierRoughness;
-  parts.barrier.material.needsUpdate = true;
+  if (parts.barrier?.material) {
+    parts.barrier.material.color.setHex(skin.barrier);
+    parts.barrier.material.metalness = skin.barrierMetalness;
+    parts.barrier.material.roughness = skin.barrierRoughness;
+    parts.barrier.material.needsUpdate = true;
+  }
 
-  if (parts.rampMat) {
-    parts.rampMat.color.setHex(skin.base ?? 0x1a1a1a);
-    parts.rampMat.needsUpdate = true;
+  if (parts.exitMat) {
+    parts.exitMat.color.setHex(skin.base ?? 0x1a1a1a);
+    parts.exitMat.needsUpdate = true;
   }
 
   if (parts.sky?.material) {
@@ -586,7 +579,8 @@ export function applyArenaSkin(group, skinId) {
 
 /**
  * Grounded anime venue:
- * continuous floor ring flush with dish rim + recessed dish + pocket ramps.
+ * one continuous floor flush with the dish rim; walls planted in the pit;
+ * no raised pad / floating ramps.
  * Battle radii / walls / pockets stay fixed.
  */
 export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
@@ -600,39 +594,22 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   group.add(sky);
 
   const floorY = CONFIG.FLOOR_Y;
-  const floorMatProps = {
-    roughness: Math.min(0.95, (skin.platformRoughness ?? 0.6) + 0.12),
-    metalness: Math.max(0.02, (skin.platformMetalness ?? 0.1) * 0.5),
-  };
 
-  // Far OOB floor — ring with a hole so the dish sits IN the ground, not on a pad.
+  // Single continuous OOB floor from dish rim → horizon (no separate raised pad).
   const ground = new THREE.Mesh(
-    new THREE.RingGeometry(PLATFORM_OUTER_RADIUS - 0.05, GROUND_RADIUS, 96),
+    new THREE.RingGeometry(DISH_RADIUS + 0.02, GROUND_RADIUS, 128),
     new THREE.MeshStandardMaterial({
       map: createGroundTexture(skin),
-      ...floorMatProps,
+      roughness: skin.platformRoughness ?? 0.6,
+      metalness: skin.platformMetalness ?? 0.1,
     })
   );
   ground.userData.arenaPart = 'ground';
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = floorY;
   ground.receiveShadow = true;
+  ground.castShadow = false;
   group.add(ground);
-
-  // Near floor (around the stadium) — same height as far ground = continuous OOB.
-  const platform = new THREE.Mesh(
-    new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS, 80),
-    new THREE.MeshStandardMaterial({
-      map: createPlatformTexture(skin),
-      roughness: skin.platformRoughness,
-      metalness: skin.platformMetalness,
-    })
-  );
-  platform.userData.arenaPart = 'platform';
-  platform.rotation.x = -Math.PI / 2;
-  platform.position.y = floorY;
-  platform.receiveShadow = true;
-  group.add(platform);
 
   // Recessed battle dish — slightly below the surrounding floor.
   const dish = new THREE.Mesh(
@@ -647,22 +624,24 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   dish.rotation.x = -Math.PI / 2;
   dish.position.y = floorY - DISH_RECESS;
   dish.receiveShadow = true;
+  dish.castShadow = false;
   group.add(dish);
 
-  // Rim flush with the floor — the seam where pit meets OOB.
+  // Thin rim flush with the floor — pit / OOB seam.
   const dishLip = new THREE.Mesh(
-    new THREE.RingGeometry(DISH_RADIUS - 0.12, DISH_RADIUS + 0.22, 80),
+    new THREE.RingGeometry(DISH_RADIUS - 0.08, DISH_RADIUS + 0.16, 80),
     new THREE.MeshStandardMaterial({
       color: skin.dishLip,
-      metalness: 0.55,
-      roughness: 0.32,
+      metalness: 0.45,
+      roughness: 0.4,
       emissive: skin.dishLip,
-      emissiveIntensity: 0.1,
+      emissiveIntensity: 0.06,
     })
   );
   dishLip.userData.arenaPart = 'dishLip';
   dishLip.rotation.x = -Math.PI / 2;
-  dishLip.position.y = floorY + 0.01;
+  dishLip.position.y = floorY + 0.005;
+  dishLip.castShadow = false;
   group.add(dishLip);
 
   const wallMat = new THREE.MeshStandardMaterial({
@@ -674,11 +653,11 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   });
   addWallSegments(group, wallMat);
 
-  const { rampMat } = addPocketRamps(group, skin);
+  const { exitMat } = addPocketExits(group, skin);
 
-  // Low perimeter curb — sits ON the floor, not a floating cylinder.
+  // Flat painted curb on the floor (not a raised torus).
   const barrier = new THREE.Mesh(
-    new THREE.TorusGeometry(PLATFORM_OUTER_RADIUS - 0.2, 0.14, 10, 80),
+    new THREE.RingGeometry(PLATFORM_OUTER_RADIUS - 0.35, PLATFORM_OUTER_RADIUS - 0.05, 80),
     new THREE.MeshStandardMaterial({
       color: skin.barrier,
       metalness: skin.barrierMetalness,
@@ -686,18 +665,21 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     })
   );
   barrier.userData.arenaPart = 'barrier';
-  barrier.rotation.x = Math.PI / 2;
-  barrier.position.y = floorY + 0.1;
+  barrier.rotation.x = -Math.PI / 2;
+  barrier.position.y = floorY + 0.006;
+  barrier.castShadow = false;
+  barrier.receiveShadow = true;
   group.add(barrier);
 
   group.userData.arenaParts = {
     ground,
-    platform,
+    // Alias for older callers that still expect a platform part.
+    platform: ground,
     dish,
     dishLip,
     wallMat,
     barrier,
-    rampMat,
+    exitMat,
     sky,
   };
 

@@ -55,7 +55,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'bull',
     ambience: 0x8a9aa8,
     fogNear: 55,
-    fogFar: 130,
+    fogFar: 160,
     name: 'Abandoned Construction Site',
     desc: "Benkei's training ground — concrete dish on unfinished slabs and hazard tape",
     backdrop: {
@@ -93,7 +93,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'libra',
     ambience: 0x87b8d8,
     fogNear: 60,
-    fogFar: 140,
+    fogFar: 160,
     name: 'Survival Island',
     desc: "Yu's remote island arena — sand-gold dish on a bright Pacific beach",
     backdrop: {
@@ -130,7 +130,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'eagle',
     ambience: 0x3a5a88,
     fogNear: 55,
-    fogFar: 130,
+    fogFar: 160,
     name: 'WBBA Headquarters',
     desc: "Tsubasa's polished HQ arena — silver dish on the plaza floor",
     backdrop: {
@@ -167,7 +167,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'leone',
     ambience: 0x7ab0d8,
     fogNear: 60,
-    fogFar: 145,
+    fogFar: 160,
     name: 'Metal Bey Rooftop',
     desc: "Kyoya's daytime rooftop stadium — stone dish on tar roof above the skyline",
     backdrop: {
@@ -204,7 +204,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'pegasus',
     ambience: 0x8aa8b8,
     fogNear: 55,
-    fogFar: 135,
+    fogFar: 160,
     name: 'Koma Village',
     desc: "Gingka's home ground — stone dish on the village dirt path",
     backdrop: {
@@ -242,7 +242,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'lightning_ldrago',
     ambience: 0x0c0610,
     fogNear: 45,
-    fogFar: 110,
+    fogFar: 160,
     name: 'Dark Nebula HQ Rooftop',
     desc: "Ryuga's forbidden roof — charcoal dish over a moody night city",
     backdrop: {
@@ -280,7 +280,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'striker',
     ambience: 0x2a3848,
     fogNear: 52,
-    fogFar: 125,
+    fogFar: 160,
     name: 'City Streets',
     desc: "Masamune's street challenge — asphalt dish in a neon canyon",
     backdrop: {
@@ -317,7 +317,7 @@ export const ARENA_SKINS = Object.freeze([
     beyId: 'meteo_ldrago',
     ambience: 0x180808,
     fogNear: 38,
-    fogFar: 100,
+    fogFar: 160,
     name: 'Volcano Interior',
     desc: "Final L-Drago ground — molten dish inside a living crater",
     backdrop: {
