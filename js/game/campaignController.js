@@ -31,6 +31,7 @@ export function createCampaignController({
   btnRestart,
   isEnabled = () => true,
   onOpponentChange,
+  onArenaTransition,
   getPlayerBey = () => null,
 }) {
   const tournament = createCampaign();
@@ -201,7 +202,7 @@ export function createCampaignController({
     });
   }
 
-  function beginOpponent() {
+  async function beginOpponent({ animateArena = false } = {}) {
     setAIContext({
       tournament: activeMode !== 'casual',
       stageIndex: activeMode === 'tournament' ? tournament.getOpponentIndex() : 0,
@@ -209,6 +210,9 @@ export function createCampaignController({
     });
     setAIDifficulty(getEffectiveAiTier());
     const opp = currentMode().getCurrentOpponent();
+    if (activeMode === 'tournament' && onArenaTransition) {
+      await onArenaTransition(opp, { animate: animateArena });
+    }
     onOpponentChange(opp);
     updateHud();
   }
@@ -379,10 +383,10 @@ export function createCampaignController({
     if (activeMode === 'casual') {
       if (restartAction === 'rematch-random') {
         rollAndSetOpponent();
-        beginOpponent();
+        await beginOpponent();
       } else if (restartAction === 'rematch-same') {
         casual.start(casual.getCurrentOpponent(), userDifficultyTier);
-        beginOpponent();
+        await beginOpponent();
       }
       resetAIController();
       await resetGame();
@@ -393,7 +397,7 @@ export function createCampaignController({
     if (restartAction === 'retry-tournament') {
       tournament.start(getPlayerBey());
       rollAndSetOpponent();
-      beginOpponent();
+      await beginOpponent({ animateArena: true });
       resetAIController();
       await resetGame();
       updateHud();
@@ -403,7 +407,7 @@ export function createCampaignController({
     if (restartAction === 'next-opponent') {
       tournament.advanceOpponent();
       rollAndSetOpponent();
-      beginOpponent();
+      await beginOpponent({ animateArena: true });
       resetAIController();
       await resetGame();
       updateHud();
@@ -427,14 +431,15 @@ export function createCampaignController({
       activeMode = 'tournament';
       tournament.start(playerBey);
       setTournamentOpponent();
-      beginOpponent();
+      // First rival: apply skin quietly (select/start overlays still up).
+      return beginOpponent({ animateArena: false });
     },
     startCasual(playerBey, difficulty) {
       activeMode = 'casual';
       userDifficultyTier = difficulty ?? 1;
       const opp = pickRandomRival(playerBey);
       casual.start(opp, userDifficultyTier);
-      beginOpponent();
+      return beginOpponent();
     },
     startLocalSeries() {
       activeMode = '2player';
@@ -454,7 +459,7 @@ export function createCampaignController({
     },
     /** @deprecated Use startTournament */
     startCampaign() {
-      this.startTournament(getPlayerBey());
+      return this.startTournament(getPlayerBey());
     },
   };
 }

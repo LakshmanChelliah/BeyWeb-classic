@@ -63,7 +63,7 @@ createAppBootstrap({
       () => {
         const gameRef = getGameRef();
         if (gameRef?.state.gameFrozen) {
-          campaignCtrl.handleRestart(gameRef.resetGame.bind(gameRef));
+          void campaignCtrl.handleRestart(gameRef.resetGame.bind(gameRef));
         }
       },
       (player, slot) => {

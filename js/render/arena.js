@@ -36,8 +36,8 @@ function createDishTexture(skin) {
   ctx.fill();
 
   // Optional accent veins for character skins (still flat texture — no geometry).
-  if (skin.id === 'dragons_maw') {
-    ctx.strokeStyle = '#7c1a3a';
+  if (skin.dishAccent) {
+    ctx.strokeStyle = skin.dishAccent;
     for (let i = 0; i < 12; i++) {
       ctx.lineWidth = 1 + Math.random() * 2;
       ctx.globalAlpha = 0.2 + Math.random() * 0.25;

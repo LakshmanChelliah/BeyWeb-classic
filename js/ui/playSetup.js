@@ -9,6 +9,7 @@ import {
 /**
  * Mode + difficulty + arena skin controls rendered inside the bey-select overlay.
  * Arena skins are texture/material palettes only — stadium shape stays fixed.
+ * Tournament hides the arena picker (each rival forces their own stadium).
  */
 export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
   let mode = GAME_MODES.TOURNAMENT;
@@ -33,8 +34,8 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
       <div class="play-setup-diff-btns"></div>
     </div>
     <div class="play-setup-arena" aria-label="Arena skin">
-      <span class="play-setup-arena-label">Arena</span>
-      <div class="play-setup-arena-btns" role="listbox" aria-label="Arena skin"></div>
+      <label class="play-setup-arena-label" for="arena-skin-select">Arena</label>
+      <select id="arena-skin-select" class="play-setup-arena-select" aria-label="Arena skin"></select>
     </div>
     <p class="play-setup-hint">CPU rival is random each match</p>
   `;
@@ -42,7 +43,8 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
   const modesEl = el.querySelector('.play-setup-modes');
   const diffWrap = el.querySelector('.play-setup-diff');
   const diffBtns = el.querySelector('.play-setup-diff-btns');
-  const arenaBtns = el.querySelector('.play-setup-arena-btns');
+  const arenaWrap = el.querySelector('.play-setup-arena');
+  const arenaSelect = el.querySelector('#arena-skin-select');
   const hintEl = el.querySelector('.play-setup-hint');
 
   for (const m of modeButtons) {
@@ -68,16 +70,14 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
   }
 
   for (const skin of listArenaSkins()) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'play-setup-arena-btn';
-    btn.dataset.skin = skin.id;
-    btn.textContent = skin.name;
-    btn.title = skin.desc || skin.name;
-    btn.setAttribute('aria-label', skin.desc || skin.name);
-    btn.addEventListener('click', () => setArenaSkin(skin.id));
-    arenaBtns.appendChild(btn);
+    const opt = document.createElement('option');
+    opt.value = skin.id;
+    opt.textContent = skin.name;
+    opt.title = skin.desc || skin.name;
+    arenaSelect.appendChild(opt);
   }
+  arenaSelect.value = arenaSkin;
+  arenaSelect.addEventListener('change', () => setArenaSkin(arenaSelect.value));
 
   function paint() {
     modesEl.querySelectorAll('.play-setup-mode-btn').forEach((btn) => {
@@ -86,20 +86,19 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
     diffBtns.querySelectorAll('.play-setup-diff-btn').forEach((btn) => {
       btn.classList.toggle('active', Number(btn.dataset.tier) === difficulty);
     });
-    arenaBtns.querySelectorAll('.play-setup-arena-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.skin === arenaSkin);
-    });
+    if (arenaSelect.value !== arenaSkin) arenaSelect.value = arenaSkin;
 
     const isCasual = mode === GAME_MODES.CASUAL;
     const isTournament = mode === GAME_MODES.TOURNAMENT;
     diffWrap.classList.toggle('hidden', !isCasual);
+    arenaWrap.classList.toggle('hidden', isTournament);
     el.classList.toggle('play-setup--casual', isCasual);
     el.classList.toggle('play-setup--tournament', isTournament);
     el.classList.toggle('play-setup--two-player', mode === GAME_MODES.TWO_PLAYER);
 
     if (hintEl) {
       if (mode === GAME_MODES.TOURNAMENT) {
-        hintEl.textContent = 'Seven bladers in order — Benkei to Ryuga.';
+        hintEl.textContent = 'Seven bladers in order — each brings their own stadium.';
         hintEl.classList.remove('hidden');
       } else if (isCasual) {
         hintEl.textContent = 'Best of 3 vs a random rival — new rival after each series';
@@ -131,6 +130,7 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
   function setArenaSkin(id) {
     if (arenaSkin === id) return;
     arenaSkin = saveArenaSkinId(id);
+    if (arenaSelect.value !== arenaSkin) arenaSelect.value = arenaSkin;
     paint();
     onChange?.(getState());
   }

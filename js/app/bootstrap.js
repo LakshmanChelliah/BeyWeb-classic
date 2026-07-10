@@ -9,6 +9,12 @@ import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
 import { preloadTopModel, preloadPlayableModels } from '../render/modelCache.js';
 import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
+import {
+  getArenaSkinForBey,
+  resolveArenaSkinId,
+} from '../render/arenaSkins.js';
+import { getTournamentBlader } from '../game/campaign.js';
+import { playArenaTransition } from '../ui/arenaTransition.js';
 
 /** Capture API is optional QA tooling — never block boot if it fails to load. */
 function installCaptureApiLazy(app) {
@@ -62,7 +68,33 @@ export function createAppBootstrap({
       selection?.setRivalPick(opp);
       if (opp?.model) preloadTopModel(opp.model);
     },
+    async onArenaTransition(opp, { animate = false } = {}) {
+      if (!opp?.id || !gameRef?.setArenaSkin) return;
+      const skin = getArenaSkinForBey(opp.id);
+      const current = gameRef.getArenaSkinId?.();
+      const apply = () => gameRef.setArenaSkin(skin.id, { persist: false });
+
+      if (!animate || current === skin.id) {
+        apply();
+        return;
+      }
+
+      const blader = getTournamentBlader(opp.id);
+      const accent = `#${(skin.dishLip >>> 0).toString(16).padStart(6, '0')}`;
+      document.getElementById('gameover-overlay')?.classList.remove('visible');
+      await playArenaTransition({
+        skinName: skin.name,
+        subtitle: blader ? `${blader.name} · ${opp.name}` : opp.name,
+        accent,
+        onMidpoint: apply,
+      });
+    },
   });
+
+  function restoreUserArenaSkin() {
+    const preferred = playSetup?.getState?.().arenaSkin ?? resolveArenaSkinId();
+    gameRef?.setArenaSkin?.(preferred, { persist: true });
+  }
 
   function getPlayers() {
     if (gameMode === GAME_MODES.TWO_PLAYER) {
@@ -89,6 +121,7 @@ export function createAppBootstrap({
   function openBeySelect() {
     const preserveBeyId = beysChosen ? gameRef?.state.playerBey?.id : null;
     campaignCtrl.resetCampaign();
+    restoreUserArenaSkin();
     resetAIController();
     selection?.reset(getPlayers(), {
       preserveBeyId,
@@ -108,16 +141,18 @@ export function createAppBootstrap({
   }
 
   async function handleSelectionComplete(picks) {
-    const { mode, difficulty: diff } = playSetup.getState();
+    const { mode, difficulty: diff, arenaSkin } = playSetup.getState();
     gameMode = mode;
     difficulty = diff;
 
     gameRef.state.playerBey = picks[0];
     if (gameMode === GAME_MODES.TOURNAMENT) {
-      campaignCtrl.startTournament(picks[0]);
+      await campaignCtrl.startTournament(picks[0]);
     } else if (gameMode === GAME_MODES.CASUAL) {
-      campaignCtrl.startCasual(picks[0], difficulty);
+      if (arenaSkin) gameRef.setArenaSkin(arenaSkin, { persist: true });
+      await campaignCtrl.startCasual(picks[0], difficulty);
     } else {
+      if (arenaSkin) gameRef.setArenaSkin(arenaSkin, { persist: true });
       gameRef.state.aiBey = picks[1];
       campaignCtrl.startLocalSeries();
     }
@@ -148,10 +183,13 @@ export function createAppBootstrap({
   const playSetup = createPlaySetup(playSetupEl, {
     show2Player,
     onChange({ mode, difficulty: diff, arenaSkin }) {
-      if (arenaSkin) gameRef?.setArenaSkin?.(arenaSkin);
-
-      // Skin-only changes must not reset campaign / bey picks.
-      if (mode === gameMode && diff === difficulty) return;
+      // Skin-only changes (casual / 2P dropdown) — persist user preference.
+      if (mode === gameMode && diff === difficulty) {
+        if (arenaSkin && mode !== GAME_MODES.TOURNAMENT) {
+          gameRef?.setArenaSkin?.(arenaSkin, { persist: true });
+        }
+        return;
+      }
 
       const prevBey = beysChosen ? gameRef?.state.playerBey : null;
       const hadVsCpuPick = beysChosen && isVsCpu(gameMode);
@@ -167,9 +205,10 @@ export function createAppBootstrap({
         btnStart.disabled = false;
         selection?.reset(getPlayers(), { preserveBeyId: prevBey.id, autoPick: true });
         if (gameMode === GAME_MODES.TOURNAMENT) {
-          campaignCtrl.startTournament(prevBey);
+          void campaignCtrl.startTournament(prevBey);
         } else {
-          campaignCtrl.startCasual(prevBey, difficulty);
+          if (arenaSkin) gameRef.setArenaSkin(arenaSkin, { persist: true });
+          void campaignCtrl.startCasual(prevBey, difficulty);
         }
       } else {
         beysChosen = false;
@@ -178,6 +217,7 @@ export function createAppBootstrap({
           preserveBeyId: prevBey?.id ?? null,
           keepCarousel: !prevBey,
         });
+        if (mode !== GAME_MODES.TOURNAMENT) restoreUserArenaSkin();
       }
 
       selection?.setRivalLabel(getRivalLabel());
