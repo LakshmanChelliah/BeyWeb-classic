@@ -338,7 +338,7 @@ function paintFloorCrackedEarth(ctx, size, skin) {
   }
 }
 
-function paintFloorRooftopDark(ctx, size, skin) {
+function paintFloorRooftopTar(ctx, size, skin) {
   ctx.fillStyle = skin.platformBase;
   ctx.fillRect(0, 0, size, size);
   ctx.strokeStyle = skin.platformGrid;
@@ -354,6 +354,16 @@ function paintFloorRooftopDark(ctx, size, skin) {
     ctx.lineTo(size, p);
     ctx.stroke();
   }
+  ctx.fillStyle = skin.platformVein || '#5a5048';
+  for (let i = 0; i < 10; i++) {
+    const x = ((i * 97) % (size - 80)) + 20;
+    const y = ((i * 53) % (size - 60)) + 15;
+    ctx.fillRect(x, y, 36, 22);
+  }
+}
+
+function paintFloorRooftopDark(ctx, size, skin) {
+  paintFloorRooftopTar(ctx, size, skin);
   ctx.fillStyle = 'rgba(120,40,80,0.12)';
   ctx.fillRect(0, 0, size, size);
 }
