@@ -577,6 +577,7 @@ export function createLdragoSoaringVfx(scene) {
       lastApexCharge = apexCharge;
 
       // Continuous crackle during soar / dive / apex charge (electrified dragon).
+      // Stadium camera pullback makes near-bey arcs tiny — use sky→floor columns.
       const crackleOn =
         phase === 'ascend' ||
         phase === 'dive' ||
@@ -584,52 +585,49 @@ export function createLdragoSoaringVfx(scene) {
         (body.userData.ldragoApexChargeT ?? 0) > 0.05;
       if (crackleOn) {
         crackleAcc += dt;
-        const flicker = 0.5 + 0.5 * Math.abs(Math.sin(performance.now() * 0.06));
+        const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.065));
         const liftFrac = clamp01((body.userData.flightLift ?? 0) / 38);
         const cracklePow =
-          (phase === 'dive' ? 0.72 : 0.4 + liftFrac * 0.45) * flicker;
-        const seed = Math.floor(performance.now() * 0.04);
-        const topY = _pos.y + 7 + liftFrac * 10;
-        const botY = Math.max(CONFIG.FLOOR_Y + 0.15, _pos.y - 3.2);
+          (phase === 'dive' ? 0.85 : 0.55 + liftFrac * 0.4) * flicker;
+        const seed = Math.floor(performance.now() * 0.045);
+        const topY = CONFIG.FLOOR_Y + 24 + liftFrac * 6;
+        const botY = CONFIG.FLOOR_Y + 0.12;
         crackleBolts.forEach((line, bi) => {
-          const spread = 0.85 + bi * 0.32;
-          const ox = boltRand(seed + bi * 5.3) * spread * 0.6;
-          const oz = boltRand(seed + bi * 7.1) * spread * 0.6;
+          const spread = 1.1 + bi * 0.35;
+          const ring = 0.4 + bi * 0.55;
+          const ang = (bi / CRACKLE_BOLT_COUNT) * Math.PI * 2 + performance.now() * 0.003;
+          const ox = Math.cos(ang) * ring + boltRand(seed + bi * 5.3) * 0.35;
+          const oz = Math.sin(ang) * ring + boltRand(seed + bi * 7.1) * 0.35;
           writeBolt(
             line,
-            buildBoltPoints(
-              seed + bi * 9,
-              _pos.x + ox,
-              _pos.z + oz,
-              topY + bi * 0.45,
-              botY,
-              spread
-            )
+            buildBoltPoints(seed + bi * 9, _pos.x + ox, _pos.z + oz, topY, botY, spread)
           );
-          line.material.opacity = cracklePow * (0.95 - bi * 0.07);
+          line.material.opacity = cracklePow * (1 - bi * 0.06);
           line.visible = line.material.opacity > 0.03;
         });
         crackleRibbons.forEach((ribbonMesh, ri) => {
           const ang = (ri / CRACKLE_RIBBON_COUNT) * Math.PI * 2 + performance.now() * 0.004;
-          const lean = 0.35 + boltRand(seed + ri * 3) * 0.25;
+          const ring = 0.25 + ri * 0.4;
           ribbonMesh.visible = true;
           ribbonMesh.position.set(
-            _pos.x + Math.cos(ang) * 0.35,
-            (_pos.y + topY) * 0.5,
-            _pos.z + Math.sin(ang) * 0.35
+            _pos.x + Math.cos(ang) * ring,
+            (topY + botY) * 0.5,
+            _pos.z + Math.sin(ang) * ring
           );
           ribbonMesh.rotation.order = 'YXZ';
-          ribbonMesh.rotation.y = ang;
-          ribbonMesh.rotation.x = -Math.PI * 0.5 * lean;
-          ribbonMesh.rotation.z = boltRand(seed + ri) * 0.2;
-          const h = Math.max(2.5, topY - botY);
-          ribbonMesh.scale.set(1.1 + flicker * 0.4, h / 5.5, 1);
-          ribbonMesh.material.opacity = cracklePow * (0.55 - ri * 0.08);
+          ribbonMesh.rotation.y = ang + Math.PI * 0.5;
+          ribbonMesh.rotation.x = -Math.PI * 0.48 + boltRand(seed + ri) * 0.1;
+          ribbonMesh.rotation.z = boltRand(seed + ri * 2) * 0.18;
+          const h = topY - botY;
+          ribbonMesh.scale.set(1.35 + flicker * 0.5, h / 5.5, 1);
+          ribbonMesh.material.opacity = cracklePow * (0.65 - ri * 0.08);
         });
-        if (crackleAcc > 0.09) {
+        if (crackleAcc > 0.08) {
           crackleAcc = 0;
-          crackleBurst.setPosition(_pos.x, _pos.y + 0.4, _pos.z);
-          crackleBurst.burst(phase === 'dive' ? 18 : 12);
+          crackleBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.35, _pos.z);
+          crackleBurst.burst(phase === 'dive' ? 22 : 14);
+          crackleBurst.setPosition(_pos.x, _pos.y + 0.3, _pos.z);
+          crackleBurst.burst(phase === 'dive' ? 12 : 8);
         }
       } else {
         for (const b of crackleBolts) {
