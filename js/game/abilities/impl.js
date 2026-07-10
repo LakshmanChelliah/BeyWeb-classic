@@ -183,6 +183,8 @@ export const BULL_DASH_BUILD_DUR = 0.32;
 export const BULL_CHARGE_DUR = BULL_DASH_BUILD_DUR;
 const BULL_DASH_SPEED = 28;
 const BULL_DASH_LEAN = 0.36;
+/** Seconds of foe velocity to lead when locking the straight dash line. */
+const BULL_DASH_AIM_LEAD = 0.2;
 const BULL_COAST_ARRIVE = 0.35;
 const BULL_RECOVER_DUR = 0.45;
 const BULL_UPPERCUT_BASE_KB = 2.4;
@@ -328,22 +330,20 @@ function homingXZ(body, opp, rate) {
 }
 
 /**
- * Lock a linear dash heading toward the foe's position at activation.
+ * Lock a linear dash heading toward the foe at dash start (after windup).
  * Aim is fixed for the whole charge — no mid-dash re-tracking.
+ * Uses a short velocity lead so the line is not aimed at a stale spot.
  */
 function initBullDashTarget(body, opp) {
   const fromX = body.userData.bullChargeFromX ?? body.position.x;
   const fromZ = body.userData.bullChargeFromZ ?? body.position.z;
 
-  // Prefer the aim locked when the move started; otherwise snapshot now.
-  let aimX = body.userData.bullAimLockX;
-  let aimZ = body.userData.bullAimLockZ;
-  if (aimX == null || aimZ == null) {
-    aimX = opp?.position.x ?? body.position.x;
-    aimZ = opp?.position.z ?? body.position.z;
-    body.userData.bullAimLockX = aimX;
-    body.userData.bullAimLockZ = aimZ;
-  }
+  // Always snapshot at dash start — windup aim would be ~0.4s stale.
+  const lead = BULL_DASH_AIM_LEAD;
+  let aimX = (opp?.position.x ?? body.position.x) + (opp?.velocity?.x ?? 0) * lead;
+  let aimZ = (opp?.position.z ?? body.position.z) + (opp?.velocity?.z ?? 0) * lead;
+  body.userData.bullAimLockX = aimX;
+  body.userData.bullAimLockZ = aimZ;
 
   let nx = aimX - fromX;
   let nz = aimZ - fromZ;
@@ -1410,15 +1410,15 @@ function resolveBullUppercutOutcome(state, side, body) {
   }
 }
 
-function initBullUppercut(body, opp) {
+function initBullUppercut(body) {
   body.userData.bullUpperPhase = 'windup';
   body.userData.bullUpperPhaseT = 0;
   body.userData.bullUpperHit = false;
   body.userData.bullImpactFlash = false;
   delete body.userData.bullUpperResolved;
-  // Snapshot foe position at activation so the dash stays linear.
-  body.userData.bullAimLockX = opp?.position.x ?? body.position.x;
-  body.userData.bullAimLockZ = opp?.position.z ?? body.position.z;
+  // Aim is locked when the dash starts (onActivate), not during windup.
+  delete body.userData.bullAimLockX;
+  delete body.userData.bullAimLockZ;
   setBodyCollisions(body, false);
 }
 
@@ -3054,7 +3054,7 @@ export function tickBullAbilityVisuals(state, dt) {
       const windup = slotWindupTotal(spSlot, BULL_UPPERCUT_WINDUP);
       const t = clamp01(1 - spSlot.windupRemaining / windup);
       const e = easeInOutCubic(t);
-      // Stay planted during windup — aim was locked at activation.
+      // Stay planted during windup — aim locks when the dash starts.
       body.userData.flightLift = 0;
       // Horn-lower windup: tip forward and squash into the charge.
       body.userData.bullWindupEndTilt = 0.18 * easeOutCubic(t);
