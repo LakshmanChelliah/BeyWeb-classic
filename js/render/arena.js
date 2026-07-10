@@ -4,21 +4,27 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=47';
-import { createBackdropTexture } from './arenaBackdrop.js?v=47';
+} from './arenaSkins.js?v=48';
+import { createBackdropTexture } from './arenaBackdrop.js?v=48';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
- * Visuals: dish recessed into a continuous venue floor (rim flush with OOB),
- * anime-poster horizons — never a floating pad over empty sky.
+ * Venue skins swap materials plus placement:
+ * ground venues sit flush in a continuous floor; rooftop venues are elevated
+ * decks over city sky (like the classic elevated stadium look).
  */
 
 const DISH_RADIUS = CONFIG.WALL_RADIUS + 0.15;
-/** Out-of-bounds ground flush with the stadium rim. */
+const PLATFORM_OUTER_RADIUS = CONFIG.PLATFORM_OUTER_RADIUS;
+/** Out-of-bounds ground flush with the stadium rim (ground venues only). */
 const GROUND_RADIUS = 78;
 const SKY_RADIUS = 95;
 /** How far the dish sits below the surrounding floor (recessed pit). */
 const DISH_RECESS = 0.07;
+
+function isElevated(skin) {
+  return skin?.placement === 'elevated';
+}
 
 function createDishTexture(skin) {
   const size = 1024;
@@ -454,7 +460,7 @@ function addWallSegments(group, wallMat) {
   }
 }
 
-/** Horizon sky only — upper dome; the ground ring owns the floor. */
+/** Horizon sky — full sphere so elevated rooftops show city sky below the deck. */
 function createSkyDome(skin) {
   const mat = new THREE.MeshBasicMaterial({
     map: createBackdropTexture(skin),
@@ -463,7 +469,7 @@ function createSkyDome(skin) {
     fog: false,
   });
   const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(SKY_RADIUS, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    new THREE.SphereGeometry(SKY_RADIUS, 48, 32),
     mat
   );
   dome.userData.arenaPart = 'sky';
@@ -472,16 +478,42 @@ function createSkyDome(skin) {
   return dome;
 }
 
+function applyPlacement(parts, skin) {
+  const elevated = isElevated(skin);
+  if (parts.ground) parts.ground.visible = !elevated;
+  if (parts.platform) parts.platform.visible = elevated;
+  if (parts.base) parts.base.visible = elevated;
+}
+
 function applySkinToParts(parts, skin) {
-  // One continuous OOB floor (no separate raised platform pad).
-  disposeMap(parts.ground.material);
-  const groundMap = createGroundTexture(skin);
-  groundMap.needsUpdate = true;
-  parts.ground.material.map = groundMap;
-  parts.ground.material.color.setHex(0xffffff);
-  parts.ground.material.roughness = skin.platformRoughness ?? 0.6;
-  parts.ground.material.metalness = skin.platformMetalness ?? 0.1;
-  parts.ground.material.needsUpdate = true;
+  applyPlacement(parts, skin);
+
+  if (parts.ground?.material) {
+    disposeMap(parts.ground.material);
+    const groundMap = createGroundTexture(skin);
+    groundMap.needsUpdate = true;
+    parts.ground.material.map = groundMap;
+    parts.ground.material.color.setHex(0xffffff);
+    parts.ground.material.roughness = skin.platformRoughness ?? 0.6;
+    parts.ground.material.metalness = skin.platformMetalness ?? 0.1;
+    parts.ground.material.needsUpdate = true;
+  }
+
+  if (parts.platform?.material) {
+    disposeMap(parts.platform.material);
+    const platformMap = createPlatformTexture(skin);
+    platformMap.needsUpdate = true;
+    parts.platform.material.map = platformMap;
+    parts.platform.material.color.setHex(0xffffff);
+    parts.platform.material.roughness = skin.platformRoughness ?? 0.55;
+    parts.platform.material.metalness = skin.platformMetalness ?? 0.12;
+    parts.platform.material.needsUpdate = true;
+  }
+
+  if (parts.base?.material) {
+    parts.base.material.color.setHex(skin.base ?? 0x333333);
+    parts.base.material.needsUpdate = true;
+  }
 
   disposeMap(parts.dish.material);
   const dishMap = createDishTexture(skin);
@@ -537,9 +569,9 @@ export function applyArenaSkin(group, skinId) {
 }
 
 /**
- * Grounded anime venue:
- * one continuous floor flush with the dish rim; walls planted in the pit;
- * no raised pad / floating ramps.
+ * Anime venue arena:
+ * - ground venues: dish recessed into a continuous floor
+ * - elevated venues (rooftops): deck + building base over city sky
  * Battle radii / walls / pockets stay fixed.
  */
 export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
@@ -554,7 +586,7 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
 
   const floorY = CONFIG.FLOOR_Y;
 
-  // Single continuous OOB floor from dish rim → horizon (no separate raised pad).
+  // Ground venues: continuous OOB floor from dish rim → horizon.
   const ground = new THREE.Mesh(
     new THREE.RingGeometry(DISH_RADIUS + 0.02, GROUND_RADIUS, 128),
     new THREE.MeshStandardMaterial({
@@ -570,7 +602,43 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   ground.castShadow = false;
   group.add(ground);
 
-  // Recessed battle dish — slightly below the surrounding floor.
+  // Elevated venues: rooftop deck (finite platform over the city).
+  const platform = new THREE.Mesh(
+    new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
+    new THREE.MeshStandardMaterial({
+      map: createPlatformTexture(skin),
+      roughness: skin.platformRoughness ?? 0.55,
+      metalness: skin.platformMetalness ?? 0.12,
+    })
+  );
+  platform.userData.arenaPart = 'platform';
+  platform.rotation.x = -Math.PI / 2;
+  platform.position.y = floorY;
+  platform.receiveShadow = true;
+  platform.castShadow = false;
+  group.add(platform);
+
+  // Building mass under the rooftop deck.
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      PLATFORM_OUTER_RADIUS - 0.35,
+      PLATFORM_OUTER_RADIUS + 0.6,
+      1.4,
+      80
+    ),
+    new THREE.MeshStandardMaterial({
+      color: skin.base ?? 0x333333,
+      metalness: 0.22,
+      roughness: 0.82,
+    })
+  );
+  base.userData.arenaPart = 'base';
+  base.position.y = -0.85;
+  base.receiveShadow = true;
+  base.castShadow = true;
+  group.add(base);
+
+  // Battle dish — slightly recessed into the deck / ground.
   const dish = new THREE.Mesh(
     new THREE.CircleGeometry(DISH_RADIUS, 80),
     new THREE.MeshStandardMaterial({
@@ -586,7 +654,6 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   dish.castShadow = false;
   group.add(dish);
 
-  // Thin rim flush with the floor — pit / OOB seam.
   const dishLip = new THREE.Mesh(
     new THREE.RingGeometry(DISH_RADIUS - 0.08, DISH_RADIUS + 0.16, 80),
     new THREE.MeshStandardMaterial({
@@ -612,15 +679,17 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   });
   addWallSegments(group, wallMat);
 
-  group.userData.arenaParts = {
+  const parts = {
     ground,
-    // Alias for older callers that still expect a platform part.
-    platform: ground,
+    platform,
+    base,
     dish,
     dishLip,
     wallMat,
     sky,
   };
+  group.userData.arenaParts = parts;
+  applyPlacement(parts, skin);
 
   scene.add(group);
   return group;

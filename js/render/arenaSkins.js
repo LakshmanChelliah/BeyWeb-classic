@@ -17,6 +17,7 @@ const STORAGE_KEY = 'beyweb.arenaSkin';
  *   fogFar?: number,
  *   name: string,
  *   desc?: string,
+ *   placement: 'ground' | 'elevated',
  *   backdrop: {
  *     style: string,
  *     top: string,
@@ -58,6 +59,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'Abandoned Construction Site',
     desc: "Benkei's training ground — concrete dish on unfinished slabs and hazard tape",
+    placement: 'ground',
     backdrop: {
       style: 'construction',
       top: '#6a8498',
@@ -96,6 +98,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'Survival Island',
     desc: "Yu's remote island arena — sand-gold dish on a bright Pacific beach",
+    placement: 'ground',
     backdrop: {
       style: 'survival_island',
       top: '#4a90c8',
@@ -133,6 +136,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'WBBA Headquarters',
     desc: "Tsubasa's polished HQ arena — silver dish on the plaza floor",
+    placement: 'ground',
     backdrop: {
       style: 'wbba_hq',
       top: '#1a3a6a',
@@ -170,6 +174,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'Metal Bey Rooftop',
     desc: "Kyoya's daytime rooftop stadium — stone dish on tar roof above the skyline",
+    placement: 'elevated',
     backdrop: {
       style: 'rooftop_day',
       top: '#4a90c8',
@@ -207,6 +212,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'Koma Village',
     desc: "Gingka's home ground — stone dish on the village dirt path",
+    placement: 'ground',
     backdrop: {
       style: 'koma_village',
       top: '#5a8ab8',
@@ -245,6 +251,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'Dark Nebula HQ Rooftop',
     desc: "Ryuga's forbidden roof — charcoal dish over a moody night city",
+    placement: 'elevated',
     backdrop: {
       style: 'dn_rooftop_night',
       top: '#0a0614',
@@ -283,6 +290,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'City Streets',
     desc: "Masamune's street challenge — asphalt dish in a neon canyon",
+    placement: 'ground',
     backdrop: {
       style: 'city_streets',
       top: '#1a2848',
@@ -320,6 +328,7 @@ export const ARENA_SKINS = Object.freeze([
     fogFar: 160,
     name: 'Volcano Interior',
     desc: "Final L-Drago ground — molten dish inside a living crater",
+    placement: 'ground',
     backdrop: {
       style: 'volcano',
       top: '#2a0a08',
