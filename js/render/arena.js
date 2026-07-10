@@ -4,77 +4,94 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=43';
-import { createBackdropTexture } from './arenaBackdrop.js?v=43';
+} from './arenaSkins.js?v=45';
+import { createBackdropTexture } from './arenaBackdrop.js?v=45';
 
 /**
- * Stadium geometry is fixed. Skins only swap canvas textures, materials,
- * and the painted sky-dome backdrop — never radii, walls, or pocket layout.
+ * Stadium battle geometry is fixed (dish radius / walls / pockets).
+ * Visuals: dish recessed into a continuous venue floor (rim flush with OOB),
+ * anime-poster horizons — never a floating pad over empty sky.
  */
 
 const DISH_RADIUS = CONFIG.WALL_RADIUS + 0.15;
 const PLATFORM_OUTER_RADIUS = CONFIG.PLATFORM_OUTER_RADIUS;
+/** Out-of-bounds ground flush with the stadium rim. */
+const GROUND_RADIUS = 78;
 const SKY_RADIUS = 95;
+/** How far the dish sits below the surrounding floor (recessed pit). */
+const DISH_RECESS = 0.07;
 
-/** Soft radial gradient + anime gloss ring on the battle dish */
 function createDishTexture(skin) {
   const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2;
 
-  const grad = ctx.createRadialGradient(cx, cy * 0.85, r * 0.1, cx, cy, r);
+  // Bowl shading: bright center, darker rim — reads as a sunken dish.
+  const grad = ctx.createRadialGradient(cx, cy * 0.88, r * 0.05, cx, cy, r);
   grad.addColorStop(0, skin.dishCenter);
-  grad.addColorStop(0.7, skin.dishMid);
-  grad.addColorStop(1, skin.dishEdge);
+  grad.addColorStop(0.45, skin.dishMid);
+  grad.addColorStop(0.82, skin.dishEdge);
+  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.65));
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Specular-style gloss arc (anime overhead light).
-  const gloss = ctx.createRadialGradient(cx * 0.78, cy * 0.55, r * 0.02, cx * 0.78, cy * 0.55, r * 0.45);
+  // Inner shadow ring (depth cue).
+  const shade = ctx.createRadialGradient(cx, cy, r * 0.72, cx, cy, r);
+  shade.addColorStop(0, 'rgba(0,0,0,0)');
+  shade.addColorStop(1, 'rgba(0,0,0,0.38)');
+  ctx.fillStyle = shade;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = 4;
+  for (const rr of [0.32, 0.55, 0.78]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * rr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  const gloss = ctx.createRadialGradient(cx * 0.72, cy * 0.52, 2, cx * 0.72, cy * 0.52, r * 0.38);
   gloss.addColorStop(0, 'rgba(255,255,255,0.28)');
-  gloss.addColorStop(0.45, 'rgba(255,255,255,0.08)');
   gloss.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gloss;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Lane ring etch
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.38, 0, Math.PI * 2);
-  ctx.stroke();
-
   if (skin.dishAccent) {
     ctx.strokeStyle = skin.dishAccent;
-    for (let i = 0; i < 12; i++) {
-      ctx.lineWidth = 1 + Math.random() * 2;
-      ctx.globalAlpha = 0.2 + Math.random() * 0.25;
-      const a0 = Math.random() * Math.PI * 2;
-      const a1 = a0 + (Math.random() - 0.5) * 1.2;
+    ctx.globalAlpha = 0.32;
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
       ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a0) * r * 0.15, cy + Math.sin(a0) * r * 0.15);
-      ctx.quadraticCurveTo(
-        cx + Math.cos((a0 + a1) / 2) * r * (0.4 + Math.random() * 0.3),
-        cy + Math.sin((a0 + a1) / 2) * r * (0.4 + Math.random() * 0.3),
-        cx + Math.cos(a1) * r * 0.92,
-        cy + Math.sin(a1) * r * 0.92
-      );
+      ctx.moveTo(cx + Math.cos(a) * r * 0.18, cy + Math.sin(a) * r * 0.18);
+      ctx.lineTo(cx + Math.cos(a) * r * 0.92, cy + Math.sin(a) * r * 0.92);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Construction: metal/wood slats like the anime site stadium.
+  if (skin.backdrop?.style === 'construction') {
+    ctx.strokeStyle = 'rgba(40,28,18,0.45)';
+    ctx.lineWidth = 5;
+    for (let i = -20; i < 40; i++) {
+      const y = cy - r + i * 28;
+      ctx.beginPath();
+      ctx.moveTo(cx - r, y);
+      ctx.lineTo(cx + r, y + 12);
+      ctx.stroke();
+    }
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -82,38 +99,136 @@ function createDishTexture(skin) {
   return tex;
 }
 
-/** Light marble / tiled platform texture from skin palette */
+function shadeHex(hexOrCss, factor) {
+  if (typeof hexOrCss === 'string' && hexOrCss.startsWith('#')) {
+    const n = parseInt(hexOrCss.slice(1), 16);
+    const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * factor)));
+    const g = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * factor)));
+    const b = Math.max(0, Math.min(255, Math.round((n & 255) * factor)));
+    return `rgb(${r},${g},${b})`;
+  }
+  return hexOrCss;
+}
+
+/**
+ * Near-field floor ring (dish rim → barrier): large tiles / venue surface,
+ * continuous with the far ground — same height, not a raised pad.
+ */
 function createPlatformTexture(skin) {
   const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
+  const style = skin.backdrop?.style || 'construction';
 
   ctx.fillStyle = skin.platformBase;
   ctx.fillRect(0, 0, size, size);
+  paintVenueFloor(ctx, size, skin, style, true);
 
-  ctx.strokeStyle = skin.platformVein;
-  for (let i = 0; i < 50; i++) {
-    ctx.lineWidth = 0.5 + Math.random() * 1.5;
-    ctx.globalAlpha = 0.25 + Math.random() * 0.25;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 3);
+  return tex;
+}
+
+/**
+ * Far out-of-bounds ground — same level as the stadium rim.
+ */
+function createGroundTexture(skin) {
+  const size = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const style = skin.backdrop?.style || 'construction';
+
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
+  paintVenueFloor(ctx, size, skin, style, false);
+
+  const fade = ctx.createRadialGradient(size / 2, size / 2, size * 0.22, size / 2, size / 2, size * 0.5);
+  fade.addColorStop(0, 'rgba(0,0,0,0)');
+  fade.addColorStop(1, 'rgba(0,0,0,0.28)');
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, size, size);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 8);
+  return tex;
+}
+
+function paintVenueFloor(ctx, size, skin, style, nearField) {
+  switch (style) {
+    case 'construction':
+      paintFloorConcrete(ctx, size, skin, nearField);
+      break;
+    case 'survival_island':
+      paintFloorIsland(ctx, size, skin);
+      break;
+    case 'wbba_hq':
+      paintFloorTiles(ctx, size, skin, nearField ? 5 : 8);
+      break;
+    case 'rooftop_day':
+      paintFloorTiles(ctx, size, skin, nearField ? 4 : 7);
+      break;
+    case 'koma_village':
+      paintFloorCrackedEarth(ctx, size, skin);
+      break;
+    case 'dn_rooftop_night':
+      paintFloorRooftopDark(ctx, size, skin);
+      break;
+    case 'city_streets':
+      paintFloorAsphalt(ctx, size, skin);
+      break;
+    case 'volcano':
+      paintFloorVolcanic(ctx, size, skin);
+      break;
+    default:
+      paintFloorTiles(ctx, size, skin, 6);
+  }
+}
+
+/** Large square tiles — tournament plaza / WBBA / rooftop. */
+function paintFloorTiles(ctx, size, skin, divisions) {
+  const tile = size / divisions;
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = skin.platformGrid;
+  ctx.lineWidth = nearLine(divisions);
+  for (let i = 0; i <= divisions; i++) {
+    const p = i * tile;
     ctx.beginPath();
-    ctx.moveTo(Math.random() * size, Math.random() * size);
-    ctx.bezierCurveTo(
-      Math.random() * size,
-      Math.random() * size,
-      Math.random() * size,
-      Math.random() * size,
-      Math.random() * size,
-      Math.random() * size
-    );
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(size, p);
     ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let y = 0; y < divisions; y++) {
+    for (let x = 0; x < divisions; x++) {
+      if ((x + y) % 2 === 0) ctx.fillRect(x * tile, y * tile, tile, tile);
+    }
+  }
+}
 
-  const tile = size / 4;
+function nearLine(divisions) {
+  return divisions <= 5 ? 5 : 3;
+}
+
+/** Construction site — grey concrete slabs + hazard accents. */
+function paintFloorConcrete(ctx, size, skin, nearField) {
+  const tile = size / (nearField ? 3 : 4);
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
   ctx.strokeStyle = skin.platformGrid;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 7;
   for (let i = 0; i <= 4; i++) {
     const p = i * tile;
     ctx.beginPath();
@@ -125,12 +240,158 @@ function createPlatformTexture(skin) {
     ctx.lineTo(size, p);
     ctx.stroke();
   }
+  // Dust / wear
+  for (let i = 0; i < 80; i++) {
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = i % 2 ? '#fff' : '#222';
+    ctx.fillRect(Math.random() * size, Math.random() * size, 40, 18);
+  }
+  ctx.globalAlpha = 1;
+  if (nearField) {
+    ctx.strokeStyle = '#e8a020';
+    ctx.lineWidth = 14;
+    ctx.globalAlpha = 0.5;
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, 60 + i * 180);
+      ctx.lineTo(size, 140 + i * 180);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
 
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 3);
-  return tex;
+/** Survival Island — grass near dish, sand grain. */
+function paintFloorIsland(ctx, size, skin) {
+  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.55);
+  g.addColorStop(0, '#6aaa48');
+  g.addColorStop(0.35, '#8abc58');
+  g.addColorStop(0.65, skin.platformBase);
+  g.addColorStop(1, '#d4bc80');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 100; i++) {
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = Math.random() > 0.5 ? '#fff6d0' : '#3a7040';
+    ctx.beginPath();
+    ctx.ellipse(
+      Math.random() * size,
+      Math.random() * size,
+      12 + Math.random() * 40,
+      6 + Math.random() * 14,
+      Math.random() * Math.PI,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Koma / earth — cracked ground radiating from center (impact crater). */
+function paintFloorCrackedEarth(ctx, size, skin) {
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
+  const cx = size / 2;
+  const cy = size / 2;
+  ctx.strokeStyle = skin.platformGrid;
+  ctx.lineWidth = 4;
+  ctx.globalAlpha = 0.75;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * 30, cy + Math.sin(a) * 30);
+    let x = cx + Math.cos(a) * 30;
+    let y = cy + Math.sin(a) * 30;
+    for (let s = 0; s < 6; s++) {
+      x += Math.cos(a + (Math.random() - 0.5) * 0.5) * (40 + Math.random() * 50);
+      y += Math.sin(a + (Math.random() - 0.5) * 0.5) * (40 + Math.random() * 50);
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // Flagstone patches
+  ctx.strokeStyle = skin.platformVein;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 28; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.strokeRect(x, y, 50 + Math.random() * 70, 35 + Math.random() * 50);
+  }
+}
+
+function paintFloorRooftopDark(ctx, size, skin) {
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = skin.platformGrid;
+  ctx.lineWidth = 5;
+  for (let i = 1; i < 6; i++) {
+    const p = (i / 6) * size;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(size, p);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(120,40,80,0.12)';
+  ctx.fillRect(0, 0, size, size);
+}
+
+function paintFloorAsphalt(ctx, size, skin) {
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 220; i++) {
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = Math.random() > 0.5 ? '#777' : '#1a1a1a';
+    ctx.fillRect(Math.random() * size, Math.random() * size, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 8;
+  ctx.setLineDash([36, 28]);
+  ctx.beginPath();
+  ctx.moveTo(size * 0.5, 0);
+  ctx.lineTo(size * 0.5, size);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function paintFloorVolcanic(ctx, size, skin) {
+  ctx.fillStyle = skin.platformBase;
+  ctx.fillRect(0, 0, size, size);
+  const cx = size / 2;
+  const cy = size / 2;
+  ctx.strokeStyle = skin.dishAccent || '#dc2626';
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.quadraticCurveTo(
+      cx + Math.cos(a + 0.3) * size * 0.25,
+      cy + Math.sin(a + 0.3) * size * 0.25,
+      cx + Math.cos(a) * size * 0.5,
+      cy + Math.sin(a) * size * 0.5
+    );
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (let i = 0; i < 24; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 16);
+    g.addColorStop(0, 'rgba(255,90,0,0.5)');
+    g.addColorStop(1, 'rgba(255,90,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function disposeMap(mat) {
@@ -140,12 +401,10 @@ function disposeMap(mat) {
   }
 }
 
-/** Trapezoidal wedge cross-section: ramps up from the dish to a flat top */
 function createWedgeShape() {
   const innerX = -0.62;
   const outerX = 0.62;
   const h = CONFIG.WALL_HEIGHT * 0.9;
-
   const shape = new THREE.Shape();
   shape.moveTo(innerX, 0);
   shape.lineTo(innerX * 0.25, h);
@@ -155,10 +414,6 @@ function createWedgeShape() {
   return shape;
 }
 
-/**
- * Navy wedge wall segments following each arc between the KO pockets.
- * Geometry is identical for every skin; only the shared material is skinned.
- */
 function addWallSegments(group, wallMat) {
   const wedge = createWedgeShape();
   const radius = CONFIG.WALL_RADIUS + 0.1;
@@ -197,6 +452,39 @@ function addWallSegments(group, wallMat) {
   }
 }
 
+/**
+ * Dark exit ramps at KO pockets — bridges dish rim to the flat OOB floor
+ * (anime stadiums show these as recessed openings in the ring).
+ */
+function addPocketRamps(group, skin) {
+  const rampMat = new THREE.MeshStandardMaterial({
+    color: skin.base ?? 0x1a1a1a,
+    roughness: 0.72,
+    metalness: 0.15,
+  });
+  const ramps = [];
+  const rampLen = 3.2;
+  const rampWidth = CONFIG.POCKET_HALF_WIDTH * DISH_RADIUS * 1.65;
+
+  for (const angle of CONFIG.POCKET_ANGLES) {
+    const ramp = new THREE.Mesh(
+      new THREE.BoxGeometry(rampWidth, 0.06, rampLen),
+      rampMat
+    );
+    ramp.userData.arenaPart = 'pocketRamp';
+    const midR = DISH_RADIUS + rampLen * 0.35;
+    ramp.position.set(Math.cos(angle) * midR, CONFIG.FLOOR_Y - 0.02, Math.sin(angle) * midR);
+    ramp.rotation.y = -angle + Math.PI / 2;
+    // Tip slightly down toward outside so it reads as an exit chute.
+    ramp.rotation.x = 0.08;
+    ramp.receiveShadow = true;
+    group.add(ramp);
+    ramps.push(ramp);
+  }
+  return { rampMat, ramps };
+}
+
+/** Horizon sky only — upper dome; the ground ring owns the floor. */
 function createSkyDome(skin) {
   const mat = new THREE.MeshBasicMaterial({
     map: createBackdropTexture(skin),
@@ -204,18 +492,31 @@ function createSkyDome(skin) {
     depthWrite: false,
     fog: false,
   });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(SKY_RADIUS, 48, 24), mat);
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(SKY_RADIUS, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    mat
+  );
   dome.userData.arenaPart = 'sky';
+  dome.position.y = 0;
   dome.renderOrder = -10;
   return dome;
 }
 
 function applySkinToParts(parts, skin) {
+  disposeMap(parts.ground.material);
+  const groundMap = createGroundTexture(skin);
+  groundMap.needsUpdate = true;
+  parts.ground.material.map = groundMap;
+  parts.ground.material.color.setHex(0xffffff);
+  parts.ground.material.roughness = Math.min(0.95, (skin.platformRoughness ?? 0.6) + 0.12);
+  parts.ground.material.metalness = Math.max(0.02, (skin.platformMetalness ?? 0.1) * 0.5);
+  parts.ground.material.needsUpdate = true;
+
   disposeMap(parts.platform.material);
   const platformMap = createPlatformTexture(skin);
   platformMap.needsUpdate = true;
   parts.platform.material.map = platformMap;
-  parts.platform.material.color?.setHex?.(0xffffff);
+  parts.platform.material.color.setHex(0xffffff);
   parts.platform.material.roughness = skin.platformRoughness;
   parts.platform.material.metalness = skin.platformMetalness;
   parts.platform.material.needsUpdate = true;
@@ -224,16 +525,16 @@ function applySkinToParts(parts, skin) {
   const dishMap = createDishTexture(skin);
   dishMap.needsUpdate = true;
   parts.dish.material.map = dishMap;
-  parts.dish.material.color?.setHex?.(0xffffff);
+  parts.dish.material.color.setHex(0xffffff);
   parts.dish.material.roughness = skin.dishRoughness;
   parts.dish.material.metalness = skin.dishMetalness;
   parts.dish.material.needsUpdate = true;
 
   parts.dishLip.material.color.setHex(skin.dishLip);
-  parts.dishLip.material.metalness = 0.72;
-  parts.dishLip.material.roughness = 0.22;
+  parts.dishLip.material.metalness = 0.55;
+  parts.dishLip.material.roughness = 0.32;
   parts.dishLip.material.emissive.setHex(skin.dishLip);
-  parts.dishLip.material.emissiveIntensity = 0.18;
+  parts.dishLip.material.emissiveIntensity = 0.1;
   parts.dishLip.material.needsUpdate = true;
 
   parts.wallMat.color.setHex(skin.wall);
@@ -248,8 +549,10 @@ function applySkinToParts(parts, skin) {
   parts.barrier.material.roughness = skin.barrierRoughness;
   parts.barrier.material.needsUpdate = true;
 
-  parts.base.material.color.setHex(skin.base);
-  parts.base.material.needsUpdate = true;
+  if (parts.rampMat) {
+    parts.rampMat.color.setHex(skin.base ?? 0x1a1a1a);
+    parts.rampMat.needsUpdate = true;
+  }
 
   if (parts.sky?.material) {
     disposeMap(parts.sky.material);
@@ -271,11 +574,6 @@ function applySceneAmbience(scene, skin) {
   }
 }
 
-/**
- * Re-skin an existing arena group without rebuilding geometry.
- * @param {THREE.Group} group
- * @param {string} skinId
- */
 export function applyArenaSkin(group, skinId) {
   const parts = group?.userData?.arenaParts;
   if (!parts) return null;
@@ -287,11 +585,9 @@ export function applyArenaSkin(group, skinId) {
 }
 
 /**
- * Flat physics arena with anime venue skins:
- * glossy battle dish, wedge walls with three KO gaps,
- * barrier ring, tiled platform, and painted sky dome.
- *
- * Shape/format is constant; `skinId` only changes textures and materials.
+ * Grounded anime venue:
+ * continuous floor ring flush with dish rim + recessed dish + pocket ramps.
+ * Battle radii / walls / pockets stay fixed.
  */
 export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   const skin = getArenaSkin(skinId ?? DEFAULT_ARENA_SKIN_ID);
@@ -303,8 +599,29 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   const sky = createSkyDome(skin);
   group.add(sky);
 
+  const floorY = CONFIG.FLOOR_Y;
+  const floorMatProps = {
+    roughness: Math.min(0.95, (skin.platformRoughness ?? 0.6) + 0.12),
+    metalness: Math.max(0.02, (skin.platformMetalness ?? 0.1) * 0.5),
+  };
+
+  // Far OOB floor — ring with a hole so the dish sits IN the ground, not on a pad.
+  const ground = new THREE.Mesh(
+    new THREE.RingGeometry(PLATFORM_OUTER_RADIUS - 0.05, GROUND_RADIUS, 96),
+    new THREE.MeshStandardMaterial({
+      map: createGroundTexture(skin),
+      ...floorMatProps,
+    })
+  );
+  ground.userData.arenaPart = 'ground';
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = floorY;
+  ground.receiveShadow = true;
+  group.add(ground);
+
+  // Near floor (around the stadium) — same height as far ground = continuous OOB.
   const platform = new THREE.Mesh(
-    new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
+    new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS, 80),
     new THREE.MeshStandardMaterial({
       map: createPlatformTexture(skin),
       roughness: skin.platformRoughness,
@@ -313,10 +630,11 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   );
   platform.userData.arenaPart = 'platform';
   platform.rotation.x = -Math.PI / 2;
-  platform.position.y = CONFIG.FLOOR_Y - 0.04;
+  platform.position.y = floorY;
   platform.receiveShadow = true;
   group.add(platform);
 
+  // Recessed battle dish — slightly below the surrounding floor.
   const dish = new THREE.Mesh(
     new THREE.CircleGeometry(DISH_RADIUS, 80),
     new THREE.MeshStandardMaterial({
@@ -327,23 +645,24 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   );
   dish.userData.arenaPart = 'dish';
   dish.rotation.x = -Math.PI / 2;
-  dish.position.y = CONFIG.FLOOR_Y + 0.02;
+  dish.position.y = floorY - DISH_RECESS;
   dish.receiveShadow = true;
   group.add(dish);
 
+  // Rim flush with the floor — the seam where pit meets OOB.
   const dishLip = new THREE.Mesh(
-    new THREE.RingGeometry(DISH_RADIUS - 0.18, DISH_RADIUS + 0.05, 80),
+    new THREE.RingGeometry(DISH_RADIUS - 0.12, DISH_RADIUS + 0.22, 80),
     new THREE.MeshStandardMaterial({
       color: skin.dishLip,
-      metalness: 0.72,
-      roughness: 0.22,
+      metalness: 0.55,
+      roughness: 0.32,
       emissive: skin.dishLip,
-      emissiveIntensity: 0.18,
+      emissiveIntensity: 0.1,
     })
   );
   dishLip.userData.arenaPart = 'dishLip';
   dishLip.rotation.x = -Math.PI / 2;
-  dishLip.position.y = CONFIG.FLOOR_Y + 0.035;
+  dishLip.position.y = floorY + 0.01;
   group.add(dishLip);
 
   const wallMat = new THREE.MeshStandardMaterial({
@@ -355,51 +674,30 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   });
   addWallSegments(group, wallMat);
 
+  const { rampMat } = addPocketRamps(group, skin);
+
+  // Low perimeter curb — sits ON the floor, not a floating cylinder.
   const barrier = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      PLATFORM_OUTER_RADIUS,
-      PLATFORM_OUTER_RADIUS,
-      1.1,
-      80,
-      1,
-      true
-    ),
+    new THREE.TorusGeometry(PLATFORM_OUTER_RADIUS - 0.2, 0.14, 10, 80),
     new THREE.MeshStandardMaterial({
       color: skin.barrier,
       metalness: skin.barrierMetalness,
       roughness: skin.barrierRoughness,
-      side: THREE.DoubleSide,
     })
   );
   barrier.userData.arenaPart = 'barrier';
-  barrier.position.y = 0.55;
+  barrier.rotation.x = Math.PI / 2;
+  barrier.position.y = floorY + 0.1;
   group.add(barrier);
 
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      PLATFORM_OUTER_RADIUS - 0.3,
-      PLATFORM_OUTER_RADIUS + 0.5,
-      0.7,
-      80
-    ),
-    new THREE.MeshStandardMaterial({
-      color: skin.base,
-      metalness: 0.2,
-      roughness: 0.85,
-    })
-  );
-  base.userData.arenaPart = 'base';
-  base.position.y = -0.5;
-  base.receiveShadow = true;
-  group.add(base);
-
   group.userData.arenaParts = {
+    ground,
     platform,
     dish,
     dishLip,
     wallMat,
     barrier,
-    base,
+    rampMat,
     sky,
   };
 

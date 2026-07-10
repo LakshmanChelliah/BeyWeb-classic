@@ -1,766 +1,535 @@
 /**
- * Dense anime-poster sky-dome textures for pivotal Metal Fusion venues.
- * Canvas art only — stadium geometry never changes.
+ * Painted sky-dome horizons for each anime venue.
+ * Upper hemisphere only — the ground ring owns the floor.
+ * Styled after Metal Fusion stadium locations (recessed pit in a real place).
  */
 
 import * as THREE from 'three';
 
-/** @param {import('./arenaSkins.js').ArenaSkin} skin */
-export function createBackdropTexture(skin) {
-  const w = 1536;
-  const h = 768;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  const bd = skin.backdrop || {
-    style: 'koma_village',
-    top: '#6a90b0',
-    mid: '#8ab0a0',
-    bottom: '#3a5040',
-  };
-
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, bd.top);
-  sky.addColorStop(0.42, bd.mid);
-  sky.addColorStop(1, bd.bottom);
-  ctx.fillStyle = sky;
+function paintSky(ctx, w, h, top, mid, bot) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, top);
+  g.addColorStop(0.55, mid);
+  g.addColorStop(1, bot);
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
-
-  switch (bd.style) {
-    case 'construction':
-      paintConstruction(ctx, w, h, bd);
-      break;
-    case 'survival_island':
-      paintSurvivalIsland(ctx, w, h, bd);
-      break;
-    case 'wbba_hq':
-      paintWbbaHq(ctx, w, h, bd);
-      break;
-    case 'rooftop_day':
-      paintRooftopDay(ctx, w, h, bd);
-      break;
-    case 'koma_village':
-      paintKomaVillage(ctx, w, h, bd);
-      break;
-    case 'dn_rooftop_night':
-      paintDnRooftopNight(ctx, w, h, bd);
-      break;
-    case 'city_streets':
-      paintCityStreets(ctx, w, h, bd);
-      break;
-    case 'volcano':
-      paintVolcano(ctx, w, h, bd);
-      break;
-    default:
-      paintKomaVillage(ctx, w, h, bd);
-  }
-
-  // Soft center vignette so beys stay readable.
-  const vig = ctx.createRadialGradient(w / 2, h * 0.58, h * 0.08, w / 2, h * 0.52, h * 0.9);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(0.7, 'rgba(0,0,0,0.12)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, w, h);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
 }
 
-function hexAlpha(hex, a) {
-  const raw = String(hex || '#ffffff').replace('#', '');
-  const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw.padStart(6, '0');
-  const n = parseInt(full.slice(0, 6), 16) || 0xffffff;
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+function paintSun(ctx, x, y, r, color) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, color);
+  g.addColorStop(0.4, color);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
 }
 
-function paintStars(ctx, w, h, count, maxY = 0.55) {
-  ctx.fillStyle = '#ffffff';
+function paintClouds(ctx, w, h, y0, color, count = 5) {
+  ctx.fillStyle = color;
   for (let i = 0; i < count; i++) {
-    ctx.globalAlpha = 0.15 + Math.random() * 0.7;
-    const s = 1 + Math.random() * 2;
-    ctx.fillRect(Math.random() * w, Math.random() * h * maxY, s, s);
-  }
-  ctx.globalAlpha = 1;
-}
-
-/** Benkei — abandoned construction / warehouse site */
-function paintConstruction(ctx, w, h, bd) {
-  // Dust haze
-  for (let i = 0; i < 10; i++) {
-    const x = Math.random() * w;
-    const y = h * 0.3 + Math.random() * h * 0.4;
-    const r = 60 + Math.random() * 140;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(180,140,80,0.18)');
-    g.addColorStop(1, 'rgba(180,140,80,0)');
-    ctx.fillStyle = g;
+    const x = (i / count) * w + ((i * 97) % 80);
+    const y = y0 + ((i * 37) % 40);
+    const s = 28 + (i % 3) * 18;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.ellipse(x, y, s * 1.6, s * 0.55, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - s * 0.7, y + 4, s * 0.9, s * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s * 0.8, y + 2, s, s * 0.42, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+}
 
-  // Scaffolding grid
-  ctx.strokeStyle = 'rgba(40,30,20,0.55)';
-  ctx.lineWidth = 3;
-  for (let x = 40; x < w; x += 70) {
+/** Soft crowd band behind a low arena wall (tournament / WBBA feel). */
+function paintCrowd(ctx, w, h, y, height) {
+  for (let i = 0; i < 90; i++) {
+    const x = (i / 90) * w + ((i * 13) % 7);
+    const hh = height * (0.55 + (i % 5) * 0.1);
+    ctx.fillStyle = i % 3 === 0 ? '#2a3040' : i % 3 === 1 ? '#3a4050' : '#1a2030';
+    ctx.fillRect(x, y - hh, 8 + (i % 3) * 3, hh);
+    // Head dots
+    ctx.fillStyle = i % 4 === 0 ? '#e8c8a0' : '#c4a888';
     ctx.beginPath();
-    ctx.moveTo(x, h * 0.2);
-    ctx.lineTo(x, h);
-    ctx.stroke();
+    ctx.arc(x + 5, y - hh - 3, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
-  for (let y = h * 0.25; y < h; y += 48) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
-  }
+}
 
-  // Diagonal braces
-  ctx.strokeStyle = 'rgba(60,40,20,0.4)';
-  ctx.lineWidth = 2;
-  for (let x = 0; x < w; x += 140) {
-    ctx.beginPath();
-    ctx.moveTo(x, h * 0.25);
-    ctx.lineTo(x + 70, h * 0.55);
-    ctx.lineTo(x + 140, h * 0.25);
-    ctx.stroke();
-  }
+/** Abandoned Construction Site — blue girders, unfinished slabs (anime site). */
+function paintConstruction(ctx, w, h) {
+  paintSky(ctx, w, h, '#6a9ab8', '#a8c0d0', '#c8b8a0');
+  paintSun(ctx, w * 0.8, h * 0.2, 85, 'rgba(255,230,180,0.5)');
+  paintClouds(ctx, w, h, h * 0.16, 'rgba(255,255,255,0.35)', 4);
 
-  // Unfinished building blocks
-  ctx.fillStyle = 'rgba(20,16,12,0.75)';
-  for (let i = 0; i < 9; i++) {
-    const bx = (i / 9) * w + 10;
-    const bw = 60 + (i % 3) * 25;
-    const bh = h * (0.28 + (i % 4) * 0.08);
-    ctx.fillRect(bx, h - bh, bw, bh);
-    // Empty window holes
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    for (let wy = h - bh + 16; wy < h - 20; wy += 28) {
-      for (let wx = bx + 10; wx < bx + bw - 14; wx += 22) {
-        ctx.fillRect(wx, wy, 12, 16);
-      }
-    }
-    ctx.fillStyle = 'rgba(20,16,12,0.75)';
-  }
+  // Industrial back wall
+  ctx.fillStyle = '#5a6870';
+  ctx.fillRect(0, h * 0.42, w, h * 0.35);
 
-  // Hazard lamps
+  // Blue construction girders (signature of the anime site stadium)
+  ctx.strokeStyle = '#3a7ab8';
+  ctx.lineWidth = 10;
   for (let i = 0; i < 8; i++) {
-    const x = ((i + 0.5) / 8) * w;
-    const y = h * 0.28 + (i % 2) * 30;
-    const lamp = ctx.createRadialGradient(x, y, 2, x, y, 50);
-    lamp.addColorStop(0, hexAlpha(bd.glow || '#f59e0b', 0.7));
-    lamp.addColorStop(1, hexAlpha(bd.glow || '#f59e0b', 0));
-    ctx.fillStyle = lamp;
+    const x = 40 + i * (w / 8);
     ctx.beginPath();
-    ctx.arc(x, y, 50, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Crane boom silhouette
-  ctx.strokeStyle = 'rgba(10,8,6,0.85)';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.1, h * 0.7);
-  ctx.lineTo(w * 0.1, h * 0.15);
-  ctx.lineTo(w * 0.55, h * 0.22);
-  ctx.stroke();
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.55, h * 0.22);
-  ctx.lineTo(w * 0.55, h * 0.45);
-  ctx.stroke();
-}
-
-/** Yu — Survival Island beach arena */
-function paintSurvivalIsland(ctx, w, h, bd) {
-  // Soft sun
-  const sun = ctx.createRadialGradient(w * 0.78, h * 0.18, 4, w * 0.78, h * 0.18, 90);
-  sun.addColorStop(0, '#fff8d0');
-  sun.addColorStop(0.4, hexAlpha(bd.glow || '#fef08a', 0.55));
-  sun.addColorStop(1, 'rgba(255,240,160,0)');
-  ctx.fillStyle = sun;
-  ctx.beginPath();
-  ctx.arc(w * 0.78, h * 0.18, 90, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Cloud puffs
-  for (let i = 0; i < 12; i++) {
-    const x = Math.random() * w;
-    const y = h * 0.08 + Math.random() * h * 0.22;
-    const r = 40 + Math.random() * 70;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(255,255,255,0.55)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
+    ctx.moveTo(x, h * 0.75);
+    ctx.lineTo(x, h * 0.28);
+    ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Ocean band
-  const ocean = ctx.createLinearGradient(0, h * 0.52, 0, h * 0.78);
-  ocean.addColorStop(0, '#3db8e0');
-  ocean.addColorStop(0.5, '#1a7aaa');
-  ocean.addColorStop(1, '#0e4a6a');
-  ctx.fillStyle = ocean;
-  ctx.fillRect(0, h * 0.52, w, h * 0.28);
-
-  // Wave sparkles
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 18; i++) {
-    const y = h * 0.55 + Math.random() * h * 0.18;
+    ctx.moveTo(x - 30, h * 0.35);
+    ctx.lineTo(x + 30, h * 0.5);
+    ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(Math.random() * w, y);
-    ctx.quadraticCurveTo(Math.random() * w, y - 8, Math.random() * w, y);
+    ctx.moveTo(x + 30, h * 0.35);
+    ctx.lineTo(x - 30, h * 0.5);
     ctx.stroke();
   }
-
-  // Distant cliffs
-  ctx.fillStyle = 'rgba(40,70,60,0.55)';
+  // Horizontal beams
+  ctx.lineWidth = 8;
   ctx.beginPath();
-  ctx.moveTo(0, h * 0.58);
-  for (let x = 0; x <= w * 0.35; x += 40) {
-    ctx.lineTo(x, h * (0.42 + Math.sin(x * 0.05) * 0.06));
+  ctx.moveTo(0, h * 0.38);
+  ctx.lineTo(w, h * 0.38);
+  ctx.moveTo(0, h * 0.52);
+  ctx.lineTo(w, h * 0.52);
+  ctx.stroke();
+
+  // Unfinished concrete towers
+  for (let i = 0; i < 4; i++) {
+    const x = w * 0.05 + i * w * 0.28;
+    ctx.fillStyle = '#8a8680';
+    ctx.fillRect(x, h * 0.22, 55, h * 0.2);
+    ctx.strokeStyle = '#5a5048';
+    ctx.lineWidth = 2;
+    for (let r = 0; r < 4; r++) {
+      ctx.beginPath();
+      ctx.moveTo(x + 10 + r * 12, h * 0.22);
+      ctx.lineTo(x + 10 + r * 12, h * 0.22 - 16);
+      ctx.stroke();
+    }
   }
-  ctx.lineTo(w * 0.35, h * 0.58);
+
+  // Floor haze (concrete)
+  const haze = ctx.createLinearGradient(0, h * 0.7, 0, h);
+  haze.addColorStop(0, 'rgba(160,160,160,0)');
+  haze.addColorStop(1, 'rgba(140,140,140,0.55)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, h * 0.7, w, h * 0.3);
+}
+
+/** Survival Island — lush green isle in turquoise water. */
+function paintIsland(ctx, w, h) {
+  paintSky(ctx, w, h, '#4aa0d8', '#87ceeb', '#b8e0f0');
+  paintSun(ctx, w * 0.85, h * 0.18, 100, 'rgba(255,250,200,0.7)');
+  paintClouds(ctx, w, h, h * 0.14, 'rgba(255,255,255,0.5)', 5);
+
+  // Distant green hills
+  ctx.fillStyle = '#2d7a40';
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.52);
+  ctx.quadraticCurveTo(w * 0.2, h * 0.32, w * 0.45, h * 0.5);
+  ctx.quadraticCurveTo(w * 0.65, h * 0.28, w * 0.9, h * 0.48);
+  ctx.lineTo(w, h * 0.52);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#3d9a50';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.15, h * 0.52);
+  ctx.quadraticCurveTo(w * 0.4, h * 0.38, w * 0.7, h * 0.5);
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = 'rgba(50,80,70,0.5)';
+  // Turquoise ocean
+  const ocean = ctx.createLinearGradient(0, h * 0.5, 0, h * 0.78);
+  ocean.addColorStop(0, '#2a9ab8');
+  ocean.addColorStop(0.4, '#3ab8d0');
+  ocean.addColorStop(1, '#5ad0e0');
+  ctx.fillStyle = ocean;
+  ctx.fillRect(0, h * 0.5, w, h * 0.28);
+
+  // Island landmass in mid
+  ctx.fillStyle = '#4a9a40';
   ctx.beginPath();
-  ctx.moveTo(w * 0.65, h * 0.58);
-  for (let x = w * 0.65; x <= w; x += 40) {
-    ctx.lineTo(x, h * (0.4 + Math.cos(x * 0.04) * 0.07));
-  }
-  ctx.lineTo(w, h * 0.58);
-  ctx.closePath();
+  ctx.ellipse(w * 0.5, h * 0.62, w * 0.38, h * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#6aba50';
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, h * 0.6, w * 0.28, h * 0.07, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Palm silhouettes
-  for (let i = 0; i < 7; i++) {
-    const x = (i / 6) * w * 0.9 + w * 0.05;
-    const base = h * 0.72;
-    ctx.strokeStyle = 'rgba(20,50,30,0.85)';
+  for (let p = 0; p < 5; p++) {
+    const px = w * (0.18 + p * 0.16);
+    const py = h * 0.58;
+    ctx.strokeStyle = '#3a5028';
     ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(x, base);
-    ctx.quadraticCurveTo(x + 8, base - 60, x - 4, base - 110);
+    ctx.moveTo(px, py);
+    ctx.quadraticCurveTo(px + 6, py - 35, px + 2, py - 60);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(20,60,30,0.8)';
-    for (let f = 0; f < 5; f++) {
-      const ang = -Math.PI * 0.7 + f * 0.35;
-      ctx.beginPath();
-      ctx.moveTo(x - 4, base - 110);
-      ctx.quadraticCurveTo(
-        x - 4 + Math.cos(ang) * 40,
-        base - 110 + Math.sin(ang) * 20,
-        x - 4 + Math.cos(ang) * 70,
-        base - 100 + Math.sin(ang) * 35
-      );
-      ctx.quadraticCurveTo(
-        x - 4 + Math.cos(ang) * 30,
-        base - 105,
-        x - 4,
-        base - 110
-      );
-      ctx.fill();
-    }
-  }
-
-  // Sand shore
-  const sand = ctx.createLinearGradient(0, h * 0.72, 0, h);
-  sand.addColorStop(0, '#e8d4a0');
-  sand.addColorStop(1, '#c8a870');
-  ctx.fillStyle = sand;
-  ctx.fillRect(0, h * 0.72, w, h * 0.28);
-}
-
-/** Tsubasa — WBBA HQ indoor theater stadium */
-function paintWbbaHq(ctx, w, h, bd) {
-  // Dark ceiling rafters
-  ctx.fillStyle = 'rgba(6,10,18,0.9)';
-  ctx.fillRect(0, 0, w, h * 0.22);
-  ctx.strokeStyle = 'rgba(80,100,140,0.35)';
-  ctx.lineWidth = 4;
-  for (let x = 0; x < w; x += 90) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + 40, h * 0.22);
-    ctx.stroke();
-  }
-
-  // Spotlights
-  for (let i = 0; i < 9; i++) {
-    const x = ((i + 0.5) / 9) * w;
-    const beam = ctx.createLinearGradient(x, h * 0.08, x, h * 0.7);
-    beam.addColorStop(0, hexAlpha(bd.glow || '#e2e8f0', 0.45));
-    beam.addColorStop(1, hexAlpha(bd.glow || '#e2e8f0', 0));
-    ctx.fillStyle = beam;
-    ctx.beginPath();
-    ctx.moveTo(x - 14, h * 0.08);
-    ctx.lineTo(x + 14, h * 0.08);
-    ctx.lineTo(x + 90, h * 0.72);
-    ctx.lineTo(x - 90, h * 0.72);
-    ctx.closePath();
-    ctx.fill();
-    // Lamp body
-    ctx.fillStyle = hexAlpha(bd.glow || '#e2e8f0', 0.9);
-    ctx.beginPath();
-    ctx.arc(x, h * 0.08, 6, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Tiered seating left / right
-  for (const side of [-1, 1]) {
-    for (let row = 0; row < 8; row++) {
-      const y = h * 0.28 + row * 28;
-      const inset = 40 + row * 18;
-      const x0 = side < 0 ? 0 : w - (w * 0.28 - inset * 0.15);
-      const bw = w * 0.28 - row * 8;
-      ctx.fillStyle = row % 2 === 0 ? 'rgba(20,35,60,0.85)' : 'rgba(15,28,50,0.85)';
-      if (side < 0) ctx.fillRect(0, y, bw, 24);
-      else ctx.fillRect(w - bw, y, bw, 24);
-      // Seat dots
-      ctx.fillStyle = hexAlpha(bd.accent || '#3b82f6', 0.35);
-      const startX = side < 0 ? 12 : w - bw + 12;
-      for (let sx = startX; sx < startX + bw - 20; sx += 14) {
-        ctx.beginPath();
-        ctx.arc(sx, y + 12, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
-
-  // LED ribbon
-  const led = ctx.createLinearGradient(0, h * 0.24, w, h * 0.24);
-  led.addColorStop(0, hexAlpha(bd.accent || '#3b82f6', 0.1));
-  led.addColorStop(0.5, hexAlpha(bd.accent || '#3b82f6', 0.7));
-  led.addColorStop(1, hexAlpha(bd.accent || '#3b82f6', 0.1));
-  ctx.fillStyle = led;
-  ctx.fillRect(0, h * 0.235, w, 6);
-
-  // Far scoreboard block
-  ctx.fillStyle = 'rgba(10,16,28,0.9)';
-  ctx.fillRect(w * 0.35, h * 0.12, w * 0.3, h * 0.1);
-  ctx.strokeStyle = hexAlpha(bd.accent || '#3b82f6', 0.6);
-  ctx.lineWidth = 2;
-  ctx.strokeRect(w * 0.35, h * 0.12, w * 0.3, h * 0.1);
-  ctx.fillStyle = hexAlpha(bd.glow || '#e2e8f0', 0.5);
-  ctx.font = `bold ${Math.floor(h * 0.035)}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('WBBA', w * 0.5, h * 0.185);
-}
-
-/** Kyoya — daytime rooftop with CLEARLY visible city buildings */
-function paintRooftopDay(ctx, w, h, bd) {
-  // Bright sky already filled; add clouds
-  for (let i = 0; i < 14; i++) {
-    const x = Math.random() * w;
-    const y = h * 0.05 + Math.random() * h * 0.28;
-    const r = 50 + Math.random() * 100;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(255,255,255,0.75)');
-    g.addColorStop(0.5, 'rgba(255,255,255,0.3)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Sun
-  const sun = ctx.createRadialGradient(w * 0.18, h * 0.16, 3, w * 0.18, h * 0.16, 70);
-  sun.addColorStop(0, '#fffef0');
-  sun.addColorStop(0.35, hexAlpha(bd.accent || '#fbbf24', 0.55));
-  sun.addColorStop(1, 'rgba(251,191,36,0)');
-  ctx.fillStyle = sun;
-  ctx.beginPath();
-  ctx.arc(w * 0.18, h * 0.16, 70, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Far skyline (lighter)
-  drawCityBlockRow(ctx, w, h, {
-    yBase: h * 0.58,
-    maxH: h * 0.28,
-    color: 'rgba(120,150,180,0.55)',
-    window: 'rgba(255,255,220,0.25)',
-    density: 1.1,
-  });
-
-  // Mid skyline (stronger, taller — the "wow" buildings)
-  drawCityBlockRow(ctx, w, h, {
-    yBase: h * 0.68,
-    maxH: h * 0.42,
-    color: 'rgba(70,95,120,0.88)',
-    window: 'rgba(255,250,220,0.45)',
-    density: 0.95,
-    landmarks: true,
-  });
-
-  // Near parapet / rooftop edge
-  ctx.fillStyle = 'rgba(90,85,75,0.92)';
-  ctx.fillRect(0, h * 0.78, w, h * 0.08);
-  ctx.fillStyle = 'rgba(60,55,50,0.9)';
-  ctx.fillRect(0, h * 0.86, w, h * 0.14);
-  // Rail posts
-  ctx.fillStyle = 'rgba(40,40,40,0.85)';
-  for (let x = 20; x < w; x += 36) {
-    ctx.fillRect(x, h * 0.74, 4, h * 0.06);
-  }
-  ctx.strokeStyle = 'rgba(40,40,40,0.7)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(0, h * 0.75);
-  ctx.lineTo(w, h * 0.75);
-  ctx.stroke();
-}
-
-function drawCityBlockRow(ctx, w, h, opts) {
-  let x = -20;
-  let i = 0;
-  while (x < w + 40) {
-    const bw = (28 + (i % 5) * 18 + Math.random() * 20) * (opts.density || 1);
-    let bh = opts.maxH * (0.35 + Math.random() * 0.65);
-    // Landmark towers
-    if (opts.landmarks && (i === 4 || i === 11 || i === 17)) {
-      bh = opts.maxH * (0.85 + Math.random() * 0.2);
-    }
-    const y = opts.yBase - bh;
-    ctx.fillStyle = opts.color;
-    ctx.fillRect(x, y, bw, bh);
-
-    // Antenna / roof gear on landmarks
-    if (opts.landmarks && bh > opts.maxH * 0.8) {
-      ctx.fillStyle = 'rgba(40,50,60,0.9)';
-      ctx.fillRect(x + bw * 0.45, y - 28, 3, 28);
-      ctx.beginPath();
-      ctx.arc(x + bw * 0.45 + 1.5, y - 28, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Windows grid — clearly readable
-    ctx.fillStyle = opts.window;
-    for (let wy = y + 8; wy < opts.yBase - 8; wy += 11) {
-      for (let wx = x + 5; wx < x + bw - 6; wx += 9) {
-        if (Math.random() > 0.18) ctx.fillRect(wx, wy, 5, 6);
-      }
-    }
-
-    x += bw + 6;
-    i += 1;
-  }
-}
-
-/** Gingka — Koma Village ruins / relics */
-function paintKomaVillage(ctx, w, h, bd) {
-  // Soft daylight haze
-  for (let i = 0; i < 8; i++) {
-    const x = Math.random() * w;
-    const y = h * 0.15 + Math.random() * h * 0.3;
-    const r = 80 + Math.random() * 120;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(255,250,220,0.2)');
-    g.addColorStop(1, 'rgba(255,250,220,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Distant forested hills
-  ctx.fillStyle = 'rgba(40,70,50,0.45)';
-  ctx.beginPath();
-  ctx.moveTo(0, h * 0.55);
-  for (let x = 0; x <= w; x += 50) {
-    ctx.lineTo(x, h * (0.4 + Math.sin(x * 0.02) * 0.05));
-  }
-  ctx.lineTo(w, h);
-  ctx.lineTo(0, h);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(30,55,40,0.55)';
-  ctx.beginPath();
-  ctx.moveTo(0, h * 0.62);
-  for (let x = 0; x <= w; x += 40) {
-    ctx.lineTo(x, h * (0.48 + Math.cos(x * 0.03) * 0.06));
-  }
-  ctx.lineTo(w, h);
-  ctx.lineTo(0, h);
-  ctx.closePath();
-  ctx.fill();
-
-  // Stone ruin arches / pillars
-  const ruins = [
-    [0.08, 0.42, 0.12],
-    [0.22, 0.38, 0.1],
-    [0.55, 0.4, 0.14],
-    [0.72, 0.36, 0.11],
-    [0.88, 0.44, 0.1],
-  ];
-  for (const [px, py, pw] of ruins) {
-    const x = px * w;
-    const y = py * h;
-    const ww = pw * w;
-    ctx.fillStyle = 'rgba(90,85,70,0.85)';
-    // Two pillars + lintel
-    ctx.fillRect(x, y, ww * 0.18, h * 0.35);
-    ctx.fillRect(x + ww * 0.72, y, ww * 0.18, h * 0.35);
-    ctx.fillRect(x - 4, y, ww + 8, h * 0.05);
-    // Cracks
-    ctx.strokeStyle = 'rgba(40,35,25,0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 4, y + 20);
-    ctx.lineTo(x + 10, y + 80);
-    ctx.stroke();
-  }
-
-  // Relic stone circle marks in mid ground
-  ctx.strokeStyle = hexAlpha(bd.accent || '#86efac', 0.35);
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(w * 0.5, h * 0.7, h * 0.12, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(w * 0.5, h * 0.7, h * 0.08, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Torii-like gate silhouette (nostalgia beat)
-  ctx.strokeStyle = 'rgba(80,40,30,0.75)';
-  ctx.lineWidth = 8;
-  const gx = w * 0.42;
-  const gy = h * 0.48;
-  ctx.beginPath();
-  ctx.moveTo(gx, gy + h * 0.22);
-  ctx.lineTo(gx, gy);
-  ctx.moveTo(gx + w * 0.16, gy + h * 0.22);
-  ctx.lineTo(gx + w * 0.16, gy);
-  ctx.moveTo(gx - 20, gy);
-  ctx.lineTo(gx + w * 0.16 + 20, gy);
-  ctx.moveTo(gx - 10, gy + 18);
-  ctx.lineTo(gx + w * 0.16 + 10, gy + 18);
-  ctx.stroke();
-}
-
-/** Ryuga Lightning — Dark Nebula HQ rooftop night city */
-function paintDnRooftopNight(ctx, w, h, bd) {
-  paintStars(ctx, w, h, 90, 0.5);
-
-  // Purple nebula haze
-  for (let i = 0; i < 10; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h * 0.45;
-    const r = 70 + Math.random() * 150;
-    const col = Math.random() > 0.5 ? bd.glow || '#ef4444' : bd.accent || '#a855f7';
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, hexAlpha(col, 0.28));
-    g.addColorStop(1, hexAlpha(col, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Twin Dark Nebula towers (signature)
-  const towerW = w * 0.09;
-  for (const tx of [w * 0.32, w * 0.55]) {
-    ctx.fillStyle = 'rgba(8,4,16,0.95)';
-    ctx.fillRect(tx, h * 0.12, towerW, h * 0.55);
-    // Red window bands
-    ctx.fillStyle = hexAlpha(bd.glow || '#ef4444', 0.45);
-    for (let wy = h * 0.16; wy < h * 0.62; wy += 16) {
-      ctx.globalAlpha = 0.25 + Math.random() * 0.45;
-      ctx.fillRect(tx + 6, wy, towerW - 12, 5);
-    }
-    ctx.globalAlpha = 1;
-    // Spire
-    ctx.fillStyle = 'rgba(12,6,20,0.95)';
-    ctx.beginPath();
-    ctx.moveTo(tx, h * 0.12);
-    ctx.lineTo(tx + towerW / 2, h * 0.04);
-    ctx.lineTo(tx + towerW, h * 0.12);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // City below
-  drawCityBlockRow(ctx, w, h, {
-    yBase: h * 0.72,
-    maxH: h * 0.32,
-    color: 'rgba(12,10,24,0.92)',
-    window: hexAlpha(bd.accent || '#a855f7', 0.4),
-    density: 1,
-  });
-
-  // Rooftop ledge
-  ctx.fillStyle = 'rgba(20,12,28,0.95)';
-  ctx.fillRect(0, h * 0.78, w, h * 0.22);
-  ctx.fillStyle = hexAlpha(bd.glow || '#ef4444', 0.35);
-  ctx.fillRect(0, h * 0.78, w, 4);
-}
-
-/** Masamune — city streets neon canyon */
-function paintCityStreets(ctx, w, h, bd) {
-  paintStars(ctx, w, h, 40, 0.35);
-
-  // Building walls left/right (street canyon)
-  for (const side of [-1, 1]) {
-    for (let col = 0; col < 5; col++) {
-      const depth = col;
-      const bw = w * (0.18 - depth * 0.015);
-      const x = side < 0 ? depth * 8 : w - bw - depth * 8;
-      const top = h * (0.08 + depth * 0.04);
-      ctx.fillStyle = `rgba(${12 + depth * 8},${18 + depth * 6},${28 + depth * 8},0.92)`;
-      ctx.fillRect(x, top, bw, h - top);
-      // Neon signs
-      const neon = col % 2 === 0 ? bd.glow || '#22d3ee' : bd.accent || '#ef4444';
-      ctx.fillStyle = hexAlpha(neon, 0.55);
-      ctx.fillRect(x + 10, top + 40 + col * 30, bw - 20, 10);
-      ctx.fillStyle = hexAlpha(neon, 0.2);
-      ctx.fillRect(x + 8, top + 38 + col * 30, bw - 16, 14);
-      // Windows
-      ctx.fillStyle = 'rgba(255,220,150,0.35)';
-      for (let wy = top + 70; wy < h * 0.7; wy += 22) {
-        for (let wx = x + 12; wx < x + bw - 16; wx += 16) {
-          if (Math.random() > 0.35) ctx.fillRect(wx, wy, 8, 10);
-        }
-      }
-    }
-  }
-
-  // Road vanishing point
-  const road = ctx.createLinearGradient(0, h * 0.62, 0, h);
-  road.addColorStop(0, '#1a222c');
-  road.addColorStop(1, '#0a0e14');
-  ctx.fillStyle = road;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.28, h * 0.62);
-  ctx.lineTo(w * 0.72, h * 0.62);
-  ctx.lineTo(w * 0.95, h);
-  ctx.lineTo(w * 0.05, h);
-  ctx.closePath();
-  ctx.fill();
-
-  // Center line dashes
-  ctx.strokeStyle = hexAlpha(bd.glow || '#22d3ee', 0.5);
-  ctx.lineWidth = 4;
-  ctx.setLineDash([18, 16]);
-  ctx.beginPath();
-  ctx.moveTo(w * 0.5, h * 0.64);
-  ctx.lineTo(w * 0.5, h);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Crosswalk near camera
-  ctx.fillStyle = 'rgba(240,240,240,0.35)';
-  for (let i = 0; i < 8; i++) {
-    ctx.fillRect(w * 0.22 + i * 28, h * 0.82, 14, h * 0.08);
-  }
-
-  // Traffic light glow
-  for (const [x, col] of [
-    [w * 0.3, '#22c55e'],
-    [w * 0.7, '#ef4444'],
-  ]) {
-    const g = ctx.createRadialGradient(x, h * 0.55, 2, x, h * 0.55, 40);
-    g.addColorStop(0, hexAlpha(col, 0.7));
-    g.addColorStop(1, hexAlpha(col, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, h * 0.55, 40, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-/** Meteo L-Drago — volcano interior */
-function paintVolcano(ctx, w, h, bd) {
-  // Ember core glow
-  const core = ctx.createRadialGradient(w / 2, h * 0.62, 20, w / 2, h * 0.55, h * 0.55);
-  core.addColorStop(0, hexAlpha(bd.glow || '#ff3300', 0.7));
-  core.addColorStop(0.35, hexAlpha(bd.accent || '#fb923c', 0.35));
-  core.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = core;
-  ctx.fillRect(0, 0, w, h);
-
-  // Rising heat shimmer bands
-  ctx.strokeStyle = hexAlpha(bd.accent || '#fb923c', 0.2);
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 12; i++) {
-    const y = h * 0.2 + i * 28;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    for (let x = 0; x <= w; x += 40) {
-      ctx.lineTo(x, y + Math.sin(x * 0.05 + i) * 6);
-    }
-    ctx.stroke();
-  }
-
-  // Jagged crater walls L/R
-  for (const side of [-1, 1]) {
-    ctx.fillStyle = 'rgba(20,8,6,0.92)';
-    ctx.beginPath();
-    if (side < 0) {
-      ctx.moveTo(0, 0);
-      ctx.lineTo(w * 0.38, 0);
-      for (let y = 0; y <= h; y += 40) {
-        ctx.lineTo(w * (0.22 + Math.sin(y * 0.04) * 0.08), y);
-      }
-      ctx.lineTo(0, h);
-    } else {
-      ctx.moveTo(w, 0);
-      ctx.lineTo(w * 0.62, 0);
-      for (let y = 0; y <= h; y += 40) {
-        ctx.lineTo(w * (0.78 + Math.cos(y * 0.04) * 0.08), y);
-      }
-      ctx.lineTo(w, h);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    // Lava veins on rock
-    ctx.strokeStyle = hexAlpha(bd.glow || '#ff3300', 0.55);
+    ctx.strokeStyle = '#2d6a30';
     ctx.lineWidth = 3;
-    for (let i = 0; i < 6; i++) {
-      const x0 = side < 0 ? Math.random() * w * 0.25 : w * 0.75 + Math.random() * w * 0.25;
+    for (let l = 0; l < 5; l++) {
+      const a = -Math.PI / 2 + (l - 2) * 0.4;
       ctx.beginPath();
-      ctx.moveTo(x0, Math.random() * h * 0.3);
+      ctx.moveTo(px + 2, py - 60);
       ctx.quadraticCurveTo(
-        x0 + (Math.random() - 0.5) * 80,
-        h * 0.5,
-        x0 + (Math.random() - 0.5) * 40,
-        h * 0.85
+        px + 2 + Math.cos(a) * 28,
+        py - 60 + Math.sin(a) * 18 - 8,
+        px + 2 + Math.cos(a) * 48,
+        py - 60 + Math.sin(a) * 30
       );
       ctx.stroke();
     }
   }
 
-  // Lava pool at bottom
-  const pool = ctx.createLinearGradient(0, h * 0.72, 0, h);
-  pool.addColorStop(0, hexAlpha(bd.glow || '#ff3300', 0.85));
-  pool.addColorStop(0.5, '#ff6600');
-  pool.addColorStop(1, '#8a1000');
-  ctx.fillStyle = pool;
+  // Beach / sand band at bottom
+  const sand = ctx.createLinearGradient(0, h * 0.75, 0, h);
+  sand.addColorStop(0, '#c8e070');
+  sand.addColorStop(0.35, '#e8d4a0');
+  sand.addColorStop(1, '#d4bc80');
+  ctx.fillStyle = sand;
+  ctx.fillRect(0, h * 0.75, w, h * 0.25);
+}
+
+/** WBBA Headquarters — indoor tournament bowl with crowd + rafters. */
+function paintWbba(ctx, w, h) {
+  // Bright stadium ceiling light
+  paintSky(ctx, w, h, '#6a9ad0', '#a8c8e8', '#d0dce8');
+  const lamp = ctx.createRadialGradient(w * 0.5, h * 0.08, 0, w * 0.5, h * 0.08, 220);
+  lamp.addColorStop(0, 'rgba(255,255,255,0.85)');
+  lamp.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = lamp;
+  ctx.fillRect(0, 0, w, h * 0.45);
+
+  // Rafters / beams
+  ctx.strokeStyle = 'rgba(30,40,60,0.55)';
+  ctx.lineWidth = 6;
+  for (let i = 0; i < 7; i++) {
+    const x = (i / 6) * w;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.5, h * 0.05);
+    ctx.lineTo(x, h * 0.42);
+    ctx.stroke();
+  }
+
+  // Crowd tiers
+  paintCrowd(ctx, w, h, h * 0.58, 70);
+  paintCrowd(ctx, w, h, h * 0.68, 50);
+
+  // Low arena wall
+  ctx.fillStyle = '#3a4050';
+  ctx.fillRect(0, h * 0.68, w, 18);
+  ctx.fillStyle = '#5a6878';
+  ctx.fillRect(0, h * 0.68, w, 4);
+
+  // Tiled floor band
+  const floor = ctx.createLinearGradient(0, h * 0.7, 0, h);
+  floor.addColorStop(0, '#c8d0d8');
+  floor.addColorStop(1, '#a8b0b8');
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, h * 0.7, w, h * 0.3);
+  ctx.strokeStyle = 'rgba(80,90,100,0.35)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 12; i++) {
+    ctx.beginPath();
+    ctx.moveTo((i / 12) * w, h * 0.7);
+    ctx.lineTo((i / 12) * w, h);
+    ctx.stroke();
+  }
+}
+
+/** Metal Bey Rooftop — urban plaza tiles + city skyline (rim flush look). */
+function paintRooftop(ctx, w, h) {
+  paintSky(ctx, w, h, '#5aa0d0', '#8ec8e8', '#d0e8f8');
+  paintSun(ctx, w * 0.8, h * 0.16, 90, 'rgba(255,250,220,0.7)');
+  paintClouds(ctx, w, h, h * 0.15, 'rgba(255,255,255,0.5)', 5);
+
+  // City skyline
+  for (let i = 0; i < 22; i++) {
+    const x = (i / 22) * w;
+    const bh = 55 + ((i * 47) % 160);
+    const bw = 28 + (i % 3) * 12;
+    ctx.fillStyle = i % 3 === 0 ? '#6a7888' : i % 3 === 1 ? '#5a6878' : '#4a5868';
+    ctx.fillRect(x, h * 0.55 - bh, bw, bh);
+    ctx.fillStyle = 'rgba(220,235,250,0.4)';
+    for (let wy = 0; wy < Math.floor(bh / 14); wy++) {
+      for (let wx = 0; wx < Math.floor(bw / 10); wx++) {
+        if ((wx + wy + i) % 2 === 0) continue;
+        ctx.fillRect(x + 4 + wx * 10, h * 0.55 - bh + 6 + wy * 14, 5, 7);
+      }
+    }
+  }
+
+  // Plaza / rooftop ledge
+  ctx.fillStyle = '#8a9098';
+  ctx.fillRect(0, h * 0.54, w, h * 0.08);
+  ctx.fillStyle = '#a8b0b8';
+  ctx.fillRect(w * 0.1, h * 0.46, 70, 40);
+  ctx.fillRect(w * 0.72, h * 0.44, 85, 48);
+
+  // Light stone tile floor
+  const roof = ctx.createLinearGradient(0, h * 0.6, 0, h);
+  roof.addColorStop(0, '#c8c8c8');
+  roof.addColorStop(1, '#a8a8a8');
+  ctx.fillStyle = roof;
+  ctx.fillRect(0, h * 0.6, w, h * 0.4);
+  ctx.strokeStyle = 'rgba(90,90,90,0.35)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.6 + i * 20);
+    ctx.lineTo(w, h * 0.6 + i * 20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i * (w / 10), h * 0.6);
+    ctx.lineTo(i * (w / 10), h);
+    ctx.stroke();
+  }
+}
+
+/** Koma Village — rural mountains, forest, dirt path. */
+function paintVillage(ctx, w, h) {
+  paintSky(ctx, w, h, '#5a8ab8', '#a8c8e0', '#e8dcc0');
+  paintSun(ctx, w * 0.18, h * 0.2, 80, 'rgba(255,240,200,0.55)');
+  paintClouds(ctx, w, h, h * 0.16, 'rgba(255,255,255,0.45)', 5);
+
+  // Mountains
+  ctx.fillStyle = '#6a8090';
   ctx.beginPath();
-  ctx.moveTo(w * 0.2, h * 0.78);
-  ctx.quadraticCurveTo(w * 0.5, h * 0.7, w * 0.8, h * 0.78);
-  ctx.lineTo(w * 0.85, h);
-  ctx.lineTo(w * 0.15, h);
+  ctx.moveTo(0, h * 0.52);
+  ctx.lineTo(w * 0.25, h * 0.26);
+  ctx.lineTo(w * 0.5, h * 0.52);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#5a7080';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.35, h * 0.52);
+  ctx.lineTo(w * 0.62, h * 0.2);
+  ctx.lineTo(w * 0.9, h * 0.52);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#e8f0f8';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.55, h * 0.3);
+  ctx.lineTo(w * 0.62, h * 0.2);
+  ctx.lineTo(w * 0.69, h * 0.3);
   ctx.closePath();
   ctx.fill();
 
-  // Ash / sparks
-  ctx.fillStyle = '#ffaa66';
-  for (let i = 0; i < 90; i++) {
-    ctx.globalAlpha = 0.2 + Math.random() * 0.55;
+  // Dense forest / bamboo band
+  ctx.fillStyle = '#2d6a38';
+  for (let i = 0; i < 28; i++) {
+    const x = (i / 28) * w;
+    const hh = 40 + (i % 4) * 18;
+    ctx.fillRect(x, h * 0.55 - hh, 10, hh);
     ctx.beginPath();
-    ctx.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 2.5, 0, Math.PI * 2);
+    ctx.moveTo(x - 4, h * 0.55 - hh);
+    ctx.lineTo(x + 5, h * 0.55 - hh - 20);
+    ctx.lineTo(x + 14, h * 0.55 - hh);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
+
+  // Houses
+  for (let i = 0; i < 4; i++) {
+    const x = w * 0.15 + i * w * 0.18;
+    ctx.fillStyle = '#e8d8c0';
+    ctx.fillRect(x, h * 0.55, 50, 30);
+    ctx.fillStyle = '#8a4030';
+    ctx.beginPath();
+    ctx.moveTo(x - 5, h * 0.55);
+    ctx.lineTo(x + 25, h * 0.55 - 18);
+    ctx.lineTo(x + 55, h * 0.55);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const dirt = ctx.createLinearGradient(0, h * 0.68, 0, h);
+  dirt.addColorStop(0, '#8a7a58');
+  dirt.addColorStop(1, '#6a5a40');
+  ctx.fillStyle = dirt;
+  ctx.fillRect(0, h * 0.68, w, h * 0.32);
+}
+
+/** Dark Nebula HQ Rooftop — jagged night peaks + ominous tower. */
+function paintDarkNebula(ctx, w, h) {
+  paintSky(ctx, w, h, '#0a0618', '#141028', '#1a1838');
+  paintClouds(ctx, w, h, h * 0.2, 'rgba(60,50,90,0.45)', 4);
+
+  // Lightning
+  ctx.strokeStyle = 'rgba(200,180,255,0.8)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.7, h * 0.06);
+  ctx.lineTo(w * 0.66, h * 0.18);
+  ctx.lineTo(w * 0.72, h * 0.2);
+  ctx.lineTo(w * 0.64, h * 0.36);
+  ctx.stroke();
+
+  // Jagged mountain silhouettes
+  ctx.fillStyle = '#0e0c18';
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.62);
+  for (let i = 0; i < 12; i++) {
+    const x = (i / 11) * w;
+    const y = h * 0.35 + ((i * 37) % 80);
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(w, h * 0.62);
+  ctx.closePath();
+  ctx.fill();
+
+  // Dark tower
+  const tx = w * 0.5 - 40;
+  ctx.fillStyle = '#0a0614';
+  ctx.fillRect(tx, h * 0.2, 80, h * 0.45);
+  ctx.fillStyle = '#1a0a28';
+  ctx.beginPath();
+  ctx.moveTo(tx - 8, h * 0.2);
+  ctx.lineTo(tx + 40, h * 0.08);
+  ctx.lineTo(tx + 88, h * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(160,60,255,0.45)';
+  for (let wy = 0; wy < 10; wy++) {
+    ctx.fillRect(tx + 12, h * 0.25 + wy * 18, 18, 8);
+    ctx.fillRect(tx + 48, h * 0.25 + wy * 18, 18, 8);
+  }
+
+  const roof = ctx.createLinearGradient(0, h * 0.6, 0, h);
+  roof.addColorStop(0, '#1a1020');
+  roof.addColorStop(1, '#0e0a14');
+  ctx.fillStyle = roof;
+  ctx.fillRect(0, h * 0.6, w, h * 0.4);
+}
+
+/** City Streets — neon canyon. */
+function paintStreets(ctx, w, h) {
+  paintSky(ctx, w, h, '#1a2848', '#3a5070', '#687888');
+  paintClouds(ctx, w, h, h * 0.14, 'rgba(180,190,200,0.28)', 3);
+
+  for (let side = 0; side < 2; side++) {
+    for (let i = 0; i < 5; i++) {
+      const x = side === 0 ? i * 55 : w - 55 - i * 55;
+      const bh = 100 + (i % 3) * 50;
+      ctx.fillStyle = side === 0 ? '#2a3548' : '#243040';
+      ctx.fillRect(x, h * 0.62 - bh, 50, bh);
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,60,100,0.7)' : 'rgba(60,200,255,0.7)';
+      ctx.fillRect(x + 8, h * 0.62 - bh + 20, 34, 12);
+      ctx.fillStyle = 'rgba(255,220,100,0.35)';
+      for (let wy = 0; wy < 5; wy++) {
+        ctx.fillRect(x + 10, h * 0.62 - bh + 45 + wy * 18, 12, 10);
+        ctx.fillRect(x + 28, h * 0.62 - bh + 45 + wy * 18, 12, 10);
+      }
+    }
+  }
+
+  ctx.fillStyle = '#3a3a40';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.35, h * 0.52);
+  ctx.lineTo(w * 0.65, h * 0.52);
+  ctx.lineTo(w, h * 0.72);
+  ctx.lineTo(0, h * 0.72);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#e8c840';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([15, 12]);
+  ctx.beginPath();
+  ctx.moveTo(w * 0.5, h * 0.52);
+  ctx.lineTo(w * 0.5, h * 0.72);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const road = ctx.createLinearGradient(0, h * 0.7, 0, h);
+  road.addColorStop(0, '#3a3a42');
+  road.addColorStop(1, '#2a2a30');
+  ctx.fillStyle = road;
+  ctx.fillRect(0, h * 0.7, w, h * 0.3);
+}
+
+/** Volcano Interior / crater — jagged rock, magma glow, dark peaks. */
+function paintVolcano(ctx, w, h) {
+  paintSky(ctx, w, h, '#1a1028', '#2a1830', '#4a2018');
+  paintClouds(ctx, w, h, h * 0.18, 'rgba(80,40,40,0.35)', 3);
+
+  // Magma glow
+  const magma = ctx.createRadialGradient(w * 0.5, h * 0.9, 0, w * 0.5, h * 0.9, 300);
+  magma.addColorStop(0, 'rgba(255,100,20,0.65)');
+  magma.addColorStop(0.45, 'rgba(180,30,10,0.35)');
+  magma.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = magma;
+  ctx.fillRect(0, h * 0.25, w, h * 0.75);
+
+  // Jagged crater rim / peaks
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.7);
+  for (let i = 0; i < 14; i++) {
+    const x = (i / 13) * w;
+    const y = h * 0.28 + ((i % 3) * 35) + ((i * 19) % 40);
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(w, h * 0.7);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#2a1c14';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, h);
+  ctx.lineTo(w * 0.18, h);
+  ctx.quadraticCurveTo(w * 0.12, h * 0.5, w * 0.22, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w, 0);
+  ctx.lineTo(w, h);
+  ctx.lineTo(w * 0.82, h);
+  ctx.quadraticCurveTo(w * 0.88, h * 0.5, w * 0.78, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lava river
+  const lava = ctx.createLinearGradient(0, h * 0.68, 0, h);
+  lava.addColorStop(0, '#ff6010');
+  lava.addColorStop(0.5, '#e02000');
+  lava.addColorStop(1, '#801000');
+  ctx.fillStyle = lava;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.28, h * 0.7);
+  ctx.quadraticCurveTo(w * 0.5, h * 0.62, w * 0.72, h * 0.7);
+  ctx.lineTo(w * 0.82, h);
+  ctx.lineTo(w * 0.18, h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** Keys must match `skin.backdrop.style` in arenaSkins.js */
+const PAINTERS = {
+  construction: paintConstruction,
+  survival_island: paintIsland,
+  wbba_hq: paintWbba,
+  rooftop_day: paintRooftop,
+  koma_village: paintVillage,
+  dn_rooftop_night: paintDarkNebula,
+  city_streets: paintStreets,
+  volcano: paintVolcano,
+};
+
+/**
+ * @param {{ backdrop?: { style?: string } }} skin
+ * @returns {THREE.CanvasTexture}
+ */
+export function createBackdropTexture(skin) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  const style = skin?.backdrop?.style || 'construction';
+  const painter = PAINTERS[style] || paintConstruction;
+  painter(ctx, canvas.width, canvas.height);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
 }
