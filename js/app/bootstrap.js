@@ -1,4 +1,4 @@
-import { createGame } from '../game/engine.js?v=38';
+import { createGame } from '../game/engine.js?v=41';
 import { applyAISteering, tickAIAbilities, resetAIController } from '../input/ai.js';
 import { createBeySelection } from '../ui/selection.js';
 import { createPlaySetup } from '../ui/playSetup.js?v=38';
