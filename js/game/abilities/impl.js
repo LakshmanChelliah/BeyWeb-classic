@@ -2483,8 +2483,7 @@ function applyAbilityWindupSetup(state, side, ability) {
   }
   if (ability.id === 'bull_red_horn_uppercut') {
     body.userData.controlLocked = true;
-    const opp = side === 'player' ? state.aiBody : state.playerBody;
-    initBullUppercut(body, opp);
+    initBullUppercut(body);
   }
   if (ability.id === 'striker_lightning_flash') {
     body.userData.controlLocked = true;
