@@ -1,6 +1,6 @@
 /**
- * Pre-round "3 · 2 · 1 · LET IT RIP!" launch mini-game.
- * Swipe up (mobile) or Space / click (PC) in the rip window.
+ * Pre-round "3 · 2 · 1 · LET · IT · RIP" launch mini-game.
+ * Swipe up (mobile) or Space / click (PC) on RIP.
  * Launch quality sets starting spin from bad (~70%) to perfect (120%).
  */
 import { CONFIG, RUNTIME_FLAGS } from '../config.js';
@@ -118,10 +118,10 @@ export function rollAiLaunchGrade(difficulty = 1) {
 function defaultHint({ twoPlayer, touch }) {
   if (twoPlayer) {
     return touch
-      ? 'P1 swipe left · P2 swipe right — on LET IT RIP!'
-      : 'P1 Space · P2 Enter — on LET IT RIP!';
+      ? 'P1 swipe left · P2 swipe right — on RIP'
+      : 'P1 Space · P2 Enter — on RIP';
   }
-  return touch ? 'Swipe up on LET IT RIP!' : 'Press Space or click on LET IT RIP!';
+  return touch ? 'Swipe up on RIP!' : 'Press Space or click on RIP!';
 }
 
 function isTouchPrimary() {
@@ -281,11 +281,11 @@ export async function runLaunchMinigame(opts = {}) {
   el.addEventListener('pointercancel', onPointerUp);
   el.addEventListener('click', onClick);
 
-  const beats = ['3', '2', '1'];
+  const beats = ['3', '2', '1', 'LET', 'IT'];
   for (const beat of beats) {
     if (countEl) {
       countEl.textContent = beat;
-      countEl.classList.remove('is-pop');
+      countEl.classList.remove('is-pop', 'is-rip-text');
       void countEl.offsetWidth;
       countEl.classList.add('is-pop');
     }
@@ -293,9 +293,9 @@ export async function runLaunchMinigame(opts = {}) {
     await sleep(BEAT_MS);
   }
 
-  // LET IT RIP window
+  // RIP — input window
   if (countEl) {
-    countEl.textContent = 'LET IT RIP!';
+    countEl.textContent = 'RIP!';
     countEl.classList.remove('is-pop');
     void countEl.offsetWidth;
     countEl.classList.add('is-pop', 'is-rip-text');
