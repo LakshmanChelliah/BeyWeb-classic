@@ -4,17 +4,19 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=38';
+} from './arenaSkins.js?v=42';
+import { createBackdropTexture } from './arenaBackdrop.js?v=42';
 
 /**
- * Stadium geometry is fixed. Skins only swap canvas textures and material
- * colors/finish — never radii, wall wedges, pocket gaps, or mesh topology.
+ * Stadium geometry is fixed. Skins only swap canvas textures, materials,
+ * and the painted sky-dome backdrop — never radii, walls, or pocket layout.
  */
 
 const DISH_RADIUS = CONFIG.WALL_RADIUS + 0.15;
 const PLATFORM_OUTER_RADIUS = CONFIG.PLATFORM_OUTER_RADIUS;
+const SKY_RADIUS = 95;
 
-/** Soft radial gradient that mimics overhead lighting on the matte dish */
+/** Soft radial gradient + anime gloss ring on the battle dish */
 function createDishTexture(skin) {
   const size = 1024;
   const canvas = document.createElement('canvas');
@@ -35,7 +37,26 @@ function createDishTexture(skin) {
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Optional accent veins for character skins (still flat texture — no geometry).
+  // Specular-style gloss arc (anime overhead light).
+  const gloss = ctx.createRadialGradient(cx * 0.78, cy * 0.55, r * 0.02, cx * 0.78, cy * 0.55, r * 0.45);
+  gloss.addColorStop(0, 'rgba(255,255,255,0.28)');
+  gloss.addColorStop(0.45, 'rgba(255,255,255,0.08)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gloss;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Lane ring etch
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.38, 0, Math.PI * 2);
+  ctx.stroke();
+
   if (skin.dishAccent) {
     ctx.strokeStyle = skin.dishAccent;
     for (let i = 0; i < 12; i++) {
@@ -141,7 +162,6 @@ function createWedgeShape() {
 function addWallSegments(group, wallMat) {
   const wedge = createWedgeShape();
   const radius = CONFIG.WALL_RADIUS + 0.1;
-  const walls = [];
 
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -173,10 +193,21 @@ function addWallSegments(group, wallMat) {
       wall.castShadow = true;
       wall.receiveShadow = true;
       group.add(wall);
-      walls.push(wall);
     }
   }
-  return walls;
+}
+
+function createSkyDome(skin) {
+  const mat = new THREE.MeshBasicMaterial({
+    map: createBackdropTexture(skin),
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+  });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(SKY_RADIUS, 48, 24), mat);
+  dome.userData.arenaPart = 'sky';
+  dome.renderOrder = -10;
+  return dome;
 }
 
 function applySkinToParts(parts, skin) {
@@ -199,6 +230,10 @@ function applySkinToParts(parts, skin) {
   parts.dish.material.needsUpdate = true;
 
   parts.dishLip.material.color.setHex(skin.dishLip);
+  parts.dishLip.material.metalness = 0.72;
+  parts.dishLip.material.roughness = 0.22;
+  parts.dishLip.material.emissive.setHex(skin.dishLip);
+  parts.dishLip.material.emissiveIntensity = 0.18;
   parts.dishLip.material.needsUpdate = true;
 
   parts.wallMat.color.setHex(skin.wall);
@@ -215,13 +250,25 @@ function applySkinToParts(parts, skin) {
 
   parts.base.material.color.setHex(skin.base);
   parts.base.material.needsUpdate = true;
+
+  if (parts.sky?.material) {
+    disposeMap(parts.sky.material);
+    const skyMap = createBackdropTexture(skin);
+    skyMap.needsUpdate = true;
+    parts.sky.material.map = skyMap;
+    parts.sky.material.needsUpdate = true;
+  }
 }
 
 function applySceneAmbience(scene, skin) {
   if (!scene || skin.ambience == null) return;
   if (scene.background?.isColor) scene.background.setHex(skin.ambience);
   else scene.background = new THREE.Color(skin.ambience);
-  if (scene.fog?.color) scene.fog.color.setHex(skin.ambience);
+  if (scene.fog?.color) {
+    scene.fog.color.setHex(skin.ambience);
+    if (skin.fogNear != null) scene.fog.near = skin.fogNear;
+    if (skin.fogFar != null) scene.fog.far = skin.fogFar;
+  }
 }
 
 /**
@@ -240,9 +287,9 @@ export function applyArenaSkin(group, skinId) {
 }
 
 /**
- * Flat physics arena styled to match stadiumtexturereference.png:
- * smooth battle dish, wedge walls with three KO gaps,
- * a barrier ring, and a tiled outer platform.
+ * Flat physics arena with anime venue skins:
+ * glossy battle dish, wedge walls with three KO gaps,
+ * barrier ring, tiled platform, and painted sky dome.
  *
  * Shape/format is constant; `skinId` only changes textures and materials.
  */
@@ -252,6 +299,9 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   group.userData.arenaSkinId = skin.id;
   group.userData.scene = scene;
   applySceneAmbience(scene, skin);
+
+  const sky = createSkyDome(skin);
+  group.add(sky);
 
   const platform = new THREE.Mesh(
     new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
@@ -285,8 +335,10 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     new THREE.RingGeometry(DISH_RADIUS - 0.18, DISH_RADIUS + 0.05, 80),
     new THREE.MeshStandardMaterial({
       color: skin.dishLip,
-      metalness: 0.5,
-      roughness: 0.3,
+      metalness: 0.72,
+      roughness: 0.22,
+      emissive: skin.dishLip,
+      emissiveIntensity: 0.18,
     })
   );
   dishLip.userData.arenaPart = 'dishLip';
@@ -348,6 +400,7 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     wallMat,
     barrier,
     base,
+    sky,
   };
 
   scene.add(group);

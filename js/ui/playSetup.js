@@ -4,7 +4,7 @@ import {
   listArenaSkins,
   resolveArenaSkinId,
   saveArenaSkinId,
-} from '../render/arenaSkins.js?v=38';
+} from '../render/arenaSkins.js?v=42';
 
 /**
  * Mode + difficulty + arena skin controls rendered inside the bey-select overlay.
@@ -98,7 +98,7 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
 
     if (hintEl) {
       if (mode === GAME_MODES.TOURNAMENT) {
-        hintEl.textContent = 'Seven bladers in order — each brings their own stadium.';
+        hintEl.textContent = 'Seven bladers in order — each brings their own anime venue.';
         hintEl.classList.remove('hidden');
       } else if (isCasual) {
         hintEl.textContent = 'Best of 3 vs a random rival — new rival after each series';
