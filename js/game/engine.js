@@ -28,7 +28,8 @@ import {
 import { createGameState, resetRoundState } from './state.js';
 import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
-import { createArenaMesh } from '../render/arena.js';
+import { createArenaMesh, applyArenaSkin } from '../render/arena.js';
+import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
 import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';
@@ -78,7 +79,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
   const { renderer, scene, camera } = createScene(canvas, mode);
   const { world, topMaterial, bowlMaterial, wallMaterial } = createPhysicsWorld();
   const arena = createArenaPhysics(world, bowlMaterial, wallMaterial);
-  createArenaMesh(scene);
+  // Geometry is fixed; skins only swap textures/materials on this mesh.
+  const arenaMesh = createArenaMesh(scene, resolveArenaSkinId());
 
   const { playerGroup, aiGroup } = createTopGroups(scene);
   try {
@@ -863,6 +865,16 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
 
   gameLoop();
 
+  function setArenaSkin(skinId) {
+    const id = applyArenaSkin(arenaMesh, skinId);
+    if (id) saveArenaSkinId(id);
+    return id;
+  }
+
+  function getArenaSkinId() {
+    return arenaMesh?.userData?.arenaSkinId ?? resolveArenaSkinId();
+  }
+
   return {
     state,
     startGame,
@@ -870,6 +882,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     returnToMenu,
     spawnTops,
     triggerAbility,
+    setArenaSkin,
+    getArenaSkinId,
     playerGroup,
     aiGroup,
     renderer,

@@ -1,12 +1,19 @@
 import { GAME_MODES } from '../game/modes.js';
 import { AI_DIFFICULTIES } from '../input/ai.js';
+import {
+  listArenaSkins,
+  resolveArenaSkinId,
+  saveArenaSkinId,
+} from '../render/arenaSkins.js';
 
 /**
- * Mode + difficulty controls rendered inside the bey-select overlay (touch-friendly).
+ * Mode + difficulty + arena skin controls rendered inside the bey-select overlay.
+ * Arena skins are texture/material palettes only — stadium shape stays fixed.
  */
 export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
   let mode = GAME_MODES.TOURNAMENT;
   let difficulty = 1;
+  let arenaSkin = resolveArenaSkinId();
 
   const modeButtons = show2Player
     ? [
@@ -25,12 +32,17 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
       <span class="play-setup-diff-label">CPU difficulty</span>
       <div class="play-setup-diff-btns"></div>
     </div>
+    <div class="play-setup-arena" aria-label="Arena skin">
+      <span class="play-setup-arena-label">Arena</span>
+      <div class="play-setup-arena-btns" role="listbox" aria-label="Arena skin"></div>
+    </div>
     <p class="play-setup-hint">CPU rival is random each match</p>
   `;
 
   const modesEl = el.querySelector('.play-setup-modes');
   const diffWrap = el.querySelector('.play-setup-diff');
   const diffBtns = el.querySelector('.play-setup-diff-btns');
+  const arenaBtns = el.querySelector('.play-setup-arena-btns');
   const hintEl = el.querySelector('.play-setup-hint');
 
   for (const m of modeButtons) {
@@ -55,12 +67,27 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
     diffBtns.appendChild(btn);
   }
 
+  for (const skin of listArenaSkins()) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'play-setup-arena-btn';
+    btn.dataset.skin = skin.id;
+    btn.textContent = skin.name;
+    btn.title = skin.desc || skin.name;
+    btn.setAttribute('aria-label', skin.desc || skin.name);
+    btn.addEventListener('click', () => setArenaSkin(skin.id));
+    arenaBtns.appendChild(btn);
+  }
+
   function paint() {
     modesEl.querySelectorAll('.play-setup-mode-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.mode === mode);
     });
     diffBtns.querySelectorAll('.play-setup-diff-btn').forEach((btn) => {
       btn.classList.toggle('active', Number(btn.dataset.tier) === difficulty);
+    });
+    arenaBtns.querySelectorAll('.play-setup-arena-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.skin === arenaSkin);
     });
 
     const isCasual = mode === GAME_MODES.CASUAL;
@@ -101,11 +128,18 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
     onChange?.(getState());
   }
 
+  function setArenaSkin(id) {
+    if (arenaSkin === id) return;
+    arenaSkin = saveArenaSkinId(id);
+    paint();
+    onChange?.(getState());
+  }
+
   function getState() {
-    return { mode, difficulty };
+    return { mode, difficulty, arenaSkin };
   }
 
   paint();
 
-  return { getState, setMode, setDifficulty, paint };
+  return { getState, setMode, setDifficulty, setArenaSkin, paint };
 }

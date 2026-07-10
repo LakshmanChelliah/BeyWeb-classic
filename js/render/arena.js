@@ -1,23 +1,21 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
+import {
+  DEFAULT_ARENA_SKIN_ID,
+  getArenaSkin,
+  resolveArenaSkinId,
+} from './arenaSkins.js';
+
+/**
+ * Stadium geometry is fixed. Skins only swap canvas textures and material
+ * colors/finish — never radii, wall wedges, pocket gaps, or mesh topology.
+ */
 
 const DISH_RADIUS = CONFIG.WALL_RADIUS + 0.15;
 const PLATFORM_OUTER_RADIUS = CONFIG.PLATFORM_OUTER_RADIUS;
 
-const COLORS = {
-  dishCenter: '#43464d',
-  dishEdge: '#2c2f35',
-  dishLip: 0x55585f,
-  navyWall: 0x27325a,
-  navyWallTop: 0x35457a,
-  barrier: 0xe4e6ea,
-  marbleBase: '#c9c6bd',
-  marbleVein: '#bdb9af',
-  marbleGrid: '#a6a299',
-};
-
 /** Soft radial gradient that mimics overhead lighting on the matte dish */
-function createDishTexture() {
+function createDishTexture(skin) {
   const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -29,47 +27,71 @@ function createDishTexture() {
   const r = size / 2;
 
   const grad = ctx.createRadialGradient(cx, cy * 0.85, r * 0.1, cx, cy, r);
-  grad.addColorStop(0, COLORS.dishCenter);
-  grad.addColorStop(0.7, '#393c42');
-  grad.addColorStop(1, COLORS.dishEdge);
+  grad.addColorStop(0, skin.dishCenter);
+  grad.addColorStop(0.7, skin.dishMid);
+  grad.addColorStop(1, skin.dishEdge);
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
+
+  // Optional accent veins for character skins (still flat texture — no geometry).
+  if (skin.id === 'dragons_maw') {
+    ctx.strokeStyle = '#7c1a3a';
+    for (let i = 0; i < 12; i++) {
+      ctx.lineWidth = 1 + Math.random() * 2;
+      ctx.globalAlpha = 0.2 + Math.random() * 0.25;
+      const a0 = Math.random() * Math.PI * 2;
+      const a1 = a0 + (Math.random() - 0.5) * 1.2;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a0) * r * 0.15, cy + Math.sin(a0) * r * 0.15);
+      ctx.quadraticCurveTo(
+        cx + Math.cos((a0 + a1) / 2) * r * (0.4 + Math.random() * 0.3),
+        cy + Math.sin((a0 + a1) / 2) * r * (0.4 + Math.random() * 0.3),
+        cx + Math.cos(a1) * r * 0.92,
+        cy + Math.sin(a1) * r * 0.92
+      );
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
-/** Light marble platform with a large square tile grid */
-function createMarbleTexture() {
+/** Light marble / tiled platform texture from skin palette */
+function createPlatformTexture(skin) {
   const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = COLORS.marbleBase;
+  ctx.fillStyle = skin.platformBase;
   ctx.fillRect(0, 0, size, size);
 
-  ctx.strokeStyle = COLORS.marbleVein;
+  ctx.strokeStyle = skin.platformVein;
   for (let i = 0; i < 50; i++) {
     ctx.lineWidth = 0.5 + Math.random() * 1.5;
     ctx.globalAlpha = 0.25 + Math.random() * 0.25;
     ctx.beginPath();
     ctx.moveTo(Math.random() * size, Math.random() * size);
     ctx.bezierCurveTo(
-      Math.random() * size, Math.random() * size,
-      Math.random() * size, Math.random() * size,
-      Math.random() * size, Math.random() * size
+      Math.random() * size,
+      Math.random() * size,
+      Math.random() * size,
+      Math.random() * size,
+      Math.random() * size,
+      Math.random() * size
     );
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
   const tile = size / 4;
-  ctx.strokeStyle = COLORS.marbleGrid;
+  ctx.strokeStyle = skin.platformGrid;
   ctx.lineWidth = 4;
   for (let i = 0; i <= 4; i++) {
     const p = i * tile;
@@ -90,6 +112,13 @@ function createMarbleTexture() {
   return tex;
 }
 
+function disposeMap(mat) {
+  if (mat?.map) {
+    mat.map.dispose();
+    mat.map = null;
+  }
+}
+
 /** Trapezoidal wedge cross-section: ramps up from the dish to a flat top */
 function createWedgeShape() {
   const innerX = -0.62;
@@ -105,18 +134,14 @@ function createWedgeShape() {
   return shape;
 }
 
-/** Navy wedge wall segments following each arc between the KO pockets */
-function addWallSegments(group) {
+/**
+ * Navy wedge wall segments following each arc between the KO pockets.
+ * Geometry is identical for every skin; only the shared material is skinned.
+ */
+function addWallSegments(group, wallMat) {
   const wedge = createWedgeShape();
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: COLORS.navyWall,
-    metalness: 0.4,
-    roughness: 0.36,
-    emissive: 0x0b1430,
-    emissiveIntensity: 0.12,
-  });
-
   const radius = CONFIG.WALL_RADIUS + 0.1;
+  const walls = [];
 
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -142,31 +167,85 @@ function addWallSegments(group) {
       geo.translate(0, 0, -segDepth / 2);
 
       const wall = new THREE.Mesh(geo, wallMat);
+      wall.userData.arenaPart = 'wall';
       wall.position.set(x, 0.02, z);
       wall.rotation.y = -angle;
       wall.castShadow = true;
       wall.receiveShadow = true;
       group.add(wall);
+      walls.push(wall);
     }
   }
+  return walls;
+}
+
+function applySkinToParts(parts, skin) {
+  disposeMap(parts.platform.material);
+  parts.platform.material.map = createPlatformTexture(skin);
+  parts.platform.material.roughness = skin.platformRoughness;
+  parts.platform.material.metalness = skin.platformMetalness;
+  parts.platform.material.needsUpdate = true;
+
+  disposeMap(parts.dish.material);
+  parts.dish.material.map = createDishTexture(skin);
+  parts.dish.material.roughness = skin.dishRoughness;
+  parts.dish.material.metalness = skin.dishMetalness;
+  parts.dish.material.needsUpdate = true;
+
+  parts.dishLip.material.color.setHex(skin.dishLip);
+  parts.dishLip.material.needsUpdate = true;
+
+  parts.wallMat.color.setHex(skin.wall);
+  parts.wallMat.emissive.setHex(skin.wallEmissive);
+  parts.wallMat.emissiveIntensity = skin.wallEmissiveIntensity;
+  parts.wallMat.metalness = skin.wallMetalness;
+  parts.wallMat.roughness = skin.wallRoughness;
+  parts.wallMat.needsUpdate = true;
+
+  parts.barrier.material.color.setHex(skin.barrier);
+  parts.barrier.material.metalness = skin.barrierMetalness;
+  parts.barrier.material.roughness = skin.barrierRoughness;
+  parts.barrier.material.needsUpdate = true;
+
+  parts.base.material.color.setHex(skin.base);
+  parts.base.material.needsUpdate = true;
+}
+
+/**
+ * Re-skin an existing arena group without rebuilding geometry.
+ * @param {THREE.Group} group
+ * @param {string} skinId
+ */
+export function applyArenaSkin(group, skinId) {
+  const parts = group?.userData?.arenaParts;
+  if (!parts) return null;
+  const skin = getArenaSkin(skinId);
+  applySkinToParts(parts, skin);
+  group.userData.arenaSkinId = skin.id;
+  return skin.id;
 }
 
 /**
  * Flat physics arena styled to match stadiumtexturereference.png:
- * smooth dark battle dish, navy wedge walls with three gaps,
- * a light barrier ring, and a marble tiled outer platform.
+ * smooth battle dish, wedge walls with three KO gaps,
+ * a barrier ring, and a tiled outer platform.
+ *
+ * Shape/format is constant; `skinId` only changes textures and materials.
  */
-export function createArenaMesh(scene) {
+export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
+  const skin = getArenaSkin(skinId ?? DEFAULT_ARENA_SKIN_ID);
   const group = new THREE.Group();
+  group.userData.arenaSkinId = skin.id;
 
   const platform = new THREE.Mesh(
     new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
     new THREE.MeshStandardMaterial({
-      map: createMarbleTexture(),
-      roughness: 0.6,
-      metalness: 0.05,
+      map: createPlatformTexture(skin),
+      roughness: skin.platformRoughness,
+      metalness: skin.platformMetalness,
     })
   );
+  platform.userData.arenaPart = 'platform';
   platform.rotation.x = -Math.PI / 2;
   platform.position.y = CONFIG.FLOOR_Y - 0.04;
   platform.receiveShadow = true;
@@ -175,11 +254,12 @@ export function createArenaMesh(scene) {
   const dish = new THREE.Mesh(
     new THREE.CircleGeometry(DISH_RADIUS, 80),
     new THREE.MeshStandardMaterial({
-      map: createDishTexture(),
-      roughness: 0.82,
-      metalness: 0.12,
+      map: createDishTexture(skin),
+      roughness: skin.dishRoughness,
+      metalness: skin.dishMetalness,
     })
   );
+  dish.userData.arenaPart = 'dish';
   dish.rotation.x = -Math.PI / 2;
   dish.position.y = CONFIG.FLOOR_Y + 0.02;
   dish.receiveShadow = true;
@@ -188,16 +268,24 @@ export function createArenaMesh(scene) {
   const dishLip = new THREE.Mesh(
     new THREE.RingGeometry(DISH_RADIUS - 0.18, DISH_RADIUS + 0.05, 80),
     new THREE.MeshStandardMaterial({
-      color: COLORS.dishLip,
+      color: skin.dishLip,
       metalness: 0.5,
       roughness: 0.3,
     })
   );
+  dishLip.userData.arenaPart = 'dishLip';
   dishLip.rotation.x = -Math.PI / 2;
   dishLip.position.y = CONFIG.FLOOR_Y + 0.035;
   group.add(dishLip);
 
-  addWallSegments(group);
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: skin.wall,
+    metalness: skin.wallMetalness,
+    roughness: skin.wallRoughness,
+    emissive: skin.wallEmissive,
+    emissiveIntensity: skin.wallEmissiveIntensity,
+  });
+  addWallSegments(group, wallMat);
 
   const barrier = new THREE.Mesh(
     new THREE.CylinderGeometry(
@@ -209,22 +297,42 @@ export function createArenaMesh(scene) {
       true
     ),
     new THREE.MeshStandardMaterial({
-      color: COLORS.barrier,
-      metalness: 0.2,
-      roughness: 0.5,
+      color: skin.barrier,
+      metalness: skin.barrierMetalness,
+      roughness: skin.barrierRoughness,
       side: THREE.DoubleSide,
     })
   );
+  barrier.userData.arenaPart = 'barrier';
   barrier.position.y = 0.55;
   group.add(barrier);
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(PLATFORM_OUTER_RADIUS - 0.3, PLATFORM_OUTER_RADIUS + 0.5, 0.7, 80),
-    new THREE.MeshStandardMaterial({ color: 0x10141c, metalness: 0.2, roughness: 0.85 })
+    new THREE.CylinderGeometry(
+      PLATFORM_OUTER_RADIUS - 0.3,
+      PLATFORM_OUTER_RADIUS + 0.5,
+      0.7,
+      80
+    ),
+    new THREE.MeshStandardMaterial({
+      color: skin.base,
+      metalness: 0.2,
+      roughness: 0.85,
+    })
   );
+  base.userData.arenaPart = 'base';
   base.position.y = -0.5;
   base.receiveShadow = true;
   group.add(base);
+
+  group.userData.arenaParts = {
+    platform,
+    dish,
+    dishLip,
+    wallMat,
+    barrier,
+    base,
+  };
 
   scene.add(group);
   return group;
