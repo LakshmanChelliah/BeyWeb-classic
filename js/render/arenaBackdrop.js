@@ -58,74 +58,66 @@ function paintCrowd(ctx, w, h, y, height, density = 140) {
 
 /** WBBA Headquarters — indoor tournament bowl with a wall of still crowds. */
 function paintWbba(ctx, w, h) {
-  // Deep blue arena ceiling / upper lights
-  paintSky(ctx, w, h, '#0c1a3a', '#1a3a6a', '#2a5080');
-  const lamp = ctx.createRadialGradient(w * 0.5, h * 0.05, 0, w * 0.5, h * 0.05, 260);
-  lamp.addColorStop(0, 'rgba(200,220,255,0.7)');
-  lamp.addColorStop(0.45, 'rgba(120,160,220,0.25)');
+  // Dark indoor ceiling + warm stadium floodlights
+  paintSky(ctx, w, h, '#0a1020', '#1a2a48', '#2a4a58');
+  const lamp = ctx.createRadialGradient(w * 0.5, h * 0.04, 0, w * 0.5, h * 0.04, 280);
+  lamp.addColorStop(0, 'rgba(255,236,180,0.75)');
+  lamp.addColorStop(0.4, 'rgba(200,180,120,0.22)');
   lamp.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = lamp;
   ctx.fillRect(0, 0, w, h * 0.4);
 
-  // Steep tiered stands filling most of the backdrop (anime still-crowd look)
-  // Back rows (highest)
+  // Packed stands
   for (let row = 0; row < 8; row++) {
-    const y = h * (0.22 + row * 0.055);
+    const y = h * (0.18 + row * 0.055);
     const rowH = 38 + row * 2;
-    // Seat bank shade
     ctx.fillStyle = row % 2 === 0 ? '#1a2230' : '#151c28';
     ctx.fillRect(0, y - rowH, w, rowH + 4);
     paintCrowd(ctx, w, h, y, rowH * 0.85, 160 + row * 8);
   }
 
-  // Structural beams in front of the crowd
-  ctx.strokeStyle = 'rgba(20,28,40,0.65)';
-  ctx.lineWidth = 5;
-  for (let i = 0; i < 9; i++) {
-    const x = (i / 8) * w;
-    ctx.beginPath();
-    ctx.moveTo(x, h * 0.12);
-    ctx.lineTo(x, h * 0.72);
-    ctx.stroke();
-  }
-  ctx.lineWidth = 4;
-  for (let i = 0; i < 4; i++) {
-    const y = h * (0.28 + i * 0.1);
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
-  }
+  // Jumbotron band
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(w * 0.28, h * 0.12, w * 0.44, h * 0.12);
+  const screen = ctx.createLinearGradient(0, h * 0.12, 0, h * 0.24);
+  screen.addColorStop(0, '#67e8f9');
+  screen.addColorStop(1, '#0891b2');
+  ctx.fillStyle = screen;
+  ctx.fillRect(w * 0.3, h * 0.13, w * 0.4, h * 0.1);
 
-  // Low arena wall separating floor from stands
-  ctx.fillStyle = '#2a3038';
-  ctx.fillRect(0, h * 0.7, w, 22);
-  ctx.fillStyle = '#4a5568';
-  ctx.fillRect(0, h * 0.7, w, 5);
-  // Soft highlight on the wall top
-  ctx.fillStyle = 'rgba(180,200,220,0.25)';
-  ctx.fillRect(0, h * 0.7, w, 2);
-
-  // Light grey tiled arena floor band
-  const floor = ctx.createLinearGradient(0, h * 0.72, 0, h);
-  floor.addColorStop(0, '#c8ced6');
-  floor.addColorStop(1, '#a8b0ba');
-  ctx.fillStyle = floor;
-  ctx.fillRect(0, h * 0.72, w, h * 0.28);
-  ctx.strokeStyle = 'rgba(70,80,95,0.4)';
+  // Teal stadium floor
+  const teal = ctx.createLinearGradient(0, h * 0.62, 0, h);
+  teal.addColorStop(0, '#2a9aaa');
+  teal.addColorStop(1, '#1e7888');
+  ctx.fillStyle = teal;
+  ctx.fillRect(0, h * 0.62, w, h * 0.38);
+  ctx.strokeStyle = 'rgba(20,80,90,0.35)';
   ctx.lineWidth = 2;
-  for (let i = 0; i <= 14; i++) {
+  for (let i = 0; i <= 12; i++) {
     ctx.beginPath();
-    ctx.moveTo((i / 14) * w, h * 0.72);
-    ctx.lineTo((i / 14) * w, h);
+    ctx.moveTo((i / 12) * w, h * 0.62);
+    ctx.lineTo((i / 12) * w, h);
     ctx.stroke();
   }
-  for (let i = 0; i < 6; i++) {
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.72 + i * 22);
-    ctx.lineTo(w, h * 0.72 + i * 22);
-    ctx.stroke();
-  }
+
+  // Raised gold platform band (anime signature)
+  const gold = ctx.createLinearGradient(0, h * 0.72, 0, h * 0.92);
+  gold.addColorStop(0, '#e8c868');
+  gold.addColorStop(0.5, '#d4a84a');
+  gold.addColorStop(1, '#a87828');
+  ctx.fillStyle = gold;
+  ctx.fillRect(0, h * 0.74, w, h * 0.16);
+  ctx.fillStyle = 'rgba(255,240,200,0.25)';
+  ctx.fillRect(0, h * 0.74, w, 6);
+  // Gold curb drop to teal
+  ctx.fillStyle = '#a87828';
+  ctx.fillRect(0, h * 0.9, w, 10);
+
+  // Dark dish oval hint in center-bottom
+  ctx.fillStyle = '#2a3038';
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, h * 0.95, w * 0.22, h * 0.06, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /** Abandoned Construction Site — blue girders, unfinished slabs (anime site). */
