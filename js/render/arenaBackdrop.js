@@ -40,18 +40,91 @@ function paintClouds(ctx, w, h, y0, color, count = 5) {
   }
 }
 
-/** Soft crowd band behind a low arena wall (tournament / WBBA feel). */
-function paintCrowd(ctx, w, h, y, height) {
-  for (let i = 0; i < 90; i++) {
-    const x = (i / 90) * w + ((i * 13) % 7);
-    const hh = height * (0.55 + (i % 5) * 0.1);
-    ctx.fillStyle = i % 3 === 0 ? '#2a3040' : i % 3 === 1 ? '#3a4050' : '#1a2030';
-    ctx.fillRect(x, y - hh, 8 + (i % 3) * 3, hh);
-    // Head dots
-    ctx.fillStyle = i % 4 === 0 ? '#e8c8a0' : '#c4a888';
+/** Dense packed spectator stands (anime tournament still). */
+function paintCrowd(ctx, w, h, y, height, density = 140) {
+  for (let i = 0; i < density; i++) {
+    const x = (i / density) * w + ((i * 17) % 9) - 4;
+    const hh = height * (0.5 + (i % 7) * 0.08);
+    const body = i % 4 === 0 ? '#2a3040' : i % 4 === 1 ? '#3a4558' : i % 4 === 2 ? '#1e2838' : '#343c4c';
+    ctx.fillStyle = body;
+    ctx.fillRect(x, y - hh, 6 + (i % 3) * 2, hh);
+    // Head
+    ctx.fillStyle = i % 5 === 0 ? '#e8c8a0' : i % 5 === 1 ? '#c4a888' : '#d4b898';
     ctx.beginPath();
-    ctx.arc(x + 5, y - hh - 3, 3, 0, Math.PI * 2);
+    ctx.arc(x + 4, y - hh - 2, 2.6, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+/** WBBA Headquarters — indoor tournament bowl with a wall of still crowds. */
+function paintWbba(ctx, w, h) {
+  // Deep blue arena ceiling / upper lights
+  paintSky(ctx, w, h, '#0c1a3a', '#1a3a6a', '#2a5080');
+  const lamp = ctx.createRadialGradient(w * 0.5, h * 0.05, 0, w * 0.5, h * 0.05, 260);
+  lamp.addColorStop(0, 'rgba(200,220,255,0.7)');
+  lamp.addColorStop(0.45, 'rgba(120,160,220,0.25)');
+  lamp.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lamp;
+  ctx.fillRect(0, 0, w, h * 0.4);
+
+  // Steep tiered stands filling most of the backdrop (anime still-crowd look)
+  // Back rows (highest)
+  for (let row = 0; row < 8; row++) {
+    const y = h * (0.22 + row * 0.055);
+    const rowH = 38 + row * 2;
+    // Seat bank shade
+    ctx.fillStyle = row % 2 === 0 ? '#1a2230' : '#151c28';
+    ctx.fillRect(0, y - rowH, w, rowH + 4);
+    paintCrowd(ctx, w, h, y, rowH * 0.85, 160 + row * 8);
+  }
+
+  // Structural beams in front of the crowd
+  ctx.strokeStyle = 'rgba(20,28,40,0.65)';
+  ctx.lineWidth = 5;
+  for (let i = 0; i < 9; i++) {
+    const x = (i / 8) * w;
+    ctx.beginPath();
+    ctx.moveTo(x, h * 0.12);
+    ctx.lineTo(x, h * 0.72);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 4;
+  for (let i = 0; i < 4; i++) {
+    const y = h * (0.28 + i * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // Low arena wall separating floor from stands
+  ctx.fillStyle = '#2a3038';
+  ctx.fillRect(0, h * 0.7, w, 22);
+  ctx.fillStyle = '#4a5568';
+  ctx.fillRect(0, h * 0.7, w, 5);
+  // Soft highlight on the wall top
+  ctx.fillStyle = 'rgba(180,200,220,0.25)';
+  ctx.fillRect(0, h * 0.7, w, 2);
+
+  // Light grey tiled arena floor band
+  const floor = ctx.createLinearGradient(0, h * 0.72, 0, h);
+  floor.addColorStop(0, '#c8ced6');
+  floor.addColorStop(1, '#a8b0ba');
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, h * 0.72, w, h * 0.28);
+  ctx.strokeStyle = 'rgba(70,80,95,0.4)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= 14; i++) {
+    ctx.beginPath();
+    ctx.moveTo((i / 14) * w, h * 0.72);
+    ctx.lineTo((i / 14) * w, h);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.72 + i * 22);
+    ctx.lineTo(w, h * 0.72 + i * 22);
+    ctx.stroke();
   }
 }
 
@@ -188,53 +261,6 @@ function paintIsland(ctx, w, h) {
   sand.addColorStop(1, '#d4bc80');
   ctx.fillStyle = sand;
   ctx.fillRect(0, h * 0.75, w, h * 0.25);
-}
-
-/** WBBA Headquarters — indoor tournament bowl with crowd + rafters. */
-function paintWbba(ctx, w, h) {
-  // Bright stadium ceiling light
-  paintSky(ctx, w, h, '#6a9ad0', '#a8c8e8', '#d0dce8');
-  const lamp = ctx.createRadialGradient(w * 0.5, h * 0.08, 0, w * 0.5, h * 0.08, 220);
-  lamp.addColorStop(0, 'rgba(255,255,255,0.85)');
-  lamp.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = lamp;
-  ctx.fillRect(0, 0, w, h * 0.45);
-
-  // Rafters / beams
-  ctx.strokeStyle = 'rgba(30,40,60,0.55)';
-  ctx.lineWidth = 6;
-  for (let i = 0; i < 7; i++) {
-    const x = (i / 6) * w;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, h * 0.05);
-    ctx.lineTo(x, h * 0.42);
-    ctx.stroke();
-  }
-
-  // Crowd tiers
-  paintCrowd(ctx, w, h, h * 0.58, 70);
-  paintCrowd(ctx, w, h, h * 0.68, 50);
-
-  // Low arena wall
-  ctx.fillStyle = '#3a4050';
-  ctx.fillRect(0, h * 0.68, w, 18);
-  ctx.fillStyle = '#5a6878';
-  ctx.fillRect(0, h * 0.68, w, 4);
-
-  // Tiled floor band
-  const floor = ctx.createLinearGradient(0, h * 0.7, 0, h);
-  floor.addColorStop(0, '#c8d0d8');
-  floor.addColorStop(1, '#a8b0b8');
-  ctx.fillStyle = floor;
-  ctx.fillRect(0, h * 0.7, w, h * 0.3);
-  ctx.strokeStyle = 'rgba(80,90,100,0.35)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 12; i++) {
-    ctx.beginPath();
-    ctx.moveTo((i / 12) * w, h * 0.7);
-    ctx.lineTo((i / 12) * w, h);
-    ctx.stroke();
-  }
 }
 
 /** Metal Bey Rooftop — elevated deck over a bright city skyline. */

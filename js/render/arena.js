@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=49';
-import { createBackdropTexture } from './arenaBackdrop.js?v=49';
+} from './arenaSkins.js?v=50';
+import { createBackdropTexture } from './arenaBackdrop.js?v=50';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
