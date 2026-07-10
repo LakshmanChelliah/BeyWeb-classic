@@ -1,7 +1,7 @@
 import { createGyroInput } from './input/gyro.js';
 import { createJoystickInput } from './input/joystick.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=43';
+import { createAppBootstrap } from './app/bootstrap.js?v=44';
 import { modeBlurb } from './game/modes.js';
 import { installTouchZoomGuard } from './touchZoomGuard.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
