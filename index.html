@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#141b30" />
   <link rel="manifest" href="manifest.json" />
   <title>Bey Web | Beyblade Arena</title>
-  <link rel="stylesheet" href="css/game.css?v=37" />
+  <link rel="stylesheet" href="css/game.css?v=38" />
   <link rel="preload" href="pegasusLogo.png" as="image" type="image/png" />
   <link rel="preload" href="storm_pegasus.glb" as="fetch" type="model/gltf-binary" crossorigin="anonymous" />
   <style>
@@ -166,6 +166,14 @@
     <p class="platform-link"><a href="pc.html">Desktop keyboard version</a></p>
   </div>
 
+  <div id="arena-transition" class="arena-transition" aria-hidden="true">
+    <div class="arena-transition-card">
+      <p class="arena-transition-kicker">Entering</p>
+      <h2 class="arena-transition-title"></h2>
+      <p class="arena-transition-sub"></p>
+    </div>
+  </div>
+
   <div id="gameover-overlay">
     <h2 id="gameover-title">KNOCKOUT!</h2>
     <p id="gameover-msg">You win!</p>
@@ -188,6 +196,6 @@
   }
   </script>
 
-  <script type="module" src="js/main-mobile.js?v=33"></script>
+  <script type="module" src="js/main-mobile.js?v=34"></script>
 </body>
 </html>

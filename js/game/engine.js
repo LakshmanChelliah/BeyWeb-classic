@@ -28,8 +28,8 @@ import {
 import { createGameState, resetRoundState } from './state.js';
 import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
-import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=37';
-import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=37';
+import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=38';
+import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=38';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
 import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';
@@ -858,8 +858,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
     renderer.render(scene, camera);
   }
 
-  dom.btnStart.addEventListener('click', () => input.onStartClick?.(startGame) ?? startGame());
-  dom.btnRestart.addEventListener('click', () => input.onRestart?.(resetGame) ?? resetGame());
+  dom.btnStart.addEventListener('click', () => {
+    const handled = input.onStartClick?.(startGame);
+    if (handled == null) startGame();
+  });
+  dom.btnRestart.addEventListener('click', () => {
+    const handled = input.onRestart?.(resetGame);
+    if (handled == null) resetGame();
+  });
   dom.btnChangeBey?.addEventListener('click', () => input.onChangeBey?.());
   dom.btnRecalibrate?.addEventListener('click', () => input.onRecalibrate?.());
 
