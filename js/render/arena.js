@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=46';
-import { createBackdropTexture } from './arenaBackdrop.js?v=46';
+} from './arenaSkins.js?v=47';
+import { createBackdropTexture } from './arenaBackdrop.js?v=47';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -14,7 +14,6 @@ import { createBackdropTexture } from './arenaBackdrop.js?v=46';
  */
 
 const DISH_RADIUS = CONFIG.WALL_RADIUS + 0.15;
-const PLATFORM_OUTER_RADIUS = CONFIG.PLATFORM_OUTER_RADIUS;
 /** Out-of-bounds ground flush with the stadium rim. */
 const GROUND_RADIUS = 78;
 const SKY_RADIUS = 95;
@@ -455,34 +454,6 @@ function addWallSegments(group, wallMat) {
   }
 }
 
-/**
- * Flush dark exit plates at KO pockets — coplanar with the floor (no raised ramps).
- */
-function addPocketExits(group, skin) {
-  const exitMat = new THREE.MeshStandardMaterial({
-    color: skin.base ?? 0x1a1a1a,
-    roughness: 0.85,
-    metalness: 0.08,
-  });
-  const exits = [];
-  const len = 2.8;
-  const width = CONFIG.POCKET_HALF_WIDTH * DISH_RADIUS * 1.55;
-
-  for (const angle of CONFIG.POCKET_ANGLES) {
-    const exit = new THREE.Mesh(new THREE.PlaneGeometry(width, len), exitMat);
-    exit.userData.arenaPart = 'pocketExit';
-    const midR = DISH_RADIUS + len * 0.42;
-    exit.rotation.x = -Math.PI / 2;
-    exit.rotation.z = -angle + Math.PI / 2;
-    exit.position.set(Math.cos(angle) * midR, CONFIG.FLOOR_Y + 0.004, Math.sin(angle) * midR);
-    exit.receiveShadow = true;
-    exit.castShadow = false;
-    group.add(exit);
-    exits.push(exit);
-  }
-  return { exitMat, exits };
-}
-
 /** Horizon sky only — upper dome; the ground ring owns the floor. */
 function createSkyDome(skin) {
   const mat = new THREE.MeshBasicMaterial({
@@ -534,18 +505,6 @@ function applySkinToParts(parts, skin) {
   parts.wallMat.metalness = skin.wallMetalness;
   parts.wallMat.roughness = skin.wallRoughness;
   parts.wallMat.needsUpdate = true;
-
-  if (parts.barrier?.material) {
-    parts.barrier.material.color.setHex(skin.barrier);
-    parts.barrier.material.metalness = skin.barrierMetalness;
-    parts.barrier.material.roughness = skin.barrierRoughness;
-    parts.barrier.material.needsUpdate = true;
-  }
-
-  if (parts.exitMat) {
-    parts.exitMat.color.setHex(skin.base ?? 0x1a1a1a);
-    parts.exitMat.needsUpdate = true;
-  }
 
   if (parts.sky?.material) {
     disposeMap(parts.sky.material);
@@ -653,24 +612,6 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   });
   addWallSegments(group, wallMat);
 
-  const { exitMat } = addPocketExits(group, skin);
-
-  // Flat painted curb on the floor (not a raised torus).
-  const barrier = new THREE.Mesh(
-    new THREE.RingGeometry(PLATFORM_OUTER_RADIUS - 0.35, PLATFORM_OUTER_RADIUS - 0.05, 80),
-    new THREE.MeshStandardMaterial({
-      color: skin.barrier,
-      metalness: skin.barrierMetalness,
-      roughness: skin.barrierRoughness,
-    })
-  );
-  barrier.userData.arenaPart = 'barrier';
-  barrier.rotation.x = -Math.PI / 2;
-  barrier.position.y = floorY + 0.006;
-  barrier.castShadow = false;
-  barrier.receiveShadow = true;
-  group.add(barrier);
-
   group.userData.arenaParts = {
     ground,
     // Alias for older callers that still expect a platform part.
@@ -678,8 +619,6 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     dish,
     dishLip,
     wallMat,
-    barrier,
-    exitMat,
     sky,
   };
 
