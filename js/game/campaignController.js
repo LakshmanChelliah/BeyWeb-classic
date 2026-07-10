@@ -20,6 +20,7 @@ import { createCasualMode } from './casualMode.js';
 import { createLocalSeriesMode } from './localSeriesMode.js';
 import { dualSeriesDotsHtml, seriesDotsHtml, SERIES_BEST_OF } from './seriesScore.js';
 import { preloadTopModel } from '../render/modelCache.js';
+import { getArenaSkinForBey } from '../render/arenaSkins.js?v=37';
 
 /**
  * Wires tournament + casual progression to DOM and game callbacks (PC and mobile).
@@ -190,15 +191,18 @@ export function createCampaignController({
     const tier = tournament.getOpponentIndex() + 1;
     const stageCount = tournament.getStageCount();
     const bladerLine = blader ? `${blader.name} (${blader.title})` : oppName;
+    const stadiumName = opp?.id ? getArenaSkinForBey(opp.id).name : null;
 
     renderCpuSeriesHud({
-      modeLabel: `T${tier}/${stageCount}`,
-      metaLine: `Tournament ${tier}/${stageCount} · ${diffLabel} · vs ${bladerLine}`,
+      modeLabel: stadiumName ? `T${tier}/${stageCount} · ${stadiumName}` : `T${tier}/${stageCount}`,
+      metaLine: stadiumName
+        ? `Tournament ${tier}/${stageCount} · ${stadiumName} · vs ${bladerLine}`
+        : `Tournament ${tier}/${stageCount} · ${diffLabel} · vs ${bladerLine}`,
       playerWins: player,
       cpuWins: cpu,
       slots: SERIES_BEST_OF.THREE,
-      tierLine: `T${tier}/${stageCount}`,
-      ariaLabel: `Tournament ${tier} of ${stageCount}, best of 3, you ${player} rival ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`,
+      tierLine: stadiumName ? `T${tier} · ${stadiumName}` : `T${tier}/${stageCount}`,
+      ariaLabel: `Tournament ${tier} of ${stageCount}, stadium ${stadiumName ?? 'unknown'}, best of 3, you ${player} rival ${cpu}, versus ${blader?.name ?? opp?.name ?? 'CPU'}`,
     });
   }
 
@@ -456,6 +460,13 @@ export function createCampaignController({
     },
     handlesRestart() {
       return isActive();
+    },
+    /** Play the Entering-stadium reveal for the current tournament rival. */
+    async revealArenaForCurrentOpponent() {
+      if (activeMode !== 'tournament' || !onArenaTransition) return;
+      const opp = tournament.getCurrentOpponent();
+      if (!opp) return;
+      await onArenaTransition(opp, { animate: true });
     },
     /** @deprecated Use startTournament */
     startCampaign() {

@@ -1,9 +1,9 @@
-import { createGame } from '../game/engine.js';
+import { createGame } from '../game/engine.js?v=37';
 import { applyAISteering, tickAIAbilities, resetAIController } from '../input/ai.js';
 import { createBeySelection } from '../ui/selection.js';
-import { createPlaySetup } from '../ui/playSetup.js';
+import { createPlaySetup } from '../ui/playSetup.js?v=37';
 import { queryGameUi } from '../ui/domRefs.js';
-import { createCampaignController } from '../game/campaignController.js';
+import { createCampaignController } from '../game/campaignController.js?v=37';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
@@ -12,9 +12,9 @@ import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
 import {
   getArenaSkinForBey,
   resolveArenaSkinId,
-} from '../render/arenaSkins.js';
+} from '../render/arenaSkins.js?v=37';
 import { getTournamentBlader } from '../game/campaign.js';
-import { playArenaTransition } from '../ui/arenaTransition.js';
+import { playArenaTransition } from '../ui/arenaTransition.js?v=37';
 
 /** Capture API is optional QA tooling — never block boot if it fails to load. */
 function installCaptureApiLazy(app) {
@@ -71,17 +71,19 @@ export function createAppBootstrap({
     async onArenaTransition(opp, { animate = false } = {}) {
       if (!opp?.id || !gameRef?.setArenaSkin) return;
       const skin = getArenaSkinForBey(opp.id);
-      const current = gameRef.getArenaSkinId?.();
       const apply = () => gameRef.setArenaSkin(skin.id, { persist: false });
 
-      if (!animate || current === skin.id) {
+      // Silent apply while select/start overlays cover the canvas.
+      if (!animate) {
         apply();
         return;
       }
 
+      // Always play the reveal when requested (even if skin already applied).
       const blader = getTournamentBlader(opp.id);
       const accent = `#${(skin.dishLip >>> 0).toString(16).padStart(6, '0')}`;
       document.getElementById('gameover-overlay')?.classList.remove('visible');
+      startOverlay?.classList.add('hidden');
       await playArenaTransition({
         skinName: skin.name,
         subtitle: blader ? `${blader.name} · ${opp.name}` : opp.name,

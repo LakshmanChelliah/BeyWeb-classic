@@ -1,6 +1,6 @@
 import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js';
+import { createAppBootstrap } from './app/bootstrap.js?v=37';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
 
@@ -58,7 +58,13 @@ createAppBootstrap({
     const keyboard = createKeyboardInput(
       () => {
         if (!getBeysChosen()) return;
-        if (!startOverlay.classList.contains('hidden')) getGameRef()?.startGame();
+        if (startOverlay.classList.contains('hidden')) return;
+        void (async () => {
+          resetAIController();
+          await campaignCtrl.revealArenaForCurrentOpponent?.();
+          await getGameRef()?.startGame();
+          campaignCtrl.updateHud();
+        })();
       },
       () => {
         const gameRef = getGameRef();
@@ -90,6 +96,7 @@ createAppBootstrap({
       },
       async onStartClick(startGame) {
         resetAIController();
+        await campaignCtrl.revealArenaForCurrentOpponent?.();
         await startGame();
         campaignCtrl.updateHud();
       },
