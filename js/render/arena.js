@@ -4,7 +4,7 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js';
+} from './arenaSkins.js?v=37';
 
 /**
  * Stadium geometry is fixed. Skins only swap canvas textures and material
@@ -181,13 +181,19 @@ function addWallSegments(group, wallMat) {
 
 function applySkinToParts(parts, skin) {
   disposeMap(parts.platform.material);
-  parts.platform.material.map = createPlatformTexture(skin);
+  const platformMap = createPlatformTexture(skin);
+  platformMap.needsUpdate = true;
+  parts.platform.material.map = platformMap;
+  parts.platform.material.color?.setHex?.(0xffffff);
   parts.platform.material.roughness = skin.platformRoughness;
   parts.platform.material.metalness = skin.platformMetalness;
   parts.platform.material.needsUpdate = true;
 
   disposeMap(parts.dish.material);
-  parts.dish.material.map = createDishTexture(skin);
+  const dishMap = createDishTexture(skin);
+  dishMap.needsUpdate = true;
+  parts.dish.material.map = dishMap;
+  parts.dish.material.color?.setHex?.(0xffffff);
   parts.dish.material.roughness = skin.dishRoughness;
   parts.dish.material.metalness = skin.dishMetalness;
   parts.dish.material.needsUpdate = true;
@@ -211,6 +217,13 @@ function applySkinToParts(parts, skin) {
   parts.base.material.needsUpdate = true;
 }
 
+function applySceneAmbience(scene, skin) {
+  if (!scene || skin.ambience == null) return;
+  if (scene.background?.isColor) scene.background.setHex(skin.ambience);
+  else scene.background = new THREE.Color(skin.ambience);
+  if (scene.fog?.color) scene.fog.color.setHex(skin.ambience);
+}
+
 /**
  * Re-skin an existing arena group without rebuilding geometry.
  * @param {THREE.Group} group
@@ -221,6 +234,7 @@ export function applyArenaSkin(group, skinId) {
   if (!parts) return null;
   const skin = getArenaSkin(skinId);
   applySkinToParts(parts, skin);
+  applySceneAmbience(group.userData.scene, skin);
   group.userData.arenaSkinId = skin.id;
   return skin.id;
 }
@@ -236,6 +250,8 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   const skin = getArenaSkin(skinId ?? DEFAULT_ARENA_SKIN_ID);
   const group = new THREE.Group();
   group.userData.arenaSkinId = skin.id;
+  group.userData.scene = scene;
+  applySceneAmbience(scene, skin);
 
   const platform = new THREE.Mesh(
     new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),

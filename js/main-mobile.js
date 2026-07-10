@@ -1,7 +1,7 @@
 import { createGyroInput } from './input/gyro.js';
 import { createJoystickInput } from './input/joystick.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js';
+import { createAppBootstrap } from './app/bootstrap.js?v=37';
 import { modeBlurb } from './game/modes.js';
 import { installTouchZoomGuard } from './touchZoomGuard.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
@@ -116,6 +116,7 @@ createAppBootstrap({
           btnStart.textContent = 'Starting…';
           joystick.show();
           lockPortraitOrientation();
+          await campaignCtrl.revealArenaForCurrentOpponent?.();
           await startGame();
           campaignCtrl.updateHud();
           return;
@@ -162,6 +163,7 @@ createAppBootstrap({
         }
 
         lockPortraitOrientation();
+        await campaignCtrl.revealArenaForCurrentOpponent?.();
         await startGame();
         campaignCtrl.updateHud();
       },

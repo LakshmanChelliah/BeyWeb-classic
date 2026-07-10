@@ -12,6 +12,7 @@ const STORAGE_KEY = 'beyweb.arenaSkin';
 /** @typedef {{
  *   id: string,
  *   beyId: string,
+ *   ambience?: number,
  *   name: string,
  *   desc?: string,
  *   dishCenter: string,
@@ -42,6 +43,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'bull_forge',
     beyId: 'bull',
+    ambience: 0x1a1008,
     name: 'Bull Forge',
     desc: 'Scorched iron dish with ember pocket lips',
     dishCenter: '#3a2e28',
@@ -69,6 +71,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'libra_balance',
     beyId: 'libra',
+    ambience: 0x1a140c,
     name: 'Libra Balance',
     desc: 'Warm gold dish with silver meridian walls',
     dishCenter: '#5a4838',
@@ -95,6 +98,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'eagle_aerie',
     beyId: 'eagle',
+    ambience: 0x101828,
     name: 'Eagle Aerie',
     desc: 'Cool sky-gray dish with feather-soft walls',
     dishCenter: '#4a5568',
@@ -121,6 +125,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'leone_bastion',
     beyId: 'leone',
+    ambience: 0x18140a,
     name: 'Leone Bastion',
     desc: 'Sandstone dish with bronze lion walls',
     dishCenter: '#8a7a58',
@@ -147,6 +152,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'storm_circuit',
     beyId: 'pegasus',
+    ambience: 0x0a1220,
     name: 'Storm Circuit',
     desc: 'Deep blue dish with cyan wall glow',
     dishCenter: '#1a3a6e',
@@ -173,6 +179,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'dragons_maw',
     beyId: 'lightning_ldrago',
+    ambience: 0x10080c,
     name: "Dragon's Maw",
     desc: 'Charcoal dish with crimson lightning veins',
     dishCenter: '#2a2228',
@@ -200,6 +207,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'striker_rink',
     beyId: 'striker',
+    ambience: 0x0a1418,
     name: 'Striker Rink',
     desc: 'Ice-blue dish with red hazard pocket lips',
     dishCenter: '#3a5a6e',
@@ -226,6 +234,7 @@ export const ARENA_SKINS = Object.freeze([
   Object.freeze({
     id: 'meteo_crucible',
     beyId: 'meteo_ldrago',
+    ambience: 0x140808,
     name: 'Meteo Crucible',
     desc: 'Molten crimson dish with dark dragon walls',
     dishCenter: '#4a1818',
