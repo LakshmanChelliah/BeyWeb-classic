@@ -184,7 +184,6 @@ export const BULL_CHARGE_DUR = BULL_DASH_BUILD_DUR;
 const BULL_DASH_SPEED = 28;
 const BULL_DASH_LEAN = 0.36;
 const BULL_COAST_ARRIVE = 0.35;
-const BULL_DASH_AIM_TRACK_DUR = 0.14;
 const BULL_RECOVER_DUR = 0.45;
 const BULL_UPPERCUT_BASE_KB = 2.4;
 const BULL_UPPERCUT_SPIN_MIN = 0.25;
@@ -328,12 +327,26 @@ function homingXZ(body, opp, rate) {
   body.position.z += (opp.position.z - body.position.z) * t;
 }
 
-/** Set dash heading toward the opponent, target on the far stadium wall. */
+/**
+ * Lock a linear dash heading toward the foe's position at activation.
+ * Aim is fixed for the whole charge — no mid-dash re-tracking.
+ */
 function initBullDashTarget(body, opp) {
   const fromX = body.userData.bullChargeFromX ?? body.position.x;
   const fromZ = body.userData.bullChargeFromZ ?? body.position.z;
-  let nx = (opp?.position.x ?? body.position.x) - fromX;
-  let nz = (opp?.position.z ?? body.position.z) - fromZ;
+
+  // Prefer the aim locked when the move started; otherwise snapshot now.
+  let aimX = body.userData.bullAimLockX;
+  let aimZ = body.userData.bullAimLockZ;
+  if (aimX == null || aimZ == null) {
+    aimX = opp?.position.x ?? body.position.x;
+    aimZ = opp?.position.z ?? body.position.z;
+    body.userData.bullAimLockX = aimX;
+    body.userData.bullAimLockZ = aimZ;
+  }
+
+  let nx = aimX - fromX;
+  let nz = aimZ - fromZ;
   const d = Math.hypot(nx, nz);
   if (d < 0.05) {
     const yaw = Math.atan2(body.position.z, body.position.x);
@@ -357,16 +370,11 @@ function initBullDashTarget(body, opp) {
   );
 }
 
-/** Constant-speed dash; returns true once the far wall is reached. */
+/** Constant-speed linear dash; returns true once the far wall is reached. */
 function stepBullDash(state, side, body, opp, dt) {
   if (body.userData.bullCoastTargetX == null) initBullDashTarget(body, opp);
 
   body.userData.bullUpperPhaseT = (body.userData.bullUpperPhaseT ?? 0) + dt;
-
-  // Refresh aim line through the foe for the first fraction of the dash.
-  if (opp && body.userData.bullUpperPhaseT < BULL_DASH_AIM_TRACK_DUR) {
-    initBullDashTarget(body, opp);
-  }
 
   const tx = body.userData.bullCoastTargetX;
   const tz = body.userData.bullCoastTargetZ;
@@ -1399,12 +1407,15 @@ function resolveBullUppercutOutcome(state, side, body) {
   }
 }
 
-function initBullUppercut(body) {
+function initBullUppercut(body, opp) {
   body.userData.bullUpperPhase = 'windup';
   body.userData.bullUpperPhaseT = 0;
   body.userData.bullUpperHit = false;
   body.userData.bullImpactFlash = false;
   delete body.userData.bullUpperResolved;
+  // Snapshot foe position at activation so the dash stays linear.
+  body.userData.bullAimLockX = opp?.position.x ?? body.position.x;
+  body.userData.bullAimLockZ = opp?.position.z ?? body.position.z;
   setBodyCollisions(body, false);
 }
 
@@ -1421,6 +1432,8 @@ function clearBullUppercutMotion(body) {
   delete body.userData.bullUpperResolved;
   delete body.userData.bullChargeFromX;
   delete body.userData.bullChargeFromZ;
+  delete body.userData.bullAimLockX;
+  delete body.userData.bullAimLockZ;
   delete body.userData.bullImpactX;
   delete body.userData.bullImpactZ;
   delete body.userData.bullImpactResolved;
@@ -2467,7 +2480,8 @@ function applyAbilityWindupSetup(state, side, ability) {
   }
   if (ability.id === 'bull_red_horn_uppercut') {
     body.userData.controlLocked = true;
-    initBullUppercut(body);
+    const opp = side === 'player' ? state.aiBody : state.playerBody;
+    initBullUppercut(body, opp);
   }
   if (ability.id === 'striker_lightning_flash') {
     body.userData.controlLocked = true;
@@ -2995,7 +3009,6 @@ export function tickBullAbilityVisuals(state, dt) {
 
   for (const side of ['player', 'ai']) {
     const body = side === 'player' ? state.playerBody : state.aiBody;
-    const opp = side === 'player' ? state.aiBody : state.playerBody;
     if (!body) continue;
     const runtime = state.abilities[side];
     if (!runtime) continue;
@@ -3038,8 +3051,7 @@ export function tickBullAbilityVisuals(state, dt) {
       const windup = slotWindupTotal(spSlot, BULL_UPPERCUT_WINDUP);
       const t = clamp01(1 - spSlot.windupRemaining / windup);
       const e = easeInOutCubic(t);
-      // Late windup: slide toward the foe so the dash line is fresher at launch.
-      if (t > 0.5 && opp) homingXZ(body, opp, 5 * dt);
+      // Stay planted during windup — aim was locked at activation.
       body.userData.flightLift = 0;
       // Horn-lower windup: tip forward and squash into the charge.
       body.userData.bullWindupEndTilt = 0.18 * easeOutCubic(t);
