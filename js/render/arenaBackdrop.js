@@ -309,62 +309,82 @@ function paintRooftop(ctx, w, h) {
   ctx.fillRect(0, h * 0.55, w, h * 0.45);
 }
 
-/** Dark Nebula HQ Rooftop — elevated night deck over a stormy city. */
+/** Dark Nebula HQ Rooftop — purple night sky, city far below in cyan mist. */
 function paintDarkNebula(ctx, w, h) {
-  paintSky(ctx, w, h, '#0a0618', '#141028', '#1a1838');
-  paintClouds(ctx, w, h, h * 0.18, 'rgba(60,50,90,0.45)', 4);
+  // Deep purple night sky
+  paintSky(ctx, w, h, '#1a0a30', '#2a1450', '#3a2080');
+  paintClouds(ctx, w, h, h * 0.16, 'rgba(80,50,120,0.4)', 5);
 
-  ctx.strokeStyle = 'rgba(200,180,255,0.8)';
-  ctx.lineWidth = 3;
+  // Soft purple glow / moon haze
+  const glow = ctx.createRadialGradient(w * 0.7, h * 0.18, 0, w * 0.7, h * 0.18, 180);
+  glow.addColorStop(0, 'rgba(160,100,255,0.35)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h * 0.5);
+
+  // Lightning
+  ctx.strokeStyle = 'rgba(180,200,255,0.75)';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(w * 0.7, h * 0.06);
-  ctx.lineTo(w * 0.66, h * 0.18);
-  ctx.lineTo(w * 0.72, h * 0.2);
-  ctx.lineTo(w * 0.64, h * 0.36);
+  ctx.moveTo(w * 0.22, h * 0.05);
+  ctx.lineTo(w * 0.26, h * 0.16);
+  ctx.lineTo(w * 0.2, h * 0.18);
+  ctx.lineTo(w * 0.28, h * 0.32);
   ctx.stroke();
 
-  // Night skyline
-  for (let i = 0; i < 20; i++) {
-    const x = (i / 20) * w;
-    const bh = 60 + ((i * 53) % 140);
-    const bw = 28 + (i % 3) * 10;
-    ctx.fillStyle = '#0e0a18';
-    ctx.fillRect(x, h * 0.5 - bh, bw, bh);
-    ctx.fillStyle = 'rgba(160,80,255,0.35)';
-    for (let wy = 0; wy < Math.floor(bh / 16); wy++) {
-      ctx.fillRect(x + 6, h * 0.5 - bh + 8 + wy * 16, 6, 6);
-      ctx.fillRect(x + 16, h * 0.5 - bh + 8 + wy * 16, 6, 6);
+  // Mid-distance towers rising through mist (taller than stadium eye-line)
+  for (let i = 0; i < 18; i++) {
+    const x = (i / 18) * w;
+    const bh = 90 + ((i * 67) % 180);
+    const bw = 20 + (i % 3) * 12;
+    ctx.fillStyle = i % 2 === 0 ? '#0e0a1c' : '#120e22';
+    ctx.fillRect(x, h * 0.48 - bh, bw, bh);
+    // Cyan window bands
+    ctx.fillStyle = 'rgba(80,220,255,0.45)';
+    for (let wy = 0; wy < Math.floor(bh / 14); wy++) {
+      if ((wy + i) % 3 === 0) continue;
+      ctx.fillRect(x + 3, h * 0.48 - bh + 6 + wy * 14, bw - 6, 4);
     }
   }
 
-  // Dark Nebula tower
-  const tx = w * 0.5 - 40;
+  // Signature spiral / stepped Dark Nebula tower (center-left)
   ctx.fillStyle = '#0a0614';
-  ctx.fillRect(tx, h * 0.12, 80, h * 0.4);
-  ctx.fillStyle = '#1a0a28';
-  ctx.beginPath();
-  ctx.moveTo(tx - 8, h * 0.12);
-  ctx.lineTo(tx + 40, h * 0.02);
-  ctx.lineTo(tx + 88, h * 0.12);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = 'rgba(160,60,255,0.5)';
-  for (let wy = 0; wy < 10; wy++) {
-    ctx.fillRect(tx + 12, h * 0.18 + wy * 16, 18, 8);
-    ctx.fillRect(tx + 48, h * 0.18 + wy * 16, 18, 8);
+  for (let t = 0; t < 7; t++) {
+    const tw = 70 - t * 8;
+    const th = 28;
+    ctx.fillRect(w * 0.28 - tw / 2, h * 0.42 - t * 26 - 40, tw, th);
   }
 
-  // Below-deck night city haze
-  const below = ctx.createLinearGradient(0, h * 0.5, 0, h);
-  below.addColorStop(0, 'rgba(20,10,30,0)');
-  below.addColorStop(0.4, 'rgba(30,10,40,0.5)');
-  below.addColorStop(1, '#0a0610');
-  ctx.fillStyle = below;
-  ctx.fillRect(0, h * 0.5, w, h * 0.5);
-  ctx.fillStyle = 'rgba(180,60,255,0.2)';
-  for (let i = 0; i < 40; i++) {
-    ctx.fillRect(Math.random() * w, h * 0.58 + Math.random() * h * 0.35, 3, 3);
+  // Orb tower (right) — glowing cyan sphere cradled by pillars
+  const ox = w * 0.78;
+  ctx.fillStyle = '#0e0a1a';
+  ctx.fillRect(ox - 18, h * 0.2, 12, h * 0.28);
+  ctx.fillRect(ox + 8, h * 0.2, 12, h * 0.28);
+  const orb = ctx.createRadialGradient(ox + 1, h * 0.28, 0, ox + 1, h * 0.28, 42);
+  orb.addColorStop(0, 'rgba(120,240,255,0.95)');
+  orb.addColorStop(0.45, 'rgba(40,160,255,0.7)');
+  orb.addColorStop(1, 'rgba(20,40,120,0)');
+  ctx.fillStyle = orb;
+  ctx.beginPath();
+  ctx.arc(ox + 1, h * 0.28, 42, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Thick cyan/purple mist bank — city streets 1000m below
+  const mist = ctx.createLinearGradient(0, h * 0.42, 0, h);
+  mist.addColorStop(0, 'rgba(40,20,80,0)');
+  mist.addColorStop(0.25, 'rgba(40,120,200,0.35)');
+  mist.addColorStop(0.55, 'rgba(60,40,120,0.75)');
+  mist.addColorStop(1, '#1a0a28');
+  ctx.fillStyle = mist;
+  ctx.fillRect(0, h * 0.42, w, h * 0.58);
+
+  // Faint city lights deep in the mist
+  for (let i = 0; i < 80; i++) {
+    ctx.globalAlpha = 0.15 + Math.random() * 0.35;
+    ctx.fillStyle = Math.random() > 0.5 ? '#67e8f9' : '#c084fc';
+    ctx.fillRect(Math.random() * w, h * 0.55 + Math.random() * h * 0.4, 2 + Math.random() * 3, 2);
   }
+  ctx.globalAlpha = 1;
 }
 
 /** Koma Village — rural mountains, forest, dirt path. */

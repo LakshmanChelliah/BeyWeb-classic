@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=51';
-import { createBackdropTexture } from './arenaBackdrop.js?v=51';
+} from './arenaSkins.js?v=52';
+import { createBackdropTexture } from './arenaBackdrop.js?v=52';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -516,15 +516,21 @@ function tintCityForSkin(city, skin) {
     if (!obj.isMesh || !obj.material) return;
     const mat = obj.material;
     if (obj.userData.cityPart === 'building') {
-      mat.color.setHex(night ? 0x12101c : 0x5a6878);
-      mat.emissive?.setHex?.(night ? 0x4a2080 : 0x000000);
-      mat.emissiveIntensity = night ? 0.15 : 0;
+      mat.color.setHex(night ? 0x0e0a18 : 0x5a6878);
+      mat.emissive?.setHex?.(night ? 0x3a1870 : 0x000000);
+      mat.emissiveIntensity = night ? 0.18 : 0;
     } else if (obj.userData.cityPart === 'window') {
-      mat.color.setHex(night ? 0xc084fc : 0xc8dce8);
-      mat.emissive?.setHex?.(night ? 0xa855f7 : 0x88aacc);
-      mat.emissiveIntensity = night ? 0.55 : 0.2;
+      mat.color.setHex(night ? 0x67e8f9 : 0xc8dce8);
+      mat.emissive?.setHex?.(night ? 0x22d3ee : 0x88aacc);
+      mat.emissiveIntensity = night ? 0.7 : 0.2;
     } else if (obj.userData.cityPart === 'support') {
-      mat.color.setHex(night ? 0x2a2030 : 0x6a7888);
+      mat.color.setHex(night ? 0x2a1840 : 0x6a7888);
+      mat.emissive?.setHex?.(night ? 0x5b21b6 : 0x000000);
+      mat.emissiveIntensity = night ? 0.12 : 0;
+      mat.metalness = night ? 0.75 : 0.65;
+    } else if (obj.userData.cityPart === 'mist') {
+      mat.color.setHex(0x4c1d95);
+      mat.opacity = 0.55;
     }
   });
 }
@@ -535,57 +541,96 @@ function tintCityForSkin(city, skin) {
 function createRooftopSupports(skin) {
   const group = new THREE.Group();
   group.userData.arenaPart = 'supports';
+  const night = skin.backdrop?.style === 'dn_rooftop_night';
   const steel = new THREE.MeshStandardMaterial({
-    color: skin.base ?? 0x6a7888,
-    metalness: 0.65,
-    roughness: 0.35,
+    color: night ? 0x2a1840 : skin.base ?? 0x6a7888,
+    metalness: 0.7,
+    roughness: 0.32,
+    emissive: night ? 0x5b21b6 : 0x000000,
+    emissiveIntensity: night ? 0.1 : 0,
   });
 
-  // Tall building shaft under the deck
+  // Tall building shaft plunging into the mist / city below
+  const shaftH = night ? 36 : 22;
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(PLATFORM_OUTER_RADIUS * 0.55, PLATFORM_OUTER_RADIUS * 0.7, 22, 24),
+    new THREE.CylinderGeometry(
+      PLATFORM_OUTER_RADIUS * 0.5,
+      PLATFORM_OUTER_RADIUS * (night ? 0.85 : 0.7),
+      shaftH,
+      24
+    ),
     steel.clone()
   );
   shaft.userData.cityPart = 'support';
-  shaft.position.y = -11.5;
+  shaft.position.y = -shaftH * 0.5 - 0.5;
   shaft.castShadow = true;
   shaft.receiveShadow = true;
   group.add(shaft);
 
   // Outer ring of pillars at the deck edge
-  const pillarGeo = new THREE.BoxGeometry(0.7, 14, 0.7);
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * Math.PI * 2;
-    const r = PLATFORM_OUTER_RADIUS - 1.2;
+  const pillarH = night ? 28 : 14;
+  const pillarGeo = new THREE.BoxGeometry(0.85, pillarH, 0.85);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const r = PLATFORM_OUTER_RADIUS - 1.1;
     const pillar = new THREE.Mesh(pillarGeo, steel.clone());
     pillar.userData.cityPart = 'support';
-    pillar.position.set(Math.cos(a) * r, -7.2, Math.sin(a) * r);
+    pillar.position.set(Math.cos(a) * r, -pillarH * 0.5 - 0.2, Math.sin(a) * r);
     pillar.castShadow = true;
     group.add(pillar);
   }
 
   // Diagonal braces under the deck
-  const braceGeo = new THREE.BoxGeometry(0.35, 10, 0.35);
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * Math.PI * 2 + 0.15;
-    const r = PLATFORM_OUTER_RADIUS - 2.5;
+  const braceGeo = new THREE.BoxGeometry(0.4, night ? 16 : 10, 0.4);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + 0.12;
+    const r = PLATFORM_OUTER_RADIUS - 2.4;
     const brace = new THREE.Mesh(braceGeo, steel.clone());
     brace.userData.cityPart = 'support';
-    brace.position.set(Math.cos(a) * r, -5.5, Math.sin(a) * r);
-    brace.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.45;
+    brace.position.set(Math.cos(a) * r, night ? -9 : -5.5, Math.sin(a) * r);
+    brace.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.5;
     brace.rotation.y = -a;
     group.add(brace);
   }
 
   // Underside ring / lip
   const lip = new THREE.Mesh(
-    new THREE.TorusGeometry(PLATFORM_OUTER_RADIUS - 0.4, 0.35, 8, 48),
+    new THREE.TorusGeometry(PLATFORM_OUTER_RADIUS - 0.4, 0.4, 8, 48),
     steel.clone()
   );
   lip.userData.cityPart = 'support';
   lip.rotation.x = Math.PI / 2;
-  lip.position.y = -0.4;
+  lip.position.y = -0.45;
   group.add(lip);
+
+  // Night: cyan/purple mist bank far below the deck
+  if (night) {
+    const mistMat = new THREE.MeshBasicMaterial({
+      color: 0x4c1d95,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+    });
+    const mist = new THREE.Mesh(new THREE.CircleGeometry(70, 48), mistMat);
+    mist.userData.cityPart = 'mist';
+    mist.rotation.x = -Math.PI / 2;
+    mist.position.y = -28;
+    group.add(mist);
+
+    const mist2 = new THREE.Mesh(
+      new THREE.CircleGeometry(55, 40),
+      new THREE.MeshBasicMaterial({
+        color: 0x0891b2,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      })
+    );
+    mist2.userData.cityPart = 'mist';
+    mist2.rotation.x = -Math.PI / 2;
+    mist2.position.y = -24;
+    group.add(mist2);
+  }
 
   return group;
 }
@@ -642,10 +687,11 @@ function createRooftopCity(skin) {
       buildingMat.clone()
     );
     building.userData.cityPart = 'building';
-    // Bottom of building well below deck; top rises far above stadium walls.
+    // Night: sink city deeper into mist so the deck feels ~1000m up.
+    const yOff = night ? 32 : 18;
     building.position.set(
       Math.cos(s.a) * s.r,
-      s.h * 0.5 - 18,
+      s.h * 0.5 - yOff,
       Math.sin(s.a) * s.r
     );
     building.castShadow = true;
@@ -661,11 +707,47 @@ function createRooftopCity(skin) {
     const inward = Math.atan2(-Math.sin(s.a), -Math.cos(s.a));
     win.position.set(
       Math.cos(s.a) * (s.r - s.d * 0.52),
-      s.h * 0.5 - 18,
+      s.h * 0.5 - yOff,
       Math.sin(s.a) * (s.r - s.d * 0.52)
     );
     win.rotation.y = inward;
     group.add(win);
+  }
+
+  // Night signature towers — spiral HQ + orb tower taller than the stadium
+  if (night) {
+    const hq = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.5, 6, 58, 8),
+      buildingMat.clone()
+    );
+    hq.userData.cityPart = 'building';
+    hq.position.set(-34, 10, -30);
+    group.add(hq);
+
+    const orbPillarL = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 40, 1.2),
+      buildingMat.clone()
+    );
+    orbPillarL.userData.cityPart = 'building';
+    orbPillarL.position.set(36, 4, 22);
+    group.add(orbPillarL);
+    const orbPillarR = orbPillarL.clone();
+    orbPillarR.position.set(40, 4, 22);
+    group.add(orbPillarR);
+
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(4.5, 20, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x67e8f9,
+        emissive: 0x22d3ee,
+        emissiveIntensity: 0.85,
+        metalness: 0.3,
+        roughness: 0.25,
+      })
+    );
+    orb.userData.cityPart = 'window';
+    orb.position.set(38, 22, 22);
+    group.add(orb);
   }
 
   return group;
