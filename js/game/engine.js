@@ -865,9 +865,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu }) {
 
   gameLoop();
 
-  function setArenaSkin(skinId) {
+  function setArenaSkin(skinId, { persist = true } = {}) {
     const id = applyArenaSkin(arenaMesh, skinId);
-    if (id) saveArenaSkinId(id);
+    if (id && persist) saveArenaSkinId(id);
     return id;
   }
 
