@@ -263,14 +263,6 @@ function paintIsland(ctx, w, h) {
   ctx.fillRect(0, h * 0.75, w, h * 0.25);
 }
 
-/** WBBA Headquarters — indoor tournament bowl with crowd + rafters. */
-function paintWbba_UNUSED_REMOVED(ctx, w, h) {
-  // replaced above
-  void ctx;
-  void w;
-  void h;
-}
-
 /** Metal Bey Rooftop — elevated deck over a bright city skyline. */
 function paintRooftop(ctx, w, h) {
   // Full vertical sky so looking past the rooftop edge still reads as open air.
