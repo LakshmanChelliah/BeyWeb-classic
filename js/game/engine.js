@@ -29,8 +29,8 @@ import {
 import { createGameState, resetRoundState } from './state.js';
 import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
-import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=48';
-import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=48';
+import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=49';
+import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=49';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
 import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';

@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=48';
-import { createBackdropTexture } from './arenaBackdrop.js?v=48';
+} from './arenaSkins.js?v=49';
+import { createBackdropTexture } from './arenaBackdrop.js?v=49';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -72,7 +72,8 @@ function createDishTexture(skin) {
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  if (skin.dishAccent) {
+  // Clean glossy plastic for Koma green dish — no etched spokes.
+  if (skin.dishAccent && skin.backdrop?.style !== 'koma_village') {
     ctx.strokeStyle = skin.dishAccent;
     ctx.globalAlpha = 0.32;
     ctx.lineWidth = 3;
@@ -84,6 +85,17 @@ function createDishTexture(skin) {
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Extra plastic gloss for the classic green Koma dish.
+  if (skin.backdrop?.style === 'koma_village') {
+    const gloss2 = ctx.createRadialGradient(cx * 0.65, cy * 0.45, 2, cx * 0.65, cy * 0.45, r * 0.5);
+    gloss2.addColorStop(0, 'rgba(255,255,255,0.35)');
+    gloss2.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gloss2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Construction: metal/wood slats like the anime site stadium.
