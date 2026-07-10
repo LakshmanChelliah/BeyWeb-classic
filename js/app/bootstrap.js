@@ -266,7 +266,7 @@ export function createAppBootstrap({
     document.body.classList.add('boot-ready');
     document.getElementById('boot-overlay')?.classList.add('hidden');
     const st = document.getElementById('boot-status');
-    if (st) st.textContent = 'Load error — try refresh';
+    if (st) st.textContent = 'Load error. Try refresh';
     // Do not rethrow: keep selection UI usable when possible.
   }
 
