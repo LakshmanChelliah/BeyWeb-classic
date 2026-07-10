@@ -54,7 +54,7 @@ import {
   cancelAbilitiesOnSpinStop,
   isLibraBusterChannelingBody,
   SPECIAL_LOGO_FLASH_DUR,
-} from './abilities.js';
+} from './abilities.js?v=41';
 import { createStarBlastVfx } from '../render/starBlastVfx.js';
 import { createLeoneAbilityVfx } from '../render/leoneAbilityVfx.js';
 import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';

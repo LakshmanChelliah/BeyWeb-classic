@@ -4013,6 +4013,8 @@ export function resetStarBlastCamera() {
 /** Per frame: advance cooldown, windup (then activate), and active duration. */
 export function tickAbilityTimers(state, dt) {
   if (!state.abilities) return;
+  // Charge / cooldown only after the rip + drop-in finish.
+  if (state.awaitingLaunch || (state.launchGrace ?? 0) > 0) return;
   for (const side of ['player', 'ai']) {
     const runtime = state.abilities[side];
     if (!runtime) continue;
