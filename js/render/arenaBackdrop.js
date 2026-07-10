@@ -237,52 +237,101 @@ function paintWbba(ctx, w, h) {
   }
 }
 
-/** Metal Bey Rooftop — urban plaza tiles + city skyline (rim flush look). */
+/** Metal Bey Rooftop — elevated deck over a bright city skyline. */
 function paintRooftop(ctx, w, h) {
-  paintSky(ctx, w, h, '#5aa0d0', '#8ec8e8', '#d0e8f8');
-  paintSun(ctx, w * 0.8, h * 0.16, 90, 'rgba(255,250,220,0.7)');
-  paintClouds(ctx, w, h, h * 0.15, 'rgba(255,255,255,0.5)', 5);
+  // Full vertical sky so looking past the rooftop edge still reads as open air.
+  paintSky(ctx, w, h, '#3a88c8', '#87ceeb', '#c8e0f0');
+  paintSun(ctx, w * 0.82, h * 0.14, 100, 'rgba(255,250,220,0.75)');
+  paintClouds(ctx, w, h, h * 0.12, 'rgba(255,255,255,0.5)', 6);
 
-  // City skyline
-  for (let i = 0; i < 22; i++) {
-    const x = (i / 22) * w;
-    const bh = 55 + ((i * 47) % 160);
-    const bw = 28 + (i % 3) * 12;
-    ctx.fillStyle = i % 3 === 0 ? '#6a7888' : i % 3 === 1 ? '#5a6878' : '#4a5868';
-    ctx.fillRect(x, h * 0.55 - bh, bw, bh);
+  // Mid skyline (horizon band)
+  for (let i = 0; i < 24; i++) {
+    const x = (i / 24) * w;
+    const bh = 70 + ((i * 47) % 170);
+    const bw = 26 + (i % 3) * 12;
+    ctx.fillStyle = i % 3 === 0 ? '#5a6878' : i % 3 === 1 ? '#4a5868' : '#3a4858';
+    ctx.fillRect(x, h * 0.48 - bh, bw, bh);
     ctx.fillStyle = 'rgba(220,235,250,0.4)';
     for (let wy = 0; wy < Math.floor(bh / 14); wy++) {
       for (let wx = 0; wx < Math.floor(bw / 10); wx++) {
         if ((wx + wy + i) % 2 === 0) continue;
-        ctx.fillRect(x + 4 + wx * 10, h * 0.55 - bh + 6 + wy * 14, 5, 7);
+        ctx.fillRect(x + 4 + wx * 10, h * 0.48 - bh + 6 + wy * 14, 5, 7);
       }
     }
   }
 
-  // Plaza / rooftop ledge
-  ctx.fillStyle = '#8a9098';
-  ctx.fillRect(0, h * 0.54, w, h * 0.08);
-  ctx.fillStyle = '#a8b0b8';
-  ctx.fillRect(w * 0.1, h * 0.46, 70, 40);
-  ctx.fillRect(w * 0.72, h * 0.44, 85, 48);
+  // Lower sphere = looking down past the building: distant streets / haze, not a solid floor.
+  const below = ctx.createLinearGradient(0, h * 0.48, 0, h);
+  below.addColorStop(0, 'rgba(100,130,160,0)');
+  below.addColorStop(0.35, 'rgba(90,120,150,0.35)');
+  below.addColorStop(1, '#6a8aa8');
+  ctx.fillStyle = below;
+  ctx.fillRect(0, h * 0.48, w, h * 0.52);
 
-  // Light stone tile floor
-  const roof = ctx.createLinearGradient(0, h * 0.6, 0, h);
-  roof.addColorStop(0, '#c8c8c8');
-  roof.addColorStop(1, '#a8a8a8');
-  ctx.fillStyle = roof;
-  ctx.fillRect(0, h * 0.6, w, h * 0.4);
-  ctx.strokeStyle = 'rgba(90,90,90,0.35)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 10; i++) {
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.6 + i * 20);
-    ctx.lineTo(w, h * 0.6 + i * 20);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(i * (w / 10), h * 0.6);
-    ctx.lineTo(i * (w / 10), h);
-    ctx.stroke();
+  // Tiny distant rooftops / streets under the deck
+  ctx.fillStyle = 'rgba(40,50,60,0.45)';
+  for (let i = 0; i < 30; i++) {
+    const x = (i / 30) * w;
+    const y = h * 0.62 + ((i * 37) % 80);
+    ctx.fillRect(x, y, 18 + (i % 4) * 8, 10 + (i % 3) * 6);
+  }
+}
+
+/** Dark Nebula HQ Rooftop — elevated night deck over a stormy city. */
+function paintDarkNebula(ctx, w, h) {
+  paintSky(ctx, w, h, '#0a0618', '#141028', '#1a1838');
+  paintClouds(ctx, w, h, h * 0.18, 'rgba(60,50,90,0.45)', 4);
+
+  ctx.strokeStyle = 'rgba(200,180,255,0.8)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.7, h * 0.06);
+  ctx.lineTo(w * 0.66, h * 0.18);
+  ctx.lineTo(w * 0.72, h * 0.2);
+  ctx.lineTo(w * 0.64, h * 0.36);
+  ctx.stroke();
+
+  // Night skyline
+  for (let i = 0; i < 20; i++) {
+    const x = (i / 20) * w;
+    const bh = 60 + ((i * 53) % 140);
+    const bw = 28 + (i % 3) * 10;
+    ctx.fillStyle = '#0e0a18';
+    ctx.fillRect(x, h * 0.5 - bh, bw, bh);
+    ctx.fillStyle = 'rgba(160,80,255,0.35)';
+    for (let wy = 0; wy < Math.floor(bh / 16); wy++) {
+      ctx.fillRect(x + 6, h * 0.5 - bh + 8 + wy * 16, 6, 6);
+      ctx.fillRect(x + 16, h * 0.5 - bh + 8 + wy * 16, 6, 6);
+    }
+  }
+
+  // Dark Nebula tower
+  const tx = w * 0.5 - 40;
+  ctx.fillStyle = '#0a0614';
+  ctx.fillRect(tx, h * 0.12, 80, h * 0.4);
+  ctx.fillStyle = '#1a0a28';
+  ctx.beginPath();
+  ctx.moveTo(tx - 8, h * 0.12);
+  ctx.lineTo(tx + 40, h * 0.02);
+  ctx.lineTo(tx + 88, h * 0.12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(160,60,255,0.5)';
+  for (let wy = 0; wy < 10; wy++) {
+    ctx.fillRect(tx + 12, h * 0.18 + wy * 16, 18, 8);
+    ctx.fillRect(tx + 48, h * 0.18 + wy * 16, 18, 8);
+  }
+
+  // Below-deck night city haze
+  const below = ctx.createLinearGradient(0, h * 0.5, 0, h);
+  below.addColorStop(0, 'rgba(20,10,30,0)');
+  below.addColorStop(0.4, 'rgba(30,10,40,0.5)');
+  below.addColorStop(1, '#0a0610');
+  ctx.fillStyle = below;
+  ctx.fillRect(0, h * 0.5, w, h * 0.5);
+  ctx.fillStyle = 'rgba(180,60,255,0.2)';
+  for (let i = 0; i < 40; i++) {
+    ctx.fillRect(Math.random() * w, h * 0.58 + Math.random() * h * 0.35, 3, 3);
   }
 }
 
@@ -347,58 +396,6 @@ function paintVillage(ctx, w, h) {
   dirt.addColorStop(1, '#6a5a40');
   ctx.fillStyle = dirt;
   ctx.fillRect(0, h * 0.68, w, h * 0.32);
-}
-
-/** Dark Nebula HQ Rooftop — jagged night peaks + ominous tower. */
-function paintDarkNebula(ctx, w, h) {
-  paintSky(ctx, w, h, '#0a0618', '#141028', '#1a1838');
-  paintClouds(ctx, w, h, h * 0.2, 'rgba(60,50,90,0.45)', 4);
-
-  // Lightning
-  ctx.strokeStyle = 'rgba(200,180,255,0.8)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.7, h * 0.06);
-  ctx.lineTo(w * 0.66, h * 0.18);
-  ctx.lineTo(w * 0.72, h * 0.2);
-  ctx.lineTo(w * 0.64, h * 0.36);
-  ctx.stroke();
-
-  // Jagged mountain silhouettes
-  ctx.fillStyle = '#0e0c18';
-  ctx.beginPath();
-  ctx.moveTo(0, h * 0.62);
-  for (let i = 0; i < 12; i++) {
-    const x = (i / 11) * w;
-    const y = h * 0.35 + ((i * 37) % 80);
-    ctx.lineTo(x, y);
-  }
-  ctx.lineTo(w, h * 0.62);
-  ctx.closePath();
-  ctx.fill();
-
-  // Dark tower
-  const tx = w * 0.5 - 40;
-  ctx.fillStyle = '#0a0614';
-  ctx.fillRect(tx, h * 0.2, 80, h * 0.45);
-  ctx.fillStyle = '#1a0a28';
-  ctx.beginPath();
-  ctx.moveTo(tx - 8, h * 0.2);
-  ctx.lineTo(tx + 40, h * 0.08);
-  ctx.lineTo(tx + 88, h * 0.2);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = 'rgba(160,60,255,0.45)';
-  for (let wy = 0; wy < 10; wy++) {
-    ctx.fillRect(tx + 12, h * 0.25 + wy * 18, 18, 8);
-    ctx.fillRect(tx + 48, h * 0.25 + wy * 18, 18, 8);
-  }
-
-  const roof = ctx.createLinearGradient(0, h * 0.6, 0, h);
-  roof.addColorStop(0, '#1a1020');
-  roof.addColorStop(1, '#0e0a14');
-  ctx.fillStyle = roof;
-  ctx.fillRect(0, h * 0.6, w, h * 0.4);
 }
 
 /** City Streets — neon canyon. */
