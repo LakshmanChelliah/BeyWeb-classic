@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=42';
-import { createBackdropTexture } from './arenaBackdrop.js?v=42';
+} from './arenaSkins.js?v=43';
+import { createBackdropTexture } from './arenaBackdrop.js?v=43';
 
 /**
  * Stadium geometry is fixed. Skins only swap canvas textures, materials,
