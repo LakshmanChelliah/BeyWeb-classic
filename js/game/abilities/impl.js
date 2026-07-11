@@ -1054,7 +1054,7 @@ function initStarBlast(body) {
   setBodyCollisions(body, false);
 }
 
-/** Lightning L-Drago Soaring Destruction — Star Blast twin with lightning impact twist. */
+/** Lightning L-Drago Soaring Destruction — Star Blast twin; lightning only on opponent impact. */
 function markLdragoSoaringHit(state, attackerSide, body, opp) {
   if (!body || body.userData.ldragoSoaringHit) return;
   if (opp?.userData?.invulnerable) return;
@@ -3612,8 +3612,6 @@ export function tickLdragoAbilityVisuals(state, dt) {
           body.userData.ldragoPhase = 'ascend';
           body.userData.ldragoPhaseT = 0;
           body.userData.ldragoImpactFlash = true;
-          // Wall-hit lightning crackle (visual twist).
-          body.userData.ldragoLightningImpactT = 0.85;
           delete body.userData.ldragoDashFromX;
           delete body.userData.ldragoDashFromZ;
         }
@@ -3704,7 +3702,6 @@ export function tickLdragoAbilityVisuals(state, dt) {
           body.userData.ldragoBouncePulseT = 0;
           applyStarBounceKnockback(body, opp, STAR_BOUNCE_VELOCITY);
           if (starBlastOverlap(body, opp)) markLdragoSoaringHit(state, side, body, opp);
-          else body.userData.ldragoLightningImpactT = 1; // ground strike crackle on whiff land
           body.userData.ldragoPhase = 'bounce';
           body.userData.ldragoPhaseT = 0;
           setBodyCollisions(body, true);
