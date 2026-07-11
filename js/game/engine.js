@@ -54,7 +54,7 @@ import {
   cancelAbilitiesOnSpinStop,
   isLibraBusterChannelingBody,
   SPECIAL_LOGO_FLASH_DUR,
-} from './abilities.js?v=41';
+} from './abilities.js?v=60';
 import { createStarBlastVfx } from '../render/starBlastVfx.js';
 import { createLeoneAbilityVfx } from '../render/leoneAbilityVfx.js';
 import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';
@@ -66,7 +66,7 @@ import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
 import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
-import { runLaunchMinigame } from '../ui/launchMinigame.js';
+import { runLaunchMinigame } from '../ui/launchMinigame.js?v=60';
 import {
   ensureQuarksRuntime,
   updateQuarks,
