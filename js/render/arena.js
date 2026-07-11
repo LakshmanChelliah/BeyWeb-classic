@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=59';
-import { createBackdropTexture } from './arenaBackdrop.js?v=59';
+} from './arenaSkins.js?v=66';
+import { createBackdropTexture } from './arenaBackdrop.js?v=66';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -23,7 +23,7 @@ const SKY_RADIUS = 95;
 /** How far the dish rim sits below the surrounding floor. */
 const DISH_RECESS = 0.04;
 /** Visual bowl depth (center below rim) — shallow so tops don’t float. */
-const DISH_BOWL_DEPTH = 0.42;
+const DISH_BOWL_DEPTH = 0.62;
 
 /**
  * Shallow concave dish (lathed parabola). Same outer radius as the old flat circle;
@@ -51,24 +51,71 @@ function createBowlGeometry(radius = DISH_RADIUS, depth = DISH_BOWL_DEPTH, segme
     }
     index.needsUpdate = true;
   }
-  geo.computeVertexNormals();
 
-  // Rebuild UVs so the painted texture maps like a floor disc.
+  // Rebuild UVs, upward normals, and vertex colors so the bowl reads from fight cam.
   const uv = geo.attributes.uv;
   const pos = geo.attributes.position;
   const nrm = geo.attributes.normal;
-  for (let i = 0; i < uv.count; i++) {
+  const colors = new Float32Array(pos.count * 3);
+  const r2 = radius * radius;
+  for (let i = 0; i < pos.count; i++) {
     const px = pos.getX(i);
     const pz = pos.getZ(i);
+    const rho = Math.hypot(px, pz);
+    const t = Math.min(1, rho / radius);
     uv.setXY(i, 0.5 + px / (2 * radius), 0.5 + pz / (2 * radius));
-    // Degenerate center normal
-    if (Math.hypot(nrm.getX(i), nrm.getY(i), nrm.getZ(i)) < 1e-6) {
+
+    // Explicit upward normals for y = -depth*(1-(ρ/R)^2): ∂y/∂ρ = 2·depth·ρ/R².
+    if (rho < 1e-5) {
       nrm.setXYZ(i, 0, 1, 0);
+    } else {
+      const dy = (2 * depth * rho) / r2;
+      const nx = -dy * (px / rho);
+      const nz = -dy * (pz / rho);
+      const len = Math.hypot(nx, 1, nz) || 1;
+      nrm.setXYZ(i, nx / len, 1 / len, nz / len);
     }
+
+    // Concave shade: dark well → bright mid-slope → dark rim.
+    let s;
+    if (t < 0.28) s = 0.28 + (t / 0.28) * 0.4;
+    else if (t < 0.68) s = 0.68 + ((t - 0.28) / 0.4) * 0.32;
+    else s = 1.0 - ((t - 0.68) / 0.32) * 0.78;
+    colors[i * 3] = s;
+    colors[i * 3 + 1] = s;
+    colors[i * 3 + 2] = s;
   }
   uv.needsUpdate = true;
   nrm.needsUpdate = true;
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return geo;
+}
+
+/** Dish material that keeps baked bowl shading visible under venue lights. */
+function createDishMaterial(skin, dishMap) {
+  return new THREE.MeshStandardMaterial({
+    map: dishMap,
+    emissiveMap: dishMap,
+    emissive: new THREE.Color(0xffffff),
+    emissiveIntensity: 0.42,
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    roughness: Math.max(skin.dishRoughness ?? 0.55, 0.7),
+    metalness: 0,
+  });
+}
+
+function applyDishMaterialProps(mat, skin, dishMap) {
+  mat.map = dishMap;
+  mat.emissiveMap = dishMap;
+  mat.emissive.setHex(0xffffff);
+  mat.emissiveIntensity = 0.42;
+  mat.vertexColors = true;
+  mat.side = THREE.DoubleSide;
+  mat.color.setHex(0xffffff);
+  mat.roughness = Math.max(skin.dishRoughness ?? 0.55, 0.7);
+  mat.metalness = 0;
+  mat.needsUpdate = true;
 }
 
 function isElevated(skin) {
@@ -89,57 +136,69 @@ function createDishTexture(skin) {
   const cy = size / 2;
   const r = size / 2;
 
-  // Strong bowl shading: hot center → mid slope → dark rim.
-  const grad = ctx.createRadialGradient(cx, cy * 0.9, r * 0.02, cx, cy, r);
-  grad.addColorStop(0, skin.dishCenter);
-  grad.addColorStop(0.22, skin.dishCenter);
-  grad.addColorStop(0.55, skin.dishMid);
-  grad.addColorStop(0.78, skin.dishEdge);
-  grad.addColorStop(0.92, shadeHex(skin.dishEdge, 0.55));
-  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.38));
+  // Concave bowl shading — high-contrast so it reads on mobile, not a flat pad.
+  const grad = ctx.createRadialGradient(cx, cy, r * 0.02, cx, cy, r);
+  grad.addColorStop(0, shadeHex(skin.dishCenter, 0.55));
+  grad.addColorStop(0.12, shadeHex(skin.dishCenter, 0.7));
+  grad.addColorStop(0.32, skin.dishCenter);
+  grad.addColorStop(0.52, skin.dishMid);
+  grad.addColorStop(0.72, skin.dishEdge);
+  grad.addColorStop(0.88, shadeHex(skin.dishEdge, 0.42));
+  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.22));
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Soft slope shade (mid bowl).
-  const midShade = ctx.createRadialGradient(cx, cy, r * 0.35, cx, cy, r * 0.85);
-  midShade.addColorStop(0, 'rgba(0,0,0,0)');
-  midShade.addColorStop(0.55, 'rgba(0,0,0,0.12)');
-  midShade.addColorStop(1, 'rgba(0,0,0,0.08)');
-  ctx.fillStyle = midShade;
+  // Deep center well (recessed pit).
+  const well = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.48);
+  well.addColorStop(0, 'rgba(0,0,0,0.55)');
+  well.addColorStop(0.4, 'rgba(0,0,0,0.28)');
+  well.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = well;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Deep rim occlusion — strongest depth cue under the lip.
-  const rim = ctx.createRadialGradient(cx, cy, r * 0.62, cx, cy, r);
+  // Lit mid-slope ring (curvature).
+  const slope = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 0.72);
+  slope.addColorStop(0, 'rgba(255,255,255,0)');
+  slope.addColorStop(0.4, 'rgba(255,255,255,0.2)');
+  slope.addColorStop(0.75, 'rgba(255,255,255,0.06)');
+  slope.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = slope;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Heavy rim occlusion under the lip.
+  const rim = ctx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r);
   rim.addColorStop(0, 'rgba(0,0,0,0)');
-  rim.addColorStop(0.55, 'rgba(0,0,0,0.18)');
-  rim.addColorStop(0.82, 'rgba(0,0,0,0.42)');
-  rim.addColorStop(1, 'rgba(0,0,0,0.62)');
+  rim.addColorStop(0.35, 'rgba(0,0,0,0.25)');
+  rim.addColorStop(0.7, 'rgba(0,0,0,0.55)');
+  rim.addColorStop(1, 'rgba(0,0,0,0.82)');
   ctx.fillStyle = rim;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Concentric contour rings (bowl contour lines).
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 3;
-  for (const rr of [0.22, 0.4, 0.58, 0.74, 0.88]) {
+  // Concentric contour rings.
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 4;
+  for (const rr of [0.18, 0.34, 0.5, 0.66, 0.8, 0.9]) {
     ctx.beginPath();
     ctx.arc(cx, cy, r * rr, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
-  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.lineWidth = 8;
   ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.96, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r * 0.97, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Specular highlight on the near slope (sells curvature).
-  const gloss = ctx.createRadialGradient(cx * 0.7, cy * 0.48, 2, cx * 0.7, cy * 0.48, r * 0.42);
-  gloss.addColorStop(0, 'rgba(255,255,255,0.34)');
+  // Specular highlight on the near slope.
+  const gloss = ctx.createRadialGradient(cx * 0.66, cy * 0.58, 2, cx * 0.66, cy * 0.58, r * 0.34);
+  gloss.addColorStop(0, 'rgba(255,255,255,0.3)');
   gloss.addColorStop(0.45, 'rgba(255,255,255,0.1)');
   gloss.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gloss;
@@ -573,10 +632,13 @@ function paintFloorVolcanic(ctx, size, skin) {
 }
 
 function disposeMap(mat) {
-  if (mat?.map) {
-    mat.map.dispose();
-    mat.map = null;
-  }
+  if (!mat) return;
+  const map = mat.map;
+  const emissiveMap = mat.emissiveMap;
+  if (map) map.dispose();
+  if (emissiveMap && emissiveMap !== map) emissiveMap.dispose();
+  mat.map = null;
+  mat.emissiveMap = null;
 }
 
 function createWedgeShape() {
@@ -1271,11 +1333,7 @@ function applySkinToParts(parts, skin) {
   disposeMap(parts.dish.material);
   const dishMap = createDishTexture(skin);
   dishMap.needsUpdate = true;
-  parts.dish.material.map = dishMap;
-  parts.dish.material.color.setHex(0xffffff);
-  parts.dish.material.roughness = skin.dishRoughness;
-  parts.dish.material.metalness = skin.dishMetalness;
-  parts.dish.material.needsUpdate = true;
+  applyDishMaterialProps(parts.dish.material, skin, dishMap);
 
   parts.dishLip.material.color.setHex(skin.dishLip);
   parts.dishLip.material.metalness = isWbba(skin) ? 0.35 : 0.45;
@@ -1377,9 +1435,9 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   const wbbaBowl = createWbbaBowl(skin);
   group.add(wbbaBowl);
 
-  // Elevated venues: rooftop deck (finite platform over the city).
+  // Elevated venues: rooftop deck with a hole so the battle bowl stays visible.
   const platform = new THREE.Mesh(
-    new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
+    new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS, 80),
     new THREE.MeshStandardMaterial({
       map: createPlatformTexture(skin),
       roughness: skin.platformRoughness ?? 0.55,
@@ -1420,17 +1478,15 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   group.add(city);
 
   // Battle dish — shallow 3D bowl (visual only; physics radii unchanged).
+  const dishMap = createDishTexture(skin);
   const dish = new THREE.Mesh(
     createBowlGeometry(DISH_RADIUS, DISH_BOWL_DEPTH, 80),
-    new THREE.MeshStandardMaterial({
-      map: createDishTexture(skin),
-      roughness: skin.dishRoughness,
-      metalness: skin.dishMetalness,
-    })
+    createDishMaterial(skin, dishMap)
   );
   dish.userData.arenaPart = 'dish';
   // Rim flush with floor recess; center dips by DISH_BOWL_DEPTH.
   dish.position.y = floorY - DISH_RECESS;
+  dish.renderOrder = 2;
   dish.receiveShadow = true;
   dish.castShadow = false;
   group.add(dish);
