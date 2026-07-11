@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=68';
-import { createBackdropTexture } from './arenaBackdrop.js?v=68';
+} from './arenaSkins.js?v=69';
+import { createBackdropTexture } from './arenaBackdrop.js?v=69';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -1152,21 +1152,25 @@ function createRooftopSupports(skin) {
  */
 function addRooftopCloudBank(group, skin) {
   const night = skin.backdrop?.style === 'dn_rooftop_night';
+  // Start just under the deck so supports vanish quickly; stack deep.
   const layers = night
     ? [
-        { y: -14, r: 46, color: 0x3b0764, opacity: 0.42 },
-        { y: -20, r: 58, color: 0x4c1d95, opacity: 0.55 },
-        { y: -28, r: 74, color: 0x2e1065, opacity: 0.5 },
-        { y: -36, r: 90, color: 0x0891b2, opacity: 0.28 },
-        { y: -46, r: 110, color: 0x1a0a30, opacity: 0.62 },
+        { y: -2.4, r: 38, color: 0x3b0764, opacity: 0.55 },
+        { y: -4.5, r: 48, color: 0x4c1d95, opacity: 0.5 },
+        { y: -7.5, r: 58, color: 0x5b21b6, opacity: 0.48 },
+        { y: -11, r: 70, color: 0x2e1065, opacity: 0.52 },
+        { y: -16, r: 84, color: 0x0891b2, opacity: 0.3 },
+        { y: -24, r: 98, color: 0x1a0a30, opacity: 0.58 },
+        { y: -34, r: 115, color: 0x0c0420, opacity: 0.7 },
       ]
     : [
-        { y: -9, r: 40, color: 0xffffff, opacity: 0.5 },
-        { y: -13, r: 52, color: 0xe8f2fa, opacity: 0.48 },
-        { y: -18, r: 66, color: 0xc5daf0, opacity: 0.45 },
-        { y: -25, r: 82, color: 0xa8c8e4, opacity: 0.5 },
-        { y: -34, r: 100, color: 0x7aa8c8, opacity: 0.42 },
-        { y: -44, r: 118, color: 0x6a9ac0, opacity: 0.55 },
+        { y: -2.2, r: 36, color: 0xffffff, opacity: 0.58 },
+        { y: -4.0, r: 46, color: 0xf4f8fc, opacity: 0.5 },
+        { y: -6.5, r: 56, color: 0xe0eef8, opacity: 0.48 },
+        { y: -10, r: 68, color: 0xc8dcf0, opacity: 0.5 },
+        { y: -15, r: 82, color: 0xa8c8e4, opacity: 0.46 },
+        { y: -22, r: 96, color: 0x8ab4d4, opacity: 0.5 },
+        { y: -32, r: 114, color: 0x6a9ac0, opacity: 0.62 },
       ];
 
   for (const layer of layers) {
@@ -1185,25 +1189,34 @@ function addRooftopCloudBank(group, skin) {
     group.add(bank);
   }
 
-  // Soft puffs around the deck so the cloud shelf reads as volume, not a disc.
-  const puffColor = night ? 0x5b21b6 : 0xf2f7fc;
-  const puffMat = new THREE.MeshBasicMaterial({
-    color: puffColor,
-    transparent: true,
-    opacity: night ? 0.32 : 0.4,
-    depthWrite: false,
-  });
+  // Soft puffs fill the volume under the deck (reads as clouds, not a floor plate).
+  const puffColor = night ? 0x6d28d9 : 0xf7fbff;
   const puffSpecs = [
-    { a: 0.4, r: 22, y: -11, sx: 14, sy: 3.2, sz: 10 },
-    { a: 1.6, r: 26, y: -15, sx: 16, sy: 3.8, sz: 12 },
-    { a: 2.8, r: 24, y: -12, sx: 13, sy: 2.8, sz: 11 },
-    { a: 4.1, r: 28, y: -17, sx: 18, sy: 4.2, sz: 13 },
-    { a: 5.2, r: 23, y: -14, sx: 12, sy: 3.0, sz: 9 },
-    { a: 0.9, r: 34, y: -21, sx: 20, sy: 4.5, sz: 15 },
-    { a: 3.5, r: 36, y: -23, sx: 22, sy: 5.0, sz: 16 },
+    { a: 0.2, r: 10, y: -3.2, sx: 11, sy: 2.4, sz: 9 },
+    { a: 1.1, r: 14, y: -4.0, sx: 13, sy: 2.8, sz: 10 },
+    { a: 2.0, r: 12, y: -3.5, sx: 12, sy: 2.6, sz: 11 },
+    { a: 2.9, r: 15, y: -5.0, sx: 14, sy: 3.0, sz: 12 },
+    { a: 3.8, r: 11, y: -3.8, sx: 10, sy: 2.2, sz: 9 },
+    { a: 4.7, r: 16, y: -4.6, sx: 15, sy: 3.2, sz: 11 },
+    { a: 5.5, r: 13, y: -3.3, sx: 12, sy: 2.5, sz: 10 },
+    { a: 0.6, r: 22, y: -6.5, sx: 16, sy: 3.6, sz: 13 },
+    { a: 1.8, r: 24, y: -7.5, sx: 18, sy: 4.0, sz: 14 },
+    { a: 3.2, r: 26, y: -8.0, sx: 17, sy: 3.8, sz: 15 },
+    { a: 4.5, r: 23, y: -7.0, sx: 19, sy: 4.2, sz: 14 },
+    { a: 5.8, r: 25, y: -9.0, sx: 20, sy: 4.5, sz: 16 },
+    { a: 0.9, r: 32, y: -12, sx: 22, sy: 5.0, sz: 17 },
+    { a: 2.5, r: 34, y: -14, sx: 24, sy: 5.5, sz: 18 },
+    { a: 4.1, r: 36, y: -13, sx: 23, sy: 5.2, sz: 17 },
+    { a: 5.4, r: 33, y: -15, sx: 25, sy: 5.8, sz: 19 },
   ];
   for (const p of puffSpecs) {
-    const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), puffMat.clone());
+    const puffMat = new THREE.MeshBasicMaterial({
+      color: puffColor,
+      transparent: true,
+      opacity: night ? 0.38 : 0.52,
+      depthWrite: false,
+    });
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), puffMat);
     puff.userData.cityPart = 'mist';
     puff.scale.set(p.sx, p.sy, p.sz);
     puff.position.set(Math.cos(p.a) * p.r, p.y, Math.sin(p.a) * p.r);
@@ -1236,26 +1249,28 @@ function createRooftopCity(skin) {
     emissiveIntensity: night ? 0.5 : 0.18,
   });
 
-  // Deterministic layout — skyscrapers rise above the deck and plunge into clouds.
+  // Deterministic layout — skyscrapers rise well above the deck and plunge into clouds.
+  // bottom ≈ -yOff (in mist); top ≈ h/2 - yOff (skyline above walls).
+  const yOff = night ? 62 : 55;
   const specs = [
-    { a: 0.15, r: 28, w: 5, d: 5, h: 96 },
-    { a: 0.55, r: 32, w: 4, d: 6, h: 78 },
-    { a: 1.0, r: 26, w: 6, d: 4, h: 112 },
-    { a: 1.4, r: 34, w: 5, d: 5, h: 70 },
-    { a: 1.85, r: 29, w: 4, d: 7, h: 102 },
-    { a: 2.3, r: 36, w: 7, d: 4, h: 88 },
-    { a: 2.7, r: 27, w: 5, d: 5, h: 118 },
-    { a: 3.15, r: 33, w: 4, d: 4, h: 64 },
-    { a: 3.55, r: 30, w: 6, d: 5, h: 108 },
-    { a: 4.0, r: 38, w: 5, d: 6, h: 82 },
-    { a: 4.4, r: 28, w: 4, d: 5, h: 94 },
-    { a: 4.85, r: 35, w: 6, d: 4, h: 124 },
-    { a: 5.3, r: 31, w: 5, d: 5, h: 90 },
-    { a: 5.75, r: 40, w: 4, d: 4, h: 68 },
-    { a: 0.35, r: 45, w: 8, d: 6, h: 132 },
-    { a: 2.0, r: 48, w: 6, d: 8, h: 120 },
-    { a: 3.8, r: 46, w: 7, d: 5, h: 140 },
-    { a: 5.1, r: 44, w: 5, d: 7, h: 106 },
+    { a: 0.15, r: 28, w: 5, d: 5, h: 150 },
+    { a: 0.55, r: 32, w: 4, d: 6, h: 128 },
+    { a: 1.0, r: 26, w: 6, d: 4, h: 170 },
+    { a: 1.4, r: 34, w: 5, d: 5, h: 118 },
+    { a: 1.85, r: 29, w: 4, d: 7, h: 158 },
+    { a: 2.3, r: 36, w: 7, d: 4, h: 140 },
+    { a: 2.7, r: 27, w: 5, d: 5, h: 180 },
+    { a: 3.15, r: 33, w: 4, d: 4, h: 112 },
+    { a: 3.55, r: 30, w: 6, d: 5, h: 165 },
+    { a: 4.0, r: 38, w: 5, d: 6, h: 132 },
+    { a: 4.4, r: 28, w: 4, d: 5, h: 148 },
+    { a: 4.85, r: 35, w: 6, d: 4, h: 190 },
+    { a: 5.3, r: 31, w: 5, d: 5, h: 142 },
+    { a: 5.75, r: 40, w: 4, d: 4, h: 120 },
+    { a: 0.35, r: 45, w: 8, d: 6, h: 200 },
+    { a: 2.0, r: 48, w: 6, d: 8, h: 185 },
+    { a: 3.8, r: 46, w: 7, d: 5, h: 210 },
+    { a: 5.1, r: 44, w: 5, d: 7, h: 168 },
   ];
 
   for (const s of specs) {
@@ -1264,8 +1279,6 @@ function createRooftopCity(skin) {
       buildingMat.clone()
     );
     building.userData.cityPart = 'building';
-    // Bottoms sit deep in the cloud bank; tops still clear the stadium walls.
-    const yOff = night ? 58 : 48;
     building.position.set(
       Math.cos(s.a) * s.r,
       s.h * 0.5 - yOff,
@@ -1294,22 +1307,22 @@ function createRooftopCity(skin) {
   // Night signature towers — spiral HQ + orb tower taller than the stadium
   if (night) {
     const hq = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.5, 6, 96, 8),
+      new THREE.CylinderGeometry(2.5, 6, 140, 8),
       buildingMat.clone()
     );
     hq.userData.cityPart = 'building';
-    hq.position.set(-34, 8, -30);
+    hq.position.set(-34, 28, -30);
     group.add(hq);
 
     const orbPillarL = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 72, 1.2),
+      new THREE.BoxGeometry(1.2, 110, 1.2),
       buildingMat.clone()
     );
     orbPillarL.userData.cityPart = 'building';
-    orbPillarL.position.set(36, 2, 22);
+    orbPillarL.position.set(36, 20, 22);
     group.add(orbPillarL);
     const orbPillarR = orbPillarL.clone();
-    orbPillarR.position.set(40, 2, 22);
+    orbPillarR.position.set(40, 20, 22);
     group.add(orbPillarR);
 
     const orb = new THREE.Mesh(
@@ -1323,7 +1336,7 @@ function createRooftopCity(skin) {
       })
     );
     orb.userData.cityPart = 'window';
-    orb.position.set(38, 36, 22);
+    orb.position.set(38, 72, 22);
     group.add(orb);
   }
 
