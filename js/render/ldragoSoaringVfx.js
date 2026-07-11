@@ -162,6 +162,26 @@ function buildBranchPoints(seed, mainPts, startIdx, hitX, hitZ, hitY, spread) {
   return pts;
 }
 
+function createStrikeBloomTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 256, 256);
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(250,245,255,1)');
+  g.addColorStop(0.22, 'rgba(183,148,244,0.85)');
+  g.addColorStop(0.55, 'rgba(91,33,217,0.35)');
+  g.addColorStop(1, 'rgba(91,33,217,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(128, 128, 128, 0, Math.PI * 2);
+  ctx.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function makeBoltLine(color, segs = 14) {
   const geo = new THREE.BufferGeometry();
   const positions = new Float32Array((segs + 1) * 3);
@@ -331,9 +351,18 @@ export function createLdragoSoaringVfx(scene) {
   root.add(skyFlashOuter);
 
   // Ground strike bloom at the collision point (where the bolt lands).
+  const strikeBloomTex = createStrikeBloomTexture();
   const groundFlash = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.8, 3.8),
-    makeTrailMat(WHITE_HOT, 0)
+    new THREE.PlaneGeometry(4.4, 4.4),
+    new THREE.MeshBasicMaterial({
+      map: strikeBloomTex,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    })
   );
   groundFlash.visible = false;
   groundFlash.renderOrder = 12;
@@ -341,8 +370,16 @@ export function createLdragoSoaringVfx(scene) {
   root.add(groundFlash);
 
   const groundFlashOuter = new THREE.Mesh(
-    new THREE.PlaneGeometry(6.2, 6.2),
-    makeTrailMat(VIOLET_LIGHT, 0)
+    new THREE.PlaneGeometry(7.2, 7.2),
+    new THREE.MeshBasicMaterial({
+      map: strikeBloomTex,
+      color: 0xb794f4,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    })
   );
   groundFlashOuter.visible = false;
   groundFlashOuter.renderOrder = 11;
