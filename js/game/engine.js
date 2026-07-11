@@ -66,7 +66,7 @@ import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
 import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
-import { runLaunchMinigame } from '../ui/launchMinigame.js?v=61';
+import { runLaunchMinigame } from '../ui/launchMinigame.js?v=62';
 import {
   ensureQuarksRuntime,
   updateQuarks,

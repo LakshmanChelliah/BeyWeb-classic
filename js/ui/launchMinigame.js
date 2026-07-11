@@ -11,9 +11,14 @@ const METER_ONE_WAY_MS = 520;
 const METER_TOTAL_MS = METER_ONE_WAY_MS * 2;
 const RIP_HOLD_MS = METER_TOTAL_MS + 80;
 const RESULT_HOLD_MS = 720;
-/** Match `.launch-overlay-meter-sweet` (left 18% + half of 22% width). */
-const SWEET_CENTER = 0.29;
-const SWEET_HALF = 0.11;
+/** Perfect zone is centered; radii match colored meter bands. */
+const SWEET_CENTER = 0.5;
+const ZONE_RADII = Object.freeze({
+  perfect: 0.03,
+  great: 0.07,
+  good: 0.14,
+  weak: 0.26,
+});
 
 const GRADE_SPIN = Object.freeze({
   miss: CONFIG.LAUNCH_SPIN_MISS,
@@ -39,22 +44,58 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
+/** Symmetric zone segments from left edge → center → right edge. */
+function buildMeterZonesHtml() {
+  const c = SWEET_CENTER;
+  const r = ZONE_RADII;
+  const segments = [
+    { grade: 'miss', left: 0, width: c - r.weak },
+    { grade: 'weak', left: c - r.weak, width: r.weak - r.good },
+    { grade: 'good', left: c - r.good, width: r.good - r.great },
+    { grade: 'great', left: c - r.great, width: r.great - r.perfect },
+    { grade: 'perfect', left: c - r.perfect, width: r.perfect * 2 },
+    { grade: 'great', left: c + r.perfect, width: r.great - r.perfect },
+    { grade: 'good', left: c + r.great, width: r.good - r.great },
+    { grade: 'weak', left: c + r.good, width: r.weak - r.good },
+    { grade: 'miss', left: c + r.weak, width: 1 - (c + r.weak) },
+  ];
+  const zones = segments
+    .map(
+      (s) =>
+        `<div class="launch-overlay-meter-zone zone-${s.grade}" style="left:${(s.left * 100).toFixed(2)}%;width:${(s.width * 100).toFixed(2)}%"></div>`
+    )
+    .join('');
+  const labels = `
+    <div class="launch-overlay-meter-labels" aria-hidden="true">
+      <span class="zone-label zone-miss">${Math.round(GRADE_SPIN.miss * 100)}%</span>
+      <span class="zone-label zone-perfect">${Math.round(GRADE_SPIN.perfect * 100)}%</span>
+      <span class="zone-label zone-miss">${Math.round(GRADE_SPIN.miss * 100)}%</span>
+    </div>`;
+  return `<div class="launch-overlay-meter-zones">${zones}</div>${labels}`;
+}
+
+function ensureMeterTrack(el) {
+  const track = el.querySelector('.launch-overlay-meter-track');
+  if (!track) return;
+  if (track.querySelector('.launch-overlay-meter-zones')) return;
+  track.innerHTML = `${buildMeterZonesHtml()}<div class="launch-overlay-meter-needle"></div>`;
+}
+
 function ensureOverlay() {
   let el = document.getElementById('launch-overlay');
-  if (el) return el;
-
-  el = document.createElement('div');
-  el.id = 'launch-overlay';
-  el.className = 'launch-overlay';
-  el.setAttribute('aria-hidden', 'true');
-  el.innerHTML = `
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'launch-overlay';
+    el.className = 'launch-overlay';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `
     <div class="launch-overlay-card">
       <p class="launch-overlay-kicker">Launch</p>
       <div class="launch-overlay-count" aria-live="assertive">3</div>
       <p class="launch-overlay-hint"></p>
       <div class="launch-overlay-meter" aria-hidden="true">
         <div class="launch-overlay-meter-track">
-          <div class="launch-overlay-meter-sweet"></div>
+          ${buildMeterZonesHtml()}
           <div class="launch-overlay-meter-needle"></div>
         </div>
       </div>
@@ -62,7 +103,10 @@ function ensureOverlay() {
       <p class="launch-overlay-spin" hidden></p>
     </div>
   `;
-  document.body.appendChild(el);
+    document.body.appendChild(el);
+  } else {
+    ensureMeterTrack(el);
+  }
   return el;
 }
 
@@ -71,10 +115,10 @@ function gradeFromNeedle(pos, swiped, swipePower) {
 
   const dist = Math.abs(pos - SWEET_CENTER);
   let timing = 'miss';
-  if (dist <= 0.028) timing = 'perfect';
-  else if (dist <= 0.055) timing = 'great';
-  else if (dist <= SWEET_HALF) timing = 'good';
-  else if (dist <= 0.22) timing = 'weak';
+  if (dist <= ZONE_RADII.perfect) timing = 'perfect';
+  else if (dist <= ZONE_RADII.great) timing = 'great';
+  else if (dist <= ZONE_RADII.good) timing = 'good';
+  else if (dist <= ZONE_RADII.weak) timing = 'weak';
 
   // Weak / reverse swipe knocks the grade down one step.
   if (swipePower < 0.35) {
