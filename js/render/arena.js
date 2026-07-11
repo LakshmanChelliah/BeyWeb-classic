@@ -522,11 +522,13 @@ function createWedgeShape() {
   return shape;
 }
 
-function addWallSegments(group, wallMat) {
+function addWallSegments(group, wallMat, skin = null) {
   const wedge = createWedgeShape();
   const radius = CONFIG.WALL_RADIUS + 0.1;
   // Bury wall bases under the floor so they read as pit walls, not a floating pad.
   const wallEmbedY = -0.45;
+  // Fight cam sits on +Z — skip that arc on WBBA so a wall slab doesn't fill the lens.
+  const skipCamSide = isWbba(skin);
 
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -542,6 +544,7 @@ function addWallSegments(group, wallMat) {
 
     for (let j = 0; j <= segments; j++) {
       const angle = wallStart + (span * j) / segments;
+      if (skipCamSide && Math.sin(angle) > 0.2) continue;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
 
@@ -608,6 +611,10 @@ function createWbbaBowl(skin) {
   const platformH = 1.3;
   const tealY = -platformH;
   const standsInner = goldR + 9;
+  // Fight cam approaches on +Z — leave that sector open on curb / stands.
+  const camGap = 1.7;
+  const thetaStart = Math.PI / 2 + camGap / 2;
+  const thetaLength = Math.PI * 2 - camGap;
 
   const goldMat = new THREE.MeshStandardMaterial({
     color: 0xf0c45a,
@@ -665,9 +672,18 @@ function createWbbaBowl(skin) {
     roughness: 0.4,
   });
 
-  // Raised gold platform curb — thick disc sitting on the teal floor
+  // Raised gold platform curb — thick disc on teal floor, open on camera arc
   const curb = new THREE.Mesh(
-    new THREE.CylinderGeometry(goldR, goldR + 0.15, platformH, 80, 1, true),
+    new THREE.CylinderGeometry(
+      goldR,
+      goldR + 0.15,
+      platformH,
+      80,
+      1,
+      true,
+      thetaStart,
+      thetaLength
+    ),
     goldMat
   );
   curb.position.y = tealY + platformH * 0.5;
@@ -707,18 +723,19 @@ function createWbbaBowl(skin) {
   tealFloor.receiveShadow = true;
   group.add(tealFloor);
 
-  // Steep packed stands around the teal floor
+  // Steep packed stands — leave a clear +Z camera corridor (fight cam / zoom).
   const tiers = 10;
   const bodyGeo = new THREE.BoxGeometry(0.34, 0.68, 0.26);
   const headGeo = new THREE.SphereGeometry(0.13, 5, 5);
   const dummy = new THREE.Object3D();
+  const seatSegments = 64;
 
   for (let t = 0; t < tiers; t++) {
     const r0 = standsInner + t * 1.65;
     const r1 = r0 + 1.5;
     const y = tealY + 0.7 + t * 1.4;
     const seat = new THREE.Mesh(
-      new THREE.RingGeometry(r0, r1, 80),
+      new THREE.RingGeometry(r0, r1, seatSegments, 1, thetaStart, thetaLength),
       t % 2 === 0 ? seatMatA : seatMatB
     );
     seat.rotation.x = -Math.PI / 2;
@@ -727,7 +744,7 @@ function createWbbaBowl(skin) {
     group.add(seat);
 
     const riser = new THREE.Mesh(
-      new THREE.CylinderGeometry(r0, r0, 1.35, 72, 1, true),
+      new THREE.CylinderGeometry(r0, r0, 1.35, seatSegments, 1, true, thetaStart, thetaLength),
       t % 2 === 0 ? seatMatB : seatMatA
     );
     riser.position.y = y - 0.65;
@@ -743,7 +760,7 @@ function createWbbaBowl(skin) {
     let headIdx = 0;
 
     for (let i = 0; i < crowdCount; i++) {
-      const a = (i / crowdCount) * Math.PI * 2 + (t % 2) * 0.028;
+      const a = thetaStart + ((i + 0.5) / crowdCount) * thetaLength + (t % 2) * 0.02;
       const rr = (r0 + r1) * 0.5 + ((i % 5) - 2) * 0.1;
       const bx = Math.cos(a) * rr;
       const bz = Math.sin(a) * rr;
@@ -777,18 +794,9 @@ function createWbbaBowl(skin) {
   const ceilingY = 48;
   const canopyInner = 30;
 
-  // Structural columns around the bowl — skip the +Z camera approach so
-  // zoom-out never puts a pillar between the lens and the dish.
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    if (Math.sin(a) > 0.2) continue;
-    const r = standsInner + 6;
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, ceilingY + 2, 0.45), beamMat);
-    beam.position.set(Math.cos(a) * r, tealY + (ceilingY + 2) * 0.5, Math.sin(a) * r);
-    group.add(beam);
-  }
+  // No vertical support columns — they sat in the fight-cam lens on zoom/start.
 
-  // Jumbotron screens — keep off the camera-facing arc for the same reason
+  // Jumbotron screens — keep off the camera-facing arc
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     if (Math.sin(a) > 0.2) continue;
@@ -803,9 +811,10 @@ function createWbbaBowl(skin) {
     group.add(screen);
   }
 
-  // Floodlights on the outer canopy only — not hanging in the open center
+  // Floodlights on the outer canopy only — not hanging in the open center / cam arc
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
+    if (Math.sin(a) > 0.35) continue;
     const r = (canopyInner + topR) * 0.5;
     const fixture = new THREE.Mesh(
       new THREE.BoxGeometry(2.2, 0.4, 1.1),
@@ -1368,7 +1377,7 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     emissive: skin.wallEmissive,
     emissiveIntensity: skin.wallEmissiveIntensity,
   });
-  addWallSegments(group, wallMat);
+  addWallSegments(group, wallMat, skin);
 
   const parts = {
     ground,
