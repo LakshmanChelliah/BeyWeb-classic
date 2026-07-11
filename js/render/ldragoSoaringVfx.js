@@ -2,7 +2,8 @@
  * Lightning L-Drago — Dragon Emperor, Soaring Destruction VFX.
  * Fair-fight mirror of Star Blast: dash → wall → soar → dive → bounce,
  * themed dark purple/crimson with dragon silhouette apex.
- * Lightning bolts fire only on opponent impact (ldragoLightningImpactT).
+ * Lightning bolts strike from the sky onto the opponent collision point
+ * (ldragoLightningHitX/Z) while ldragoLightningImpactT > 0.
  * No flat impact rings — reach is sold by trails, dragon motif, and particle volume.
  */
 import * as THREE from 'three';
@@ -121,32 +122,40 @@ function boltRand(seed) {
   return (x - Math.floor(x)) * 2 - 1;
 }
 
-function buildBoltPoints(seed, x, z, topY, bottomY, spread) {
+function buildBoltPoints(seed, topX, topZ, botX, botZ, topY, bottomY, spread) {
   const pts = [];
   const segs = 14;
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
-    const y = topY + (bottomY - topY) * t;
-    const wobble = (1 - t * 0.55) * spread;
+    // Wobble fades near the ground so the bolt reads as striking the collision point.
+    const wobble = (1 - t) * (1 - t * 0.35) * spread;
     const ox = boltRand(seed + i * 3.1) * wobble;
     const oz = boltRand(seed + i * 5.7 + 11) * wobble;
-    pts.push(new THREE.Vector3(x + ox, y, z + oz));
+    pts.push(
+      new THREE.Vector3(
+        topX + (botX - topX) * t + ox,
+        topY + (bottomY - topY) * t,
+        topZ + (botZ - topZ) * t + oz
+      )
+    );
   }
   return pts;
 }
 
-function buildBranchPoints(seed, mainPts, startIdx, spread) {
+function buildBranchPoints(seed, mainPts, startIdx, hitX, hitZ, hitY, spread) {
   const start = mainPts[Math.min(startIdx, mainPts.length - 1)];
-  const dir = boltRand(seed) > 0 ? 1 : -1;
   const pts = [start.clone()];
   const segs = 7;
   for (let i = 1; i <= segs; i++) {
     const t = i / segs;
+    // Branches peel off mid-bolt then still fall toward the strike point.
+    const sway = (1 - t) * spread * (0.55 + boltRand(seed + i) * 0.45);
+    const side = boltRand(seed) > 0 ? 1 : -1;
     pts.push(
       new THREE.Vector3(
-        start.x + dir * spread * t * (0.55 + boltRand(seed + i) * 0.45),
-        start.y - t * (2.8 + boltRand(seed + i + 3) * 1.4),
-        start.z + boltRand(seed + i + 7) * spread * 0.4 * t
+        start.x + (hitX - start.x) * t + side * sway,
+        start.y + (hitY - start.y) * t - t * (0.4 + boltRand(seed + i + 3) * 0.35),
+        start.z + (hitZ - start.z) * t + boltRand(seed + i + 7) * sway * 0.45
       )
     );
   }
@@ -321,6 +330,25 @@ export function createLdragoSoaringVfx(scene) {
   skyFlashOuter.renderOrder = 10;
   root.add(skyFlashOuter);
 
+  // Ground strike bloom at the collision point (where the bolt lands).
+  const groundFlash = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.8, 3.8),
+    makeTrailMat(WHITE_HOT, 0)
+  );
+  groundFlash.visible = false;
+  groundFlash.renderOrder = 12;
+  groundFlash.rotation.x = -Math.PI * 0.5;
+  root.add(groundFlash);
+
+  const groundFlashOuter = new THREE.Mesh(
+    new THREE.PlaneGeometry(6.2, 6.2),
+    makeTrailMat(VIOLET_LIGHT, 0)
+  );
+  groundFlashOuter.visible = false;
+  groundFlashOuter.renderOrder = 11;
+  groundFlashOuter.rotation.x = -Math.PI * 0.5;
+  root.add(groundFlashOuter);
+
   const diveTrail = createTrailSystem(scene, {
     rate: 95,
     startSize: [0.3, 0.85],
@@ -441,6 +469,10 @@ export function createLdragoSoaringVfx(scene) {
     skyFlash.material.opacity = 0;
     skyFlashOuter.visible = false;
     skyFlashOuter.material.opacity = 0;
+    groundFlash.visible = false;
+    groundFlash.material.opacity = 0;
+    groundFlashOuter.visible = false;
+    groundFlashOuter.material.opacity = 0;
     diveTrail.stop();
   }
 
@@ -529,18 +561,20 @@ export function createLdragoSoaringVfx(scene) {
       }
       lastApexCharge = apexCharge;
 
-      // Lightning bolts only on opponent impact (ldragoLightningImpactT).
+      // Lightning strikes from the sky onto the locked collision point.
       const impactT = body.userData.ldragoLightningImpactT ?? 0;
       if (impactT > 0.02) {
         const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.06));
         const pow = impactT * flicker;
         const seed = Math.floor(performance.now() * 0.03);
-        const topY = CONFIG.FLOOR_Y + 28;
-        const botY = CONFIG.FLOOR_Y + 0.1;
+        const hitX = body.userData.ldragoLightningHitX ?? _pos.x;
+        const hitZ = body.userData.ldragoLightningHitZ ?? _pos.z;
+        const hitY = body.userData.ldragoLightningHitY ?? CONFIG.FLOOR_Y + 0.35;
+        const topY = hitY + 26;
         if (impactT > 0.5 && !lastLightningPulse) {
-          lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.4, _pos.z);
+          lightningBurst.setPosition(hitX, hitY, hitZ);
           lightningBurst.burst(72);
-          lightningBurst.setPosition(_pos.x, _pos.y + 0.6, _pos.z);
+          lightningBurst.setPosition(hitX, hitY + 0.8, hitZ);
           lightningBurst.burst(36);
           lastLightningPulse = true;
         }
@@ -548,15 +582,20 @@ export function createLdragoSoaringVfx(scene) {
 
         let mainPath = null;
         impactBolts.forEach((line, bi) => {
-          const spread = 1.5 + bi * 0.3;
-          const ox = boltRand(seed + bi * 4.1) * spread * 0.45;
-          const oz = boltRand(seed + bi * 6.3) * spread * 0.45;
+          // Sky origins fan out; every bolt converges on the collision point.
+          const ang = (bi / IMPACT_BOLT_COUNT) * Math.PI * 2 + boltRand(seed + bi) * 0.35;
+          const skyR = bi === 0 ? 0.15 : 0.55 + bi * 0.28;
+          const topX = hitX + Math.cos(ang) * skyR + boltRand(seed + bi * 4.1) * 0.2;
+          const topZ = hitZ + Math.sin(ang) * skyR + boltRand(seed + bi * 6.3) * 0.2;
+          const spread = bi === 0 ? 0.55 : 0.85 + bi * 0.12;
           const pts = buildBoltPoints(
             seed + bi * 7,
-            _pos.x + ox,
-            _pos.z + oz,
+            topX,
+            topZ,
+            hitX,
+            hitZ,
             topY,
-            botY,
+            hitY,
             spread
           );
           if (bi === 0) mainPath = pts;
@@ -570,7 +609,15 @@ export function createLdragoSoaringVfx(scene) {
             const startIdx = 3 + (bi % 6);
             writeBolt(
               line,
-              buildBranchPoints(seed + 40 + bi * 11, mainPath, startIdx, 1.55 + bi * 0.2)
+              buildBranchPoints(
+                seed + 40 + bi * 11,
+                mainPath,
+                startIdx,
+                hitX,
+                hitZ,
+                hitY,
+                1.2 + bi * 0.18
+              )
             );
             line.material.opacity = pow * (0.75 - bi * 0.05);
             line.visible = line.material.opacity > 0.02;
@@ -578,34 +625,50 @@ export function createLdragoSoaringVfx(scene) {
         }
 
         boltRibbons.forEach((ribbonMesh, ri) => {
-          const ang = (ri / BOLT_RIBBON_COUNT) * Math.PI * 2 + boltRand(seed + ri) * 0.4;
-          const off = 0.2 + ri * 0.12;
+          const ang = (ri / BOLT_RIBBON_COUNT) * Math.PI * 2 + boltRand(seed + ri) * 0.25;
+          const skyR = 0.2 + ri * 0.14;
+          const topX = hitX + Math.cos(ang) * skyR;
+          const topZ = hitZ + Math.sin(ang) * skyR;
+          const midX = (topX + hitX) * 0.5;
+          const midZ = (topZ + hitZ) * 0.5;
+          const midY = (topY + hitY) * 0.5;
+          const dx = hitX - topX;
+          const dy = hitY - topY;
+          const dz = hitZ - topZ;
+          const len = Math.hypot(dx, dy, dz) || 1;
           ribbonMesh.visible = true;
-          ribbonMesh.position.set(
-            _pos.x + Math.cos(ang) * off,
-            (topY + botY) * 0.5,
-            _pos.z + Math.sin(ang) * off
-          );
+          ribbonMesh.position.set(midX, midY, midZ);
           ribbonMesh.rotation.order = 'YXZ';
-          ribbonMesh.rotation.y = ang + Math.PI * 0.5;
-          ribbonMesh.rotation.x = -Math.PI * 0.48 + boltRand(seed + ri * 2) * 0.12;
-          ribbonMesh.rotation.z = boltRand(seed + ri * 3) * 0.15;
-          const h = topY - botY;
-          ribbonMesh.scale.set(1.3 + pow * 0.6, h / 14, 1);
-          ribbonMesh.material.opacity = pow * (0.7 - ri * 0.07);
+          ribbonMesh.rotation.y = Math.atan2(dx, dz);
+          ribbonMesh.rotation.x = Math.atan2(dy, Math.hypot(dx, dz)) + Math.PI * 0.5;
+          ribbonMesh.rotation.z = boltRand(seed + ri * 3) * 0.12;
+          ribbonMesh.scale.set(1.35 + pow * 0.55, len / 14, 1);
+          ribbonMesh.material.opacity = pow * (0.72 - ri * 0.07);
         });
 
-        skyFlash.position.set(_pos.x, topY - 0.6, _pos.z);
+        // Sky origin flash above the strike column.
+        skyFlash.position.set(hitX, topY - 0.6, hitZ);
         billboard(skyFlash, camera);
         skyFlash.scale.set(2.1 + impactT * 2.6, 1.0 + impactT * 1.2, 1);
-        skyFlash.material.opacity = pow * 0.95;
+        skyFlash.material.opacity = pow * 0.85;
         skyFlash.visible = true;
 
-        skyFlashOuter.position.set(_pos.x, topY - 0.2, _pos.z);
+        skyFlashOuter.position.set(hitX, topY - 0.2, hitZ);
         billboard(skyFlashOuter, camera);
         skyFlashOuter.scale.set(2.8 + impactT * 3.0, 1.3 + impactT * 1.5, 1);
-        skyFlashOuter.material.opacity = pow * 0.5;
+        skyFlashOuter.material.opacity = pow * 0.45;
         skyFlashOuter.visible = true;
+
+        // Impact bloom where the bolt lands on the collision.
+        groundFlash.position.set(hitX, hitY + 0.04, hitZ);
+        groundFlash.scale.setScalar(1.15 + impactT * 1.8);
+        groundFlash.material.opacity = pow * 0.9;
+        groundFlash.visible = true;
+
+        groundFlashOuter.position.set(hitX, hitY + 0.02, hitZ);
+        groundFlashOuter.scale.setScalar(1.35 + impactT * 2.2);
+        groundFlashOuter.material.opacity = pow * 0.48;
+        groundFlashOuter.visible = true;
       } else {
         for (const b of impactBolts) {
           b.visible = false;
@@ -623,6 +686,10 @@ export function createLdragoSoaringVfx(scene) {
         skyFlash.material.opacity = 0;
         skyFlashOuter.visible = false;
         skyFlashOuter.material.opacity = 0;
+        groundFlash.visible = false;
+        groundFlash.material.opacity = 0;
+        groundFlashOuter.visible = false;
+        groundFlashOuter.material.opacity = 0;
         lastLightningPulse = false;
       }
 

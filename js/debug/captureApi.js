@@ -61,6 +61,8 @@ function bodySnapshot(body) {
     ldragoPhase: ud.ldragoPhase ?? null,
     ldragoFlightPhase: ud.ldragoPhase ?? ud.ldragoFlightPhase ?? null,
     ldragoLightningImpactT: ud.ldragoLightningImpactT ?? null,
+    ldragoLightningHitX: ud.ldragoLightningHitX ?? null,
+    ldragoLightningHitZ: ud.ldragoLightningHitZ ?? null,
     ldragoApexChargeT: ud.ldragoApexChargeT ?? null,
     ldragoSoaringHit: Boolean(ud.ldragoSoaringHit),
   };
