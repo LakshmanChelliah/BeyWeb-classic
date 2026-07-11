@@ -110,6 +110,13 @@ let _lookZ = 0;
 let _lookY = 0;
 let _lookReady = false;
 
+/** Indoor venues (WBBA): keep the fight camera under the canopy on zoom-out. */
+let _cameraCeilingY = null;
+
+export function setArenaCameraCeiling(maxY) {
+  _cameraCeilingY = maxY == null || maxY <= 0 ? null : maxY;
+}
+
 export function resetMobileCameraFraming() {
   _mobileFramePull = 0;
   _lookReady = false;
@@ -165,6 +172,14 @@ export function updateCamera(camera, state, mode, cameraCue = 0) {
     finalCamZ += _mobileFramePull;
   } else {
     _mobileFramePull += (0 - _mobileFramePull) * 0.12;
+  }
+
+  // Stay under indoor canopies (WBBA) so zoom-out never clips through the roof.
+  if (_cameraCeilingY != null && finalCamY > _cameraCeilingY) {
+    const over = finalCamY - _cameraCeilingY;
+    finalCamY = _cameraCeilingY;
+    // Trade height for distance so framing still pulls back.
+    finalCamZ += over * 0.85;
   }
 
   camera.position.lerp(_camTarget.set(midX, finalCamY, midZ + finalCamZ), lerp);
