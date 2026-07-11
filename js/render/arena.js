@@ -1080,8 +1080,10 @@ function createRooftopSupports(skin) {
     emissiveIntensity: night ? 0.1 : 0,
   });
 
-  // Tall building shaft plunging into the mist / city below
+  // Tall building shaft plunging into the mist / city below.
+  // Keep the top below the battle bowl so it never occludes the dish.
   const shaftH = night ? 36 : 22;
+  const bowlClearance = DISH_BOWL_DEPTH + DISH_RECESS + 0.55;
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(
       PLATFORM_OUTER_RADIUS * 0.5,
@@ -1092,7 +1094,7 @@ function createRooftopSupports(skin) {
     steel.clone()
   );
   shaft.userData.cityPart = 'support';
-  shaft.position.y = -shaftH * 0.5 - 0.5;
+  shaft.position.y = -shaftH * 0.5 - bowlClearance;
   shaft.castShadow = true;
   shaft.receiveShadow = true;
   group.add(shaft);
@@ -1452,17 +1454,22 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   group.add(platform);
 
   // Building mass under the rooftop deck (short cap — tall shaft is in supports).
+  // Open-ended: a solid cap would sit above the recessed bowl and hide it
+  // through the platform hole (reads as a flat grey disc).
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(
       PLATFORM_OUTER_RADIUS - 0.2,
       PLATFORM_OUTER_RADIUS + 0.4,
       2.2,
-      80
+      80,
+      1,
+      true
     ),
     new THREE.MeshStandardMaterial({
       color: skin.base ?? 0x333333,
       metalness: 0.35,
       roughness: 0.7,
+      side: THREE.DoubleSide,
     })
   );
   base.userData.arenaPart = 'base';

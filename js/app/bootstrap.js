@@ -1,9 +1,9 @@
-import { createGame } from '../game/engine.js?v=66';
+import { createGame } from '../game/engine.js?v=67';
 import { applyAISteering, tickAIAbilities, resetAIController } from '../input/ai.js';
 import { createBeySelection } from '../ui/selection.js';
-import { createPlaySetup } from '../ui/playSetup.js?v=66';
+import { createPlaySetup } from '../ui/playSetup.js?v=67';
 import { queryGameUi } from '../ui/domRefs.js';
-import { createCampaignController } from '../game/campaignController.js?v=66';
+import { createCampaignController } from '../game/campaignController.js?v=67';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
@@ -12,9 +12,9 @@ import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
 import {
   getArenaSkinForBey,
   resolveArenaSkinId,
-} from '../render/arenaSkins.js?v=66';
+} from '../render/arenaSkins.js?v=67';
 import { getTournamentBlader } from '../game/campaign.js';
-import { playArenaTransition } from '../ui/arenaTransition.js?v=66';
+import { playArenaTransition } from '../ui/arenaTransition.js?v=67';
 
 /** Capture API is optional QA tooling — never block boot if it fails to load. */
 function installCaptureApiLazy(app) {
