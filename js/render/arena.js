@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=71';
-import { createBackdropTexture } from './arenaBackdrop.js?v=71';
+} from './arenaSkins.js?v=72';
+import { createBackdropTexture } from './arenaBackdrop.js?v=72';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -1258,24 +1258,24 @@ function createRooftopCity(skin) {
   // bottom ≈ -yOff (in mist); top ≈ h/2 - yOff (skyline above walls).
   const yOff = night ? 62 : 55;
   const specs = [
-    { a: 0.15, r: 28, w: 5, d: 5, h: 150 },
-    { a: 0.55, r: 32, w: 4, d: 6, h: 128 },
-    { a: 1.0, r: 26, w: 6, d: 4, h: 170 },
-    { a: 1.4, r: 34, w: 5, d: 5, h: 118 },
-    { a: 1.85, r: 29, w: 4, d: 7, h: 158 },
-    { a: 2.3, r: 36, w: 7, d: 4, h: 140 },
-    { a: 2.7, r: 27, w: 5, d: 5, h: 180 },
-    { a: 3.15, r: 33, w: 4, d: 4, h: 112 },
-    { a: 3.55, r: 30, w: 6, d: 5, h: 165 },
-    { a: 4.0, r: 38, w: 5, d: 6, h: 132 },
-    { a: 4.4, r: 28, w: 4, d: 5, h: 148 },
-    { a: 4.85, r: 35, w: 6, d: 4, h: 190 },
-    { a: 5.3, r: 31, w: 5, d: 5, h: 142 },
-    { a: 5.75, r: 40, w: 4, d: 4, h: 120 },
-    { a: 0.35, r: 45, w: 8, d: 6, h: 200 },
-    { a: 2.0, r: 48, w: 6, d: 8, h: 185 },
-    { a: 3.8, r: 46, w: 7, d: 5, h: 210 },
-    { a: 5.1, r: 44, w: 5, d: 7, h: 168 },
+    { a: 0.15, r: 28, w: 5, d: 5, h: 180 },
+    { a: 0.55, r: 32, w: 4, d: 6, h: 168 },
+    { a: 1.0, r: 26, w: 6, d: 4, h: 200 },
+    { a: 1.4, r: 34, w: 5, d: 5, h: 172 },
+    { a: 1.85, r: 29, w: 4, d: 7, h: 190 },
+    { a: 2.3, r: 36, w: 7, d: 4, h: 178 },
+    { a: 2.7, r: 27, w: 5, d: 5, h: 210 },
+    { a: 3.15, r: 33, w: 4, d: 4, h: 165 },
+    { a: 3.55, r: 30, w: 6, d: 5, h: 195 },
+    { a: 4.0, r: 38, w: 5, d: 6, h: 175 },
+    { a: 4.4, r: 28, w: 4, d: 5, h: 185 },
+    { a: 4.85, r: 35, w: 6, d: 4, h: 220 },
+    { a: 5.3, r: 31, w: 5, d: 5, h: 182 },
+    { a: 5.75, r: 40, w: 4, d: 4, h: 170 },
+    { a: 0.35, r: 45, w: 8, d: 6, h: 230 },
+    { a: 2.0, r: 48, w: 6, d: 8, h: 215 },
+    { a: 3.8, r: 46, w: 7, d: 5, h: 240 },
+    { a: 5.1, r: 44, w: 5, d: 7, h: 205 },
   ];
 
   for (const s of specs) {
