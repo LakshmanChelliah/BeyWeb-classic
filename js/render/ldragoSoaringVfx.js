@@ -2,7 +2,8 @@
  * Lightning L-Drago — Dragon Emperor, Soaring Destruction VFX.
  * Fair-fight mirror of Star Blast: dash → wall → soar → dive → bounce,
  * themed dark purple/crimson with dragon silhouette apex.
- * Lightning bolts fire only on opponent impact (ldragoLightningImpactT).
+ * Lightning bolts strike from the sky onto the opponent collision point
+ * (ldragoLightningHitX/Z) while ldragoLightningImpactT > 0.
  * No flat impact rings — reach is sold by trails, dragon motif, and particle volume.
  */
 import * as THREE from 'three';
@@ -121,36 +122,64 @@ function boltRand(seed) {
   return (x - Math.floor(x)) * 2 - 1;
 }
 
-function buildBoltPoints(seed, x, z, topY, bottomY, spread) {
+function buildBoltPoints(seed, topX, topZ, botX, botZ, topY, bottomY, spread) {
   const pts = [];
   const segs = 14;
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
-    const y = topY + (bottomY - topY) * t;
-    const wobble = (1 - t * 0.55) * spread;
+    // Wobble fades near the ground so the bolt reads as striking the collision point.
+    const wobble = (1 - t) * (1 - t * 0.35) * spread;
     const ox = boltRand(seed + i * 3.1) * wobble;
     const oz = boltRand(seed + i * 5.7 + 11) * wobble;
-    pts.push(new THREE.Vector3(x + ox, y, z + oz));
-  }
-  return pts;
-}
-
-function buildBranchPoints(seed, mainPts, startIdx, spread) {
-  const start = mainPts[Math.min(startIdx, mainPts.length - 1)];
-  const dir = boltRand(seed) > 0 ? 1 : -1;
-  const pts = [start.clone()];
-  const segs = 7;
-  for (let i = 1; i <= segs; i++) {
-    const t = i / segs;
     pts.push(
       new THREE.Vector3(
-        start.x + dir * spread * t * (0.55 + boltRand(seed + i) * 0.45),
-        start.y - t * (2.8 + boltRand(seed + i + 3) * 1.4),
-        start.z + boltRand(seed + i + 7) * spread * 0.4 * t
+        topX + (botX - topX) * t + ox,
+        topY + (bottomY - topY) * t,
+        topZ + (botZ - topZ) * t + oz
       )
     );
   }
   return pts;
+}
+
+function buildBranchPoints(seed, mainPts, startIdx, hitX, hitZ, hitY, spread) {
+  const start = mainPts[Math.min(startIdx, mainPts.length - 1)];
+  const pts = [start.clone()];
+  const segs = 7;
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    // Branches peel off mid-bolt then still fall toward the strike point.
+    const sway = (1 - t) * spread * (0.55 + boltRand(seed + i) * 0.45);
+    const side = boltRand(seed) > 0 ? 1 : -1;
+    pts.push(
+      new THREE.Vector3(
+        start.x + (hitX - start.x) * t + side * sway,
+        start.y + (hitY - start.y) * t - t * (0.4 + boltRand(seed + i + 3) * 0.35),
+        start.z + (hitZ - start.z) * t + boltRand(seed + i + 7) * sway * 0.45
+      )
+    );
+  }
+  return pts;
+}
+
+function createStrikeBloomTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 256, 256);
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(250,245,255,1)');
+  g.addColorStop(0.22, 'rgba(183,148,244,0.85)');
+  g.addColorStop(0.55, 'rgba(91,33,217,0.35)');
+  g.addColorStop(1, 'rgba(91,33,217,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(128, 128, 128, 0, Math.PI * 2);
+  ctx.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 function makeBoltLine(color, segs = 14) {
@@ -321,6 +350,66 @@ export function createLdragoSoaringVfx(scene) {
   skyFlashOuter.renderOrder = 10;
   root.add(skyFlashOuter);
 
+  // Ground strike bloom at the collision point (where the bolt lands).
+  const strikeBloomTex = createStrikeBloomTexture();
+  const groundFlash = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.4, 4.4),
+    new THREE.MeshBasicMaterial({
+      map: strikeBloomTex,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    })
+  );
+  groundFlash.visible = false;
+  groundFlash.renderOrder = 12;
+  groundFlash.rotation.x = -Math.PI * 0.5;
+  root.add(groundFlash);
+
+  const groundFlashOuter = new THREE.Mesh(
+    new THREE.PlaneGeometry(7.2, 7.2),
+    new THREE.MeshBasicMaterial({
+      map: strikeBloomTex,
+      color: 0xb794f4,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    })
+  );
+  groundFlashOuter.visible = false;
+  groundFlashOuter.renderOrder = 11;
+  groundFlashOuter.rotation.x = -Math.PI * 0.5;
+  root.add(groundFlashOuter);
+
+  // Crossed vertical core — readable from stadium cam as the sky→floor strike column.
+  const STRIKE_CORE_COUNT = 2;
+  const strikeCores = [];
+  for (let i = 0; i < STRIKE_CORE_COUNT; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.55, 28),
+      makeTrailMat(i === 0 ? WHITE_HOT : LILAC, 0)
+    );
+    mesh.visible = false;
+    mesh.renderOrder = 14;
+    root.add(mesh);
+    strikeCores.push(mesh);
+  }
+
+  // Floor-spreading arcs from the strike point (read clearly in top-down stadium cam).
+  const FLOOR_ARC_COUNT = 8;
+  const floorArcs = [];
+  for (let i = 0; i < FLOOR_ARC_COUNT; i++) {
+    const line = makeBoltLine(i % 2 === 0 ? WHITE_HOT : LILAC, 8);
+    line.renderOrder = 13;
+    root.add(line);
+    floorArcs.push(line);
+  }
+
   const diveTrail = createTrailSystem(scene, {
     rate: 95,
     startSize: [0.3, 0.85],
@@ -441,6 +530,18 @@ export function createLdragoSoaringVfx(scene) {
     skyFlash.material.opacity = 0;
     skyFlashOuter.visible = false;
     skyFlashOuter.material.opacity = 0;
+    groundFlash.visible = false;
+    groundFlash.material.opacity = 0;
+    groundFlashOuter.visible = false;
+    groundFlashOuter.material.opacity = 0;
+    for (const c of strikeCores) {
+      c.visible = false;
+      c.material.opacity = 0;
+    }
+    for (const a of floorArcs) {
+      a.visible = false;
+      a.material.opacity = 0;
+    }
     diveTrail.stop();
   }
 
@@ -529,34 +630,54 @@ export function createLdragoSoaringVfx(scene) {
       }
       lastApexCharge = apexCharge;
 
-      // Lightning bolts only on opponent impact (ldragoLightningImpactT).
+      // Lightning strikes from the sky onto the locked collision point.
       const impactT = body.userData.ldragoLightningImpactT ?? 0;
       if (impactT > 0.02) {
         const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.06));
         const pow = impactT * flicker;
         const seed = Math.floor(performance.now() * 0.03);
-        const topY = CONFIG.FLOOR_Y + 28;
-        const botY = CONFIG.FLOOR_Y + 0.1;
+        const hitX = body.userData.ldragoLightningHitX ?? _pos.x;
+        const hitZ = body.userData.ldragoLightningHitZ ?? _pos.z;
+        const hitY = body.userData.ldragoLightningHitY ?? CONFIG.FLOOR_Y + 0.12;
+        const topY = CONFIG.FLOOR_Y + 22;
         if (impactT > 0.5 && !lastLightningPulse) {
-          lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.4, _pos.z);
-          lightningBurst.burst(72);
-          lightningBurst.setPosition(_pos.x, _pos.y + 0.6, _pos.z);
-          lightningBurst.burst(36);
+          lightningBurst.setPosition(hitX, hitY + 0.15, hitZ);
+          lightningBurst.burst(80);
+          lightningBurst.setPosition(hitX, hitY + 1.2, hitZ);
+          lightningBurst.burst(40);
           lastLightningPulse = true;
         }
         if (impactT < 0.12) lastLightningPulse = false;
 
+        // Solid crossed column so the sky→floor strike reads even under stadium cam.
+        strikeCores.forEach((core, ci) => {
+          core.visible = true;
+          core.position.set(hitX, (topY + hitY) * 0.5, hitZ);
+          core.rotation.order = 'YXZ';
+          core.rotation.y = ci * (Math.PI * 0.5) + performance.now() * 0.002;
+          core.rotation.x = 0;
+          core.rotation.z = 0;
+          const h = topY - hitY;
+          core.scale.set(1.1 + pow * 0.55, h / 28, 1);
+          core.material.opacity = pow * (ci === 0 ? 0.95 : 0.55);
+        });
+
         let mainPath = null;
         impactBolts.forEach((line, bi) => {
-          const spread = 1.5 + bi * 0.3;
-          const ox = boltRand(seed + bi * 4.1) * spread * 0.45;
-          const oz = boltRand(seed + bi * 6.3) * spread * 0.45;
+          // Sky origins fan out; every bolt converges on the collision point.
+          const ang = (bi / IMPACT_BOLT_COUNT) * Math.PI * 2 + boltRand(seed + bi) * 0.35;
+          const skyR = bi === 0 ? 0.1 : 0.45 + bi * 0.22;
+          const topX = hitX + Math.cos(ang) * skyR + boltRand(seed + bi * 4.1) * 0.15;
+          const topZ = hitZ + Math.sin(ang) * skyR + boltRand(seed + bi * 6.3) * 0.15;
+          const spread = bi === 0 ? 0.4 : 0.7 + bi * 0.1;
           const pts = buildBoltPoints(
             seed + bi * 7,
-            _pos.x + ox,
-            _pos.z + oz,
+            topX,
+            topZ,
+            hitX,
+            hitZ,
             topY,
-            botY,
+            hitY,
             spread
           );
           if (bi === 0) mainPath = pts;
@@ -570,42 +691,88 @@ export function createLdragoSoaringVfx(scene) {
             const startIdx = 3 + (bi % 6);
             writeBolt(
               line,
-              buildBranchPoints(seed + 40 + bi * 11, mainPath, startIdx, 1.55 + bi * 0.2)
+              buildBranchPoints(
+                seed + 40 + bi * 11,
+                mainPath,
+                startIdx,
+                hitX,
+                hitZ,
+                hitY,
+                1.0 + bi * 0.16
+              )
             );
             line.material.opacity = pow * (0.75 - bi * 0.05);
             line.visible = line.material.opacity > 0.02;
           });
         }
 
-        boltRibbons.forEach((ribbonMesh, ri) => {
-          const ang = (ri / BOLT_RIBBON_COUNT) * Math.PI * 2 + boltRand(seed + ri) * 0.4;
-          const off = 0.2 + ri * 0.12;
-          ribbonMesh.visible = true;
-          ribbonMesh.position.set(
-            _pos.x + Math.cos(ang) * off,
-            (topY + botY) * 0.5,
-            _pos.z + Math.sin(ang) * off
-          );
-          ribbonMesh.rotation.order = 'YXZ';
-          ribbonMesh.rotation.y = ang + Math.PI * 0.5;
-          ribbonMesh.rotation.x = -Math.PI * 0.48 + boltRand(seed + ri * 2) * 0.12;
-          ribbonMesh.rotation.z = boltRand(seed + ri * 3) * 0.15;
-          const h = topY - botY;
-          ribbonMesh.scale.set(1.3 + pow * 0.6, h / 14, 1);
-          ribbonMesh.material.opacity = pow * (0.7 - ri * 0.07);
+        // Floor arcs radiate from the strike — sell the collision landing from top-down.
+        floorArcs.forEach((line, ai) => {
+          const ang = (ai / FLOOR_ARC_COUNT) * Math.PI * 2 + boltRand(seed + ai * 3) * 0.4;
+          const reach = 1.6 + (ai % 3) * 0.55 + Math.abs(boltRand(seed + ai)) * 0.5;
+          const pts = [];
+          const segs = 8;
+          for (let i = 0; i <= segs; i++) {
+            const t = i / segs;
+            const wobble = (1 - t) * 0.35;
+            pts.push(
+              new THREE.Vector3(
+                hitX + Math.cos(ang) * reach * t + boltRand(seed + ai + i) * wobble,
+                hitY + 0.06 + Math.sin(t * Math.PI) * 0.35 * (1 - t * 0.4),
+                hitZ + Math.sin(ang) * reach * t + boltRand(seed + ai + i + 9) * wobble
+              )
+            );
+          }
+          writeBolt(line, pts);
+          line.material.opacity = pow * (0.85 - ai * 0.05);
+          line.visible = line.material.opacity > 0.02;
         });
 
-        skyFlash.position.set(_pos.x, topY - 0.6, _pos.z);
+        boltRibbons.forEach((ribbonMesh, ri) => {
+          const ang = (ri / BOLT_RIBBON_COUNT) * Math.PI * 2 + boltRand(seed + ri) * 0.25;
+          const skyR = 0.15 + ri * 0.12;
+          const topX = hitX + Math.cos(ang) * skyR;
+          const topZ = hitZ + Math.sin(ang) * skyR;
+          const midX = (topX + hitX) * 0.5;
+          const midZ = (topZ + hitZ) * 0.5;
+          const midY = (topY + hitY) * 0.5;
+          const dx = hitX - topX;
+          const dy = hitY - topY;
+          const dz = hitZ - topZ;
+          const len = Math.hypot(dx, dy, dz) || 1;
+          ribbonMesh.visible = true;
+          ribbonMesh.position.set(midX, midY, midZ);
+          ribbonMesh.rotation.order = 'YXZ';
+          ribbonMesh.rotation.y = Math.atan2(dx, dz);
+          ribbonMesh.rotation.x = Math.atan2(dy, Math.hypot(dx, dz)) + Math.PI * 0.5;
+          ribbonMesh.rotation.z = boltRand(seed + ri * 3) * 0.12;
+          ribbonMesh.scale.set(1.6 + pow * 0.7, len / 14, 1);
+          ribbonMesh.material.opacity = pow * (0.78 - ri * 0.07);
+        });
+
+        // Soft sky origin above the column (secondary to the strike itself).
+        skyFlash.position.set(hitX, topY - 0.4, hitZ);
         billboard(skyFlash, camera);
-        skyFlash.scale.set(2.1 + impactT * 2.6, 1.0 + impactT * 1.2, 1);
-        skyFlash.material.opacity = pow * 0.95;
+        skyFlash.scale.set(1.6 + impactT * 1.8, 0.8 + impactT * 0.9, 1);
+        skyFlash.material.opacity = pow * 0.55;
         skyFlash.visible = true;
 
-        skyFlashOuter.position.set(_pos.x, topY - 0.2, _pos.z);
+        skyFlashOuter.position.set(hitX, topY - 0.1, hitZ);
         billboard(skyFlashOuter, camera);
-        skyFlashOuter.scale.set(2.8 + impactT * 3.0, 1.3 + impactT * 1.5, 1);
-        skyFlashOuter.material.opacity = pow * 0.5;
+        skyFlashOuter.scale.set(2.2 + impactT * 2.0, 1.0 + impactT * 1.1, 1);
+        skyFlashOuter.material.opacity = pow * 0.28;
         skyFlashOuter.visible = true;
+
+        // Impact bloom where the bolt lands on the collision.
+        groundFlash.position.set(hitX, CONFIG.FLOOR_Y + 0.05, hitZ);
+        groundFlash.scale.setScalar(1.35 + impactT * 2.0);
+        groundFlash.material.opacity = pow * 0.95;
+        groundFlash.visible = true;
+
+        groundFlashOuter.position.set(hitX, CONFIG.FLOOR_Y + 0.03, hitZ);
+        groundFlashOuter.scale.setScalar(1.6 + impactT * 2.4);
+        groundFlashOuter.material.opacity = pow * 0.55;
+        groundFlashOuter.visible = true;
       } else {
         for (const b of impactBolts) {
           b.visible = false;
@@ -619,10 +786,22 @@ export function createLdragoSoaringVfx(scene) {
           r.visible = false;
           r.material.opacity = 0;
         }
+        for (const c of strikeCores) {
+          c.visible = false;
+          c.material.opacity = 0;
+        }
+        for (const a of floorArcs) {
+          a.visible = false;
+          a.material.opacity = 0;
+        }
         skyFlash.visible = false;
         skyFlash.material.opacity = 0;
         skyFlashOuter.visible = false;
         skyFlashOuter.material.opacity = 0;
+        groundFlash.visible = false;
+        groundFlash.material.opacity = 0;
+        groundFlashOuter.visible = false;
+        groundFlashOuter.material.opacity = 0;
         lastLightningPulse = false;
       }
 

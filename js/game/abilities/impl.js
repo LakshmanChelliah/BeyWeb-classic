@@ -1055,11 +1055,25 @@ function initStarBlast(body) {
 }
 
 /** Lightning L-Drago Soaring Destruction — Star Blast twin; lightning only on opponent impact. */
+function setLdragoLightningStrike(body, opp) {
+  if (!body) return;
+  body.userData.ldragoLightningImpactT = 1;
+  // Lock strike to the collision midpoint so bolts don't follow post-hit knockback.
+  if (opp) {
+    body.userData.ldragoLightningHitX = (body.position.x + opp.position.x) * 0.5;
+    body.userData.ldragoLightningHitZ = (body.position.z + opp.position.z) * 0.5;
+  } else {
+    body.userData.ldragoLightningHitX = body.position.x;
+    body.userData.ldragoLightningHitZ = body.position.z;
+  }
+  body.userData.ldragoLightningHitY = CONFIG.FLOOR_Y + 0.12;
+}
+
 function markLdragoSoaringHit(state, attackerSide, body, opp) {
   if (!body || body.userData.ldragoSoaringHit) return;
   if (opp?.userData?.invulnerable) return;
   body.userData.ldragoSoaringHit = true;
-  body.userData.ldragoLightningImpactT = 1;
+  setLdragoLightningStrike(body, opp);
   const oppSide = attackerSide === 'player' ? 'ai' : 'player';
   const k = spinKey(oppSide);
   state[k] = Math.max(0, state[k] - STAR_BLAST_HIT_SPIN);
@@ -1098,6 +1112,9 @@ function initLdragoSoaring(body) {
   delete body.userData.ldragoPhase;
   delete body.userData.ldragoSoaringResolved;
   delete body.userData.ldragoLightningImpactT;
+  delete body.userData.ldragoLightningHitX;
+  delete body.userData.ldragoLightningHitZ;
+  delete body.userData.ldragoLightningHitY;
   delete body.userData.ldragoApexChargeT;
   setBodyCollisions(body, false);
 }
@@ -1130,6 +1147,9 @@ function clearLdragoSoaringMotion(body) {
   delete body.userData.ldragoSettleTilt;
   delete body.userData.ldragoSettleRoll;
   delete body.userData.ldragoLightningImpactT;
+  delete body.userData.ldragoLightningHitX;
+  delete body.userData.ldragoLightningHitZ;
+  delete body.userData.ldragoLightningHitY;
   delete body.userData.ldragoApexChargeT;
   delete body.userData.starKnockbackVX;
   delete body.userData.starKnockbackVZ;
@@ -4118,7 +4138,7 @@ function applyStarBlastSlam(impact, slamBody, slamTag, victimTag) {
   if (!slamBody.userData[hitKey]) {
     slamBody.userData[hitKey] = true;
     if (hitKey === 'ldragoSoaringHit') {
-      slamBody.userData.ldragoLightningImpactT = 1;
+      setLdragoLightningStrike(slamBody, impact['body' + victimTag]);
     }
     impact['spinDelta' + victimTag] = -STAR_BLAST_HIT_SPIN;
   } else {
@@ -4415,6 +4435,9 @@ export function clearAbilityFlags(body) {
   delete body.userData.ldragoWallNx;
   delete body.userData.ldragoWallNz;
   delete body.userData.ldragoLightningImpactT;
+  delete body.userData.ldragoLightningHitX;
+  delete body.userData.ldragoLightningHitZ;
+  delete body.userData.ldragoLightningHitY;
   delete body.userData.ldragoApexChargeT;
   delete body.userData.ldragoVY;
   delete body.userData.ldragoBouncePulseT;
