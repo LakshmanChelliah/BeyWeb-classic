@@ -4,8 +4,9 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=57';
-import { createBackdropTexture } from './arenaBackdrop.js?v=57';
+} from './arenaSkins.js?v=58';
+import { createBackdropTexture } from './arenaBackdrop.js?v=58';
+import { setArenaCameraCeiling } from './scene.js';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -591,6 +592,8 @@ function applyPlacement(parts, skin) {
   if (parts.base) parts.base.visible = elevated;
   if (parts.supports) parts.supports.visible = elevated;
   if (parts.city) parts.city.visible = elevated;
+  // Ceiling at y=48; keep fight camera under it on zoom-out / specials.
+  setArenaCameraCeiling(wbba ? 38 : null);
 }
 
 /**
@@ -770,59 +773,62 @@ function createWbbaBowl(skin) {
   }
 
   const topR = standsInner + (tiers - 1) * 1.65 + 1.5;
+  // Keep overhead well above fight camera (~y24) and mobile zoom-out (~y36).
+  const ceilingY = 48;
+  const canopyInner = 30;
 
   // Structural columns around the bowl
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2;
     const r = standsInner + 6;
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, 18, 0.45), beamMat);
-    beam.position.set(Math.cos(a) * r, tealY + 9, Math.sin(a) * r);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, ceilingY + 2, 0.45), beamMat);
+    beam.position.set(Math.cos(a) * r, tealY + (ceilingY + 2) * 0.5, Math.sin(a) * r);
     group.add(beam);
   }
 
-  // Jumbotron screens (anime WBBA signature)
+  // Jumbotron screens (anime WBBA signature) — high on the stand face
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     const r = standsInner + 4.5;
     const frame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 4.2, 0.35), screenFrameMat);
-    frame.position.set(Math.cos(a) * r, 11.5, Math.sin(a) * r);
+    frame.position.set(Math.cos(a) * r, 18, Math.sin(a) * r);
     frame.rotation.y = -a + Math.PI;
     group.add(frame);
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.5), screenMat);
-    screen.position.set(Math.cos(a) * (r - 0.22), 11.5, Math.sin(a) * (r - 0.22));
+    screen.position.set(Math.cos(a) * (r - 0.22), 18, Math.sin(a) * (r - 0.22));
     screen.rotation.y = -a + Math.PI;
     group.add(screen);
   }
 
-  // Floodlight fixtures over the open center
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    const r = 14;
+  // Floodlights on the outer canopy only — not hanging in the open center
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const r = (canopyInner + topR) * 0.5;
     const fixture = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 0.35, 0.9),
+      new THREE.BoxGeometry(2.2, 0.4, 1.1),
       beamMat
     );
-    fixture.position.set(Math.cos(a) * r, 15.4, Math.sin(a) * r);
+    fixture.position.set(Math.cos(a) * r, ceilingY - 0.6, Math.sin(a) * r);
     fixture.rotation.y = -a;
     group.add(fixture);
     const glow = new THREE.Mesh(
-      new THREE.CircleGeometry(1.1, 16),
+      new THREE.CircleGeometry(1.3, 16),
       new THREE.MeshBasicMaterial({
         color: 0xfff3c4,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.4,
         depthWrite: false,
         side: THREE.DoubleSide,
       })
     );
     glow.rotation.x = Math.PI / 2;
-    glow.position.set(Math.cos(a) * r, 15.15, Math.sin(a) * r);
+    glow.position.set(Math.cos(a) * r, ceilingY - 0.9, Math.sin(a) * r);
     group.add(glow);
   }
 
-  // Open-center canopy ring
+  // Open-center canopy ring (wide hole so fight camera never hits fixtures)
   const canopy = new THREE.Mesh(
-    new THREE.RingGeometry(20, topR + 2, 64),
+    new THREE.RingGeometry(canopyInner, topR + 2, 64),
     new THREE.MeshStandardMaterial({
       color: 0x0b1220,
       roughness: 0.85,
@@ -831,39 +837,40 @@ function createWbbaBowl(skin) {
     })
   );
   canopy.rotation.x = -Math.PI / 2;
-  canopy.position.y = 15.8;
+  canopy.position.y = ceilingY;
   group.add(canopy);
 
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
-    const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, topR - 10), beamMat);
+    const len = topR - canopyInner + 2;
+    const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, len), beamMat);
     rafter.position.set(
-      Math.cos(a) * ((topR + 12) * 0.5),
-      15.6,
-      Math.sin(a) * ((topR + 12) * 0.5)
+      Math.cos(a) * ((canopyInner + topR) * 0.5),
+      ceilingY - 0.2,
+      Math.sin(a) * ((canopyInner + topR) * 0.5)
     );
     rafter.rotation.y = -a;
     group.add(rafter);
   }
 
-  // Soft overhead lamp glow
+  // Soft overhead lamp glow high above the dish
   const lamp = new THREE.Mesh(
-    new THREE.RingGeometry(5, 16, 32),
+    new THREE.RingGeometry(8, 22, 32),
     new THREE.MeshBasicMaterial({
       color: 0xffe8b0,
       transparent: true,
-      opacity: 0.2,
+      opacity: 0.16,
       depthWrite: false,
       side: THREE.DoubleSide,
     })
   );
   lamp.rotation.x = Math.PI / 2;
-  lamp.position.y = 15.2;
+  lamp.position.y = ceilingY - 1.2;
   group.add(lamp);
 
   // Outer bowl shell
   const outerWall = new THREE.Mesh(
-    new THREE.CylinderGeometry(topR + 1, topR + 0.6, 20, 72, 1, true),
+    new THREE.CylinderGeometry(topR + 1, topR + 0.6, ceilingY + 4, 72, 1, true),
     new THREE.MeshStandardMaterial({
       color: 0x0a1018,
       roughness: 0.9,
@@ -871,7 +878,7 @@ function createWbbaBowl(skin) {
       side: THREE.BackSide,
     })
   );
-  outerWall.position.y = tealY + 9;
+  outerWall.position.y = tealY + (ceilingY + 4) * 0.5;
   group.add(outerWall);
 
   return group;

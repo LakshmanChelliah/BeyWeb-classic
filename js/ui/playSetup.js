@@ -4,7 +4,7 @@ import {
   listArenaSkins,
   resolveArenaSkinId,
   saveArenaSkinId,
-} from '../render/arenaSkins.js?v=57';
+} from '../render/arenaSkins.js?v=58';
 
 /**
  * Mode + difficulty + arena skin controls rendered inside the bey-select overlay.
