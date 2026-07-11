@@ -68,16 +68,18 @@ for (const stadium of STADIUMS) {
     await api.bootCasualFight({ playerBeyId: bey, forceAiBeyId: 'pegasus' });
     api.freeze(true);
 
-    // Wide venue view so floor + horizon read clearly.
+    // Fight-like venue view (matches in-game framing better than a top-down).
     const cam = game?.camera;
+    const indoor = arenaId === 'eagle_aerie';
     if (cam) {
-      cam.position.set(0, 32, 34);
-      cam.lookAt(0, 0, 0);
+      cam.position.set(0, indoor ? 20 : 28, indoor ? 22 : 30);
+      cam.lookAt(0, indoor ? 2 : 0, 0);
       cam.updateProjectionMatrix?.();
     }
-    if (game?.scene?.fog) {
-      game.scene.fog.near = 90;
-      game.scene.fog.far = 220;
+    // Don't blow out venue fog — outdoor captures can open slightly.
+    if (game?.scene?.fog && !indoor) {
+      game.scene.fog.near = Math.max(game.scene.fog.near ?? 40, 70);
+      game.scene.fog.far = Math.max(game.scene.fog.far ?? 120, 180);
     }
 
     const hideIds = [

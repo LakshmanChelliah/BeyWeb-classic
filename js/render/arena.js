@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=52';
-import { createBackdropTexture } from './arenaBackdrop.js?v=52';
+} from './arenaSkins.js?v=57';
+import { createBackdropTexture } from './arenaBackdrop.js?v=57';
 
 /**
  * Stadium battle geometry is fixed (dish radius / walls / pockets).
@@ -24,6 +24,10 @@ const DISH_RECESS = 0.07;
 
 function isElevated(skin) {
   return skin?.placement === 'elevated';
+}
+
+function isWbba(skin) {
+  return skin?.backdrop?.style === 'wbba_hq';
 }
 
 function createDishTexture(skin) {
@@ -187,7 +191,7 @@ function paintVenueFloor(ctx, size, skin, style, nearField) {
       paintFloorIsland(ctx, size, skin);
       break;
     case 'wbba_hq':
-      paintFloorTiles(ctx, size, skin, nearField ? 5 : 8);
+      paintFloorWbbaGold(ctx, size, skin);
       break;
     case 'rooftop_day':
       paintFloorRooftopTar(ctx, size, skin);
@@ -233,6 +237,82 @@ function paintFloorTiles(ctx, size, skin, divisions) {
       if ((x + y) % 2 === 0) ctx.fillRect(x * tile, y * tile, tile, tile);
     }
   }
+}
+
+/** Metal Fusion WBBA — polished gold platform panels. */
+function paintFloorWbbaGold(ctx, size, skin) {
+  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.55);
+  g.addColorStop(0, skin.platformBase || '#d4a84a');
+  g.addColorStop(0.55, skin.platformVein || '#c49838');
+  g.addColorStop(1, skin.platformGrid || '#a87828');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+
+  const divisions = 6;
+  const tile = size / divisions;
+  ctx.strokeStyle = 'rgba(80,50,10,0.35)';
+  ctx.lineWidth = 4;
+  for (let i = 0; i <= divisions; i++) {
+    const p = i * tile;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(size, p);
+    ctx.stroke();
+  }
+  // Specular sheen
+  const sheen = ctx.createLinearGradient(0, 0, size, size);
+  sheen.addColorStop(0, 'rgba(255,240,200,0.28)');
+  sheen.addColorStop(0.45, 'rgba(255,240,200,0)');
+  sheen.addColorStop(1, 'rgba(255,220,140,0.18)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, size, size);
+}
+
+function createWbbaTealTexture(skin) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const base = skin.tealFloor || '#2a9aaa';
+  const dark = skin.tealFloorDark || '#1e7888';
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  const divisions = 8;
+  const tile = size / divisions;
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 3;
+  for (let i = 0; i <= divisions; i++) {
+    const p = i * tile;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(size, p);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  for (let y = 0; y < divisions; y++) {
+    for (let x = 0; x < divisions; x++) {
+      if ((x + y) % 2 === 0) ctx.fillRect(x * tile, y * tile, tile, tile);
+    }
+  }
+  const gloss = ctx.createRadialGradient(size * 0.35, size * 0.3, 10, size * 0.35, size * 0.3, size * 0.5);
+  gloss.addColorStop(0, 'rgba(180,240,255,0.22)');
+  gloss.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gloss;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(6, 6);
+  return tex;
 }
 
 function nearLine(divisions) {
@@ -502,11 +582,299 @@ function createSkyDome(skin) {
 
 function applyPlacement(parts, skin) {
   const elevated = isElevated(skin);
-  if (parts.ground) parts.ground.visible = !elevated;
+  const wbba = isWbba(skin);
+  // Huge open ground only for outdoor ground venues — not WBBA (indoor bowl).
+  if (parts.ground) parts.ground.visible = !elevated && !wbba;
+  if (parts.plaza) parts.plaza.visible = wbba;
+  if (parts.wbbaBowl) parts.wbbaBowl.visible = wbba;
   if (parts.platform) parts.platform.visible = elevated;
   if (parts.base) parts.base.visible = elevated;
   if (parts.supports) parts.supports.visible = elevated;
   if (parts.city) parts.city.visible = elevated;
+}
+
+/**
+ * Metal Fusion WBBA HQ: raised gold platform (dish flush on top), teal floor
+ * below the curb, packed stands + jumbotrons. Fight camera looks into the dish.
+ */
+function createWbbaBowl(skin) {
+  const group = new THREE.Group();
+  group.userData.arenaPart = 'wbbaBowl';
+
+  const goldR = PLATFORM_OUTER_RADIUS;
+  const platformH = 1.3;
+  const tealY = -platformH;
+  const standsInner = goldR + 9;
+
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xf0c45a,
+    metalness: 0.3,
+    roughness: 0.38,
+    emissive: 0xc49220,
+    emissiveIntensity: 0.22,
+  });
+  const goldDarkMat = new THREE.MeshStandardMaterial({
+    color: 0xb88828,
+    metalness: 0.35,
+    roughness: 0.42,
+    emissive: 0x8a6010,
+    emissiveIntensity: 0.1,
+  });
+  const seatMatA = new THREE.MeshStandardMaterial({
+    color: 0x1a2230,
+    roughness: 0.72,
+    metalness: 0.08,
+  });
+  const seatMatB = new THREE.MeshStandardMaterial({
+    color: 0x121820,
+    roughness: 0.72,
+    metalness: 0.08,
+  });
+  const crowdMats = [
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.8 }),
+    new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.8 }),
+    new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.75 }),
+    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7 }),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85 }),
+  ];
+  const headMat = new THREE.MeshStandardMaterial({
+    color: 0xd4b898,
+    roughness: 0.92,
+    metalness: 0,
+  });
+  const beamMat = new THREE.MeshStandardMaterial({
+    color: 0x0f172a,
+    metalness: 0.55,
+    roughness: 0.4,
+  });
+  const screenMat = new THREE.MeshStandardMaterial({
+    color: 0x67e8f9,
+    emissive: 0x22d3ee,
+    emissiveIntensity: 0.85,
+    roughness: 0.25,
+    metalness: 0.2,
+    side: THREE.DoubleSide,
+  });
+  const screenFrameMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    metalness: 0.5,
+    roughness: 0.4,
+  });
+
+  // Raised gold platform curb — thick disc sitting on the teal floor
+  const curb = new THREE.Mesh(
+    new THREE.CylinderGeometry(goldR, goldR + 0.15, platformH, 80, 1, true),
+    goldMat
+  );
+  curb.position.y = tealY + platformH * 0.5;
+  curb.castShadow = true;
+  curb.receiveShadow = true;
+  group.add(curb);
+  // Bottom lip where curb meets teal
+  const curbLip = new THREE.Mesh(
+    new THREE.TorusGeometry(goldR + 0.08, 0.12, 8, 64),
+    goldDarkMat
+  );
+  curbLip.rotation.x = Math.PI / 2;
+  curbLip.position.y = tealY + 0.08;
+  group.add(curbLip);
+  // Outer top edge highlight on gold platform
+  const goldEdge = new THREE.Mesh(
+    new THREE.TorusGeometry(goldR - 0.05, 0.08, 8, 64),
+    goldDarkMat
+  );
+  goldEdge.rotation.x = Math.PI / 2;
+  goldEdge.position.y = 0.02;
+  group.add(goldEdge);
+
+  // Teal stadium floor from gold curb out to the stands
+  const tealMap = createWbbaTealTexture(skin);
+  const tealFloor = new THREE.Mesh(
+    new THREE.RingGeometry(goldR + 0.05, standsInner + 1.5, 80),
+    new THREE.MeshStandardMaterial({
+      map: tealMap,
+      color: 0xffffff,
+      roughness: 0.28,
+      metalness: 0.22,
+    })
+  );
+  tealFloor.rotation.x = -Math.PI / 2;
+  tealFloor.position.y = tealY;
+  tealFloor.receiveShadow = true;
+  group.add(tealFloor);
+
+  // Steep packed stands around the teal floor
+  const tiers = 10;
+  const bodyGeo = new THREE.BoxGeometry(0.34, 0.68, 0.26);
+  const headGeo = new THREE.SphereGeometry(0.13, 5, 5);
+  const dummy = new THREE.Object3D();
+
+  for (let t = 0; t < tiers; t++) {
+    const r0 = standsInner + t * 1.65;
+    const r1 = r0 + 1.5;
+    const y = tealY + 0.7 + t * 1.4;
+    const seat = new THREE.Mesh(
+      new THREE.RingGeometry(r0, r1, 80),
+      t % 2 === 0 ? seatMatA : seatMatB
+    );
+    seat.rotation.x = -Math.PI / 2;
+    seat.position.y = y;
+    seat.receiveShadow = true;
+    group.add(seat);
+
+    const riser = new THREE.Mesh(
+      new THREE.CylinderGeometry(r0, r0, 1.35, 72, 1, true),
+      t % 2 === 0 ? seatMatB : seatMatA
+    );
+    riser.position.y = y - 0.65;
+    group.add(riser);
+
+    const crowdCount = 120 + t * 16;
+    const perMat = Math.ceil(crowdCount / crowdMats.length);
+    const bodyMeshes = crowdMats.map(
+      (mat) => new THREE.InstancedMesh(bodyGeo, mat, perMat)
+    );
+    const headMesh = new THREE.InstancedMesh(headGeo, headMat, crowdCount);
+    const bodyIdx = new Array(crowdMats.length).fill(0);
+    let headIdx = 0;
+
+    for (let i = 0; i < crowdCount; i++) {
+      const a = (i / crowdCount) * Math.PI * 2 + (t % 2) * 0.028;
+      const rr = (r0 + r1) * 0.5 + ((i % 5) - 2) * 0.1;
+      const bx = Math.cos(a) * rr;
+      const bz = Math.sin(a) * rr;
+      const mi = i % crowdMats.length;
+
+      dummy.position.set(bx, y + 0.42, bz);
+      dummy.rotation.set(0, -a + Math.PI, 0);
+      dummy.scale.setScalar(0.85 + (i % 4) * 0.06);
+      dummy.updateMatrix();
+      bodyMeshes[mi].setMatrixAt(bodyIdx[mi]++, dummy.matrix);
+
+      dummy.position.set(bx, y + 0.86, bz);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      headMesh.setMatrixAt(headIdx++, dummy.matrix);
+    }
+
+    bodyMeshes.forEach((mesh, mi) => {
+      mesh.count = bodyIdx[mi];
+      mesh.instanceMatrix.needsUpdate = true;
+      group.add(mesh);
+    });
+    headMesh.count = headIdx;
+    headMesh.instanceMatrix.needsUpdate = true;
+    group.add(headMesh);
+  }
+
+  const topR = standsInner + (tiers - 1) * 1.65 + 1.5;
+
+  // Structural columns around the bowl
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const r = standsInner + 6;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, 18, 0.45), beamMat);
+    beam.position.set(Math.cos(a) * r, tealY + 9, Math.sin(a) * r);
+    group.add(beam);
+  }
+
+  // Jumbotron screens (anime WBBA signature)
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const r = standsInner + 4.5;
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 4.2, 0.35), screenFrameMat);
+    frame.position.set(Math.cos(a) * r, 11.5, Math.sin(a) * r);
+    frame.rotation.y = -a + Math.PI;
+    group.add(frame);
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.5), screenMat);
+    screen.position.set(Math.cos(a) * (r - 0.22), 11.5, Math.sin(a) * (r - 0.22));
+    screen.rotation.y = -a + Math.PI;
+    group.add(screen);
+  }
+
+  // Floodlight fixtures over the open center
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const r = 14;
+    const fixture = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.35, 0.9),
+      beamMat
+    );
+    fixture.position.set(Math.cos(a) * r, 15.4, Math.sin(a) * r);
+    fixture.rotation.y = -a;
+    group.add(fixture);
+    const glow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.1, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xfff3c4,
+        transparent: true,
+        opacity: 0.45,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+    );
+    glow.rotation.x = Math.PI / 2;
+    glow.position.set(Math.cos(a) * r, 15.15, Math.sin(a) * r);
+    group.add(glow);
+  }
+
+  // Open-center canopy ring
+  const canopy = new THREE.Mesh(
+    new THREE.RingGeometry(20, topR + 2, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0x0b1220,
+      roughness: 0.85,
+      metalness: 0.15,
+      side: THREE.DoubleSide,
+    })
+  );
+  canopy.rotation.x = -Math.PI / 2;
+  canopy.position.y = 15.8;
+  group.add(canopy);
+
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, topR - 10), beamMat);
+    rafter.position.set(
+      Math.cos(a) * ((topR + 12) * 0.5),
+      15.6,
+      Math.sin(a) * ((topR + 12) * 0.5)
+    );
+    rafter.rotation.y = -a;
+    group.add(rafter);
+  }
+
+  // Soft overhead lamp glow
+  const lamp = new THREE.Mesh(
+    new THREE.RingGeometry(5, 16, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xffe8b0,
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+  );
+  lamp.rotation.x = Math.PI / 2;
+  lamp.position.y = 15.2;
+  group.add(lamp);
+
+  // Outer bowl shell
+  const outerWall = new THREE.Mesh(
+    new THREE.CylinderGeometry(topR + 1, topR + 0.6, 20, 72, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x0a1018,
+      roughness: 0.9,
+      metalness: 0.08,
+      side: THREE.BackSide,
+    })
+  );
+  outerWall.position.y = tealY + 9;
+  group.add(outerWall);
+
+  return group;
 }
 
 function tintCityForSkin(city, skin) {
@@ -778,6 +1146,20 @@ function applySkinToParts(parts, skin) {
     parts.platform.material.needsUpdate = true;
   }
 
+  if (parts.plaza?.material) {
+    disposeMap(parts.plaza.material);
+    const plazaMap = createPlatformTexture(skin);
+    plazaMap.needsUpdate = true;
+    parts.plaza.material.map = plazaMap;
+    const wbba = isWbba(skin);
+    parts.plaza.material.color.setHex(wbba ? 0xffd56a : 0xffffff);
+    parts.plaza.material.emissive?.setHex?.(wbba ? 0xc49220 : 0x000000);
+    parts.plaza.material.emissiveIntensity = wbba ? 0.28 : 0;
+    parts.plaza.material.roughness = skin.platformRoughness ?? (wbba ? 0.4 : 0.42);
+    parts.plaza.material.metalness = skin.platformMetalness ?? (wbba ? 0.28 : 0.12);
+    parts.plaza.material.needsUpdate = true;
+  }
+
   if (parts.base?.material) {
     parts.base.material.color.setHex(skin.base ?? 0x333333);
     parts.base.material.needsUpdate = true;
@@ -796,10 +1178,10 @@ function applySkinToParts(parts, skin) {
   parts.dish.material.needsUpdate = true;
 
   parts.dishLip.material.color.setHex(skin.dishLip);
-  parts.dishLip.material.metalness = 0.45;
-  parts.dishLip.material.roughness = 0.4;
+  parts.dishLip.material.metalness = isWbba(skin) ? 0.35 : 0.45;
+  parts.dishLip.material.roughness = isWbba(skin) ? 0.35 : 0.4;
   parts.dishLip.material.emissive.setHex(skin.dishLip);
-  parts.dishLip.material.emissiveIntensity = 0.06;
+  parts.dishLip.material.emissiveIntensity = isWbba(skin) ? 0.22 : 0.06;
   parts.dishLip.material.needsUpdate = true;
 
   parts.wallMat.color.setHex(skin.wall);
@@ -873,6 +1255,28 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   ground.castShadow = false;
   group.add(ground);
 
+  // WBBA: gold platform top flush with dish rim (raised curb is in wbbaBowl).
+  const plaza = new THREE.Mesh(
+    new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS, 80),
+    new THREE.MeshStandardMaterial({
+      map: createPlatformTexture(skin),
+      color: isWbba(skin) ? 0xffd56a : 0xffffff,
+      emissive: isWbba(skin) ? 0xc49220 : 0x000000,
+      emissiveIntensity: isWbba(skin) ? 0.28 : 0,
+      roughness: skin.platformRoughness ?? (isWbba(skin) ? 0.4 : 0.42),
+      metalness: skin.platformMetalness ?? (isWbba(skin) ? 0.28 : 0.12),
+    })
+  );
+  plaza.userData.arenaPart = 'plaza';
+  plaza.rotation.x = -Math.PI / 2;
+  plaza.position.y = floorY;
+  plaza.receiveShadow = true;
+  plaza.castShadow = false;
+  group.add(plaza);
+
+  const wbbaBowl = createWbbaBowl(skin);
+  group.add(wbbaBowl);
+
   // Elevated venues: rooftop deck (finite platform over the city).
   const platform = new THREE.Mesh(
     new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
@@ -935,10 +1339,10 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
     new THREE.RingGeometry(DISH_RADIUS - 0.08, DISH_RADIUS + 0.16, 80),
     new THREE.MeshStandardMaterial({
       color: skin.dishLip,
-      metalness: 0.45,
-      roughness: 0.4,
+      metalness: isWbba(skin) ? 0.35 : 0.45,
+      roughness: isWbba(skin) ? 0.35 : 0.4,
       emissive: skin.dishLip,
-      emissiveIntensity: 0.06,
+      emissiveIntensity: isWbba(skin) ? 0.22 : 0.06,
     })
   );
   dishLip.userData.arenaPart = 'dishLip';
@@ -958,6 +1362,8 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
 
   const parts = {
     ground,
+    plaza,
+    wbbaBowl,
     platform,
     base,
     supports,
