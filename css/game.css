@@ -1071,33 +1071,79 @@ body.mobile #btn-recalibrate.hidden {
 
 .launch-overlay-meter-track {
   position: relative;
-  height: 8px;
+  height: 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
   overflow: visible;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.launch-overlay-meter-sweet {
+.launch-overlay-meter-zones {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.launch-overlay-meter-zone {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 18%;
-  width: 22%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 210, 90, 0.25), rgba(255, 210, 90, 0.85), rgba(255, 210, 90, 0.25));
-  box-shadow: 0 0 14px rgba(255, 200, 80, 0.45);
+}
+
+.launch-overlay-meter-zone.zone-miss {
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.55), rgba(185, 28, 28, 0.7));
+}
+
+.launch-overlay-meter-zone.zone-weak {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.55), rgba(217, 119, 6, 0.72));
+}
+
+.launch-overlay-meter-zone.zone-good {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.6), rgba(37, 99, 235, 0.75));
+}
+
+.launch-overlay-meter-zone.zone-great {
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.65), rgba(22, 163, 74, 0.8));
+}
+
+.launch-overlay-meter-zone.zone-perfect {
+  background: linear-gradient(180deg, rgba(253, 230, 138, 0.95), rgba(245, 158, 11, 0.95));
+  box-shadow: 0 0 14px rgba(255, 200, 80, 0.55);
+}
+
+.launch-overlay-meter-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.launch-overlay-meter-labels .zone-label.zone-miss {
+  color: #fca5a5;
+}
+
+.launch-overlay-meter-labels .zone-label.zone-perfect {
+  color: #fde68a;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.45);
 }
 
 .launch-overlay-meter-needle {
   position: absolute;
-  top: -5px;
+  top: -6px;
   left: 0%;
   width: 3px;
-  height: 18px;
+  height: 22px;
   margin-left: -1.5px;
   border-radius: 2px;
   background: #fff;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+  z-index: 2;
 }
 
 .launch-overlay-result {
