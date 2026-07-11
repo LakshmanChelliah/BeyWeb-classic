@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=58';
-import { createBackdropTexture } from './arenaBackdrop.js?v=58';
+} from './arenaSkins.js?v=59';
+import { createBackdropTexture } from './arenaBackdrop.js?v=59';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -777,18 +777,21 @@ function createWbbaBowl(skin) {
   const ceilingY = 48;
   const canopyInner = 30;
 
-  // Structural columns around the bowl
+  // Structural columns around the bowl — skip the +Z camera approach so
+  // zoom-out never puts a pillar between the lens and the dish.
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2;
+    if (Math.sin(a) > 0.2) continue;
     const r = standsInner + 6;
     const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, ceilingY + 2, 0.45), beamMat);
     beam.position.set(Math.cos(a) * r, tealY + (ceilingY + 2) * 0.5, Math.sin(a) * r);
     group.add(beam);
   }
 
-  // Jumbotron screens (anime WBBA signature) — high on the stand face
+  // Jumbotron screens — keep off the camera-facing arc for the same reason
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    if (Math.sin(a) > 0.2) continue;
     const r = standsInner + 4.5;
     const frame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 4.2, 0.35), screenFrameMat);
     frame.position.set(Math.cos(a) * r, 18, Math.sin(a) * r);
