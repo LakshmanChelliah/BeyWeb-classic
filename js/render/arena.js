@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=66';
-import { createBackdropTexture } from './arenaBackdrop.js?v=66';
+} from './arenaSkins.js?v=68';
+import { createBackdropTexture } from './arenaBackdrop.js?v=68';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -1059,8 +1059,14 @@ function tintCityForSkin(city, skin) {
       mat.emissiveIntensity = night ? 0.12 : 0;
       mat.metalness = night ? 0.75 : 0.65;
     } else if (obj.userData.cityPart === 'mist') {
-      mat.color.setHex(0x4c1d95);
-      mat.opacity = 0.55;
+      const isPuff = obj.geometry?.type === 'SphereGeometry';
+      if (night) {
+        mat.color.setHex(isPuff ? 0x5b21b6 : 0x4c1d95);
+        mat.opacity = isPuff ? 0.32 : Math.max(mat.opacity ?? 0.45, 0.4);
+      } else {
+        mat.color.setHex(isPuff ? 0xf2f7fc : 0xc5daf0);
+        mat.opacity = isPuff ? 0.4 : Math.max(mat.opacity ?? 0.45, 0.4);
+      }
     }
   });
 }
@@ -1082,7 +1088,7 @@ function createRooftopSupports(skin) {
 
   // Tall building shaft plunging into the mist / city below.
   // Keep the top below the battle bowl so it never occludes the dish.
-  const shaftH = night ? 36 : 22;
+  const shaftH = night ? 64 : 48;
   const bowlClearance = DISH_BOWL_DEPTH + DISH_RECESS + 0.55;
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(
@@ -1099,8 +1105,8 @@ function createRooftopSupports(skin) {
   shaft.receiveShadow = true;
   group.add(shaft);
 
-  // Outer ring of pillars at the deck edge
-  const pillarH = night ? 28 : 14;
+  // Outer ring of pillars at the deck edge — long enough to vanish into clouds.
+  const pillarH = night ? 52 : 36;
   const pillarGeo = new THREE.BoxGeometry(0.85, pillarH, 0.85);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
@@ -1113,13 +1119,13 @@ function createRooftopSupports(skin) {
   }
 
   // Diagonal braces under the deck
-  const braceGeo = new THREE.BoxGeometry(0.4, night ? 16 : 10, 0.4);
+  const braceGeo = new THREE.BoxGeometry(0.4, night ? 22 : 14, 0.4);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 + 0.12;
     const r = PLATFORM_OUTER_RADIUS - 2.4;
     const brace = new THREE.Mesh(braceGeo, steel.clone());
     brace.userData.cityPart = 'support';
-    brace.position.set(Math.cos(a) * r, night ? -9 : -5.5, Math.sin(a) * r);
+    brace.position.set(Math.cos(a) * r, night ? -12 : -7.5, Math.sin(a) * r);
     brace.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.5;
     brace.rotation.y = -a;
     group.add(brace);
@@ -1135,36 +1141,75 @@ function createRooftopSupports(skin) {
   lip.position.y = -0.45;
   group.add(lip);
 
-  // Night: cyan/purple mist bank far below the deck
-  if (night) {
-    const mistMat = new THREE.MeshBasicMaterial({
-      color: 0x4c1d95,
-      transparent: true,
-      opacity: 0.5,
-      depthWrite: false,
-    });
-    const mist = new THREE.Mesh(new THREE.CircleGeometry(70, 48), mistMat);
-    mist.userData.cityPart = 'mist';
-    mist.rotation.x = -Math.PI / 2;
-    mist.position.y = -28;
-    group.add(mist);
-
-    const mist2 = new THREE.Mesh(
-      new THREE.CircleGeometry(55, 40),
-      new THREE.MeshBasicMaterial({
-        color: 0x0891b2,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-      })
-    );
-    mist2.userData.cityPart = 'mist';
-    mist2.rotation.x = -Math.PI / 2;
-    mist2.position.y = -24;
-    group.add(mist2);
-  }
+  addRooftopCloudBank(group, skin);
 
   return group;
+}
+
+/**
+ * Layered cloud / mist banks under elevated decks so shafts and towers
+ * disappear into haze instead of ending in empty sky.
+ */
+function addRooftopCloudBank(group, skin) {
+  const night = skin.backdrop?.style === 'dn_rooftop_night';
+  const layers = night
+    ? [
+        { y: -14, r: 46, color: 0x3b0764, opacity: 0.42 },
+        { y: -20, r: 58, color: 0x4c1d95, opacity: 0.55 },
+        { y: -28, r: 74, color: 0x2e1065, opacity: 0.5 },
+        { y: -36, r: 90, color: 0x0891b2, opacity: 0.28 },
+        { y: -46, r: 110, color: 0x1a0a30, opacity: 0.62 },
+      ]
+    : [
+        { y: -9, r: 40, color: 0xffffff, opacity: 0.5 },
+        { y: -13, r: 52, color: 0xe8f2fa, opacity: 0.48 },
+        { y: -18, r: 66, color: 0xc5daf0, opacity: 0.45 },
+        { y: -25, r: 82, color: 0xa8c8e4, opacity: 0.5 },
+        { y: -34, r: 100, color: 0x7aa8c8, opacity: 0.42 },
+        { y: -44, r: 118, color: 0x6a9ac0, opacity: 0.55 },
+      ];
+
+  for (const layer of layers) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: layer.color,
+      transparent: true,
+      opacity: layer.opacity,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const bank = new THREE.Mesh(new THREE.CircleGeometry(layer.r, 56), mat);
+    bank.userData.cityPart = 'mist';
+    bank.rotation.x = -Math.PI / 2;
+    bank.position.y = layer.y;
+    bank.renderOrder = -5;
+    group.add(bank);
+  }
+
+  // Soft puffs around the deck so the cloud shelf reads as volume, not a disc.
+  const puffColor = night ? 0x5b21b6 : 0xf2f7fc;
+  const puffMat = new THREE.MeshBasicMaterial({
+    color: puffColor,
+    transparent: true,
+    opacity: night ? 0.32 : 0.4,
+    depthWrite: false,
+  });
+  const puffSpecs = [
+    { a: 0.4, r: 22, y: -11, sx: 14, sy: 3.2, sz: 10 },
+    { a: 1.6, r: 26, y: -15, sx: 16, sy: 3.8, sz: 12 },
+    { a: 2.8, r: 24, y: -12, sx: 13, sy: 2.8, sz: 11 },
+    { a: 4.1, r: 28, y: -17, sx: 18, sy: 4.2, sz: 13 },
+    { a: 5.2, r: 23, y: -14, sx: 12, sy: 3.0, sz: 9 },
+    { a: 0.9, r: 34, y: -21, sx: 20, sy: 4.5, sz: 15 },
+    { a: 3.5, r: 36, y: -23, sx: 22, sy: 5.0, sz: 16 },
+  ];
+  for (const p of puffSpecs) {
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), puffMat.clone());
+    puff.userData.cityPart = 'mist';
+    puff.scale.set(p.sx, p.sy, p.sz);
+    puff.position.set(Math.cos(p.a) * p.r, p.y, Math.sin(p.a) * p.r);
+    puff.renderOrder = -4;
+    group.add(puff);
+  }
 }
 
 /**
@@ -1191,26 +1236,26 @@ function createRooftopCity(skin) {
     emissiveIntensity: night ? 0.5 : 0.18,
   });
 
-  // Deterministic layout — buildings surround the deck and rise above wall height (~2).
+  // Deterministic layout — skyscrapers rise above the deck and plunge into clouds.
   const specs = [
-    { a: 0.15, r: 28, w: 5, d: 5, h: 36 },
-    { a: 0.55, r: 32, w: 4, d: 6, h: 28 },
-    { a: 1.0, r: 26, w: 6, d: 4, h: 42 },
-    { a: 1.4, r: 34, w: 5, d: 5, h: 24 },
-    { a: 1.85, r: 29, w: 4, d: 7, h: 38 },
-    { a: 2.3, r: 36, w: 7, d: 4, h: 30 },
-    { a: 2.7, r: 27, w: 5, d: 5, h: 44 },
-    { a: 3.15, r: 33, w: 4, d: 4, h: 22 },
-    { a: 3.55, r: 30, w: 6, d: 5, h: 40 },
-    { a: 4.0, r: 38, w: 5, d: 6, h: 26 },
-    { a: 4.4, r: 28, w: 4, d: 5, h: 34 },
-    { a: 4.85, r: 35, w: 6, d: 4, h: 48 },
-    { a: 5.3, r: 31, w: 5, d: 5, h: 32 },
-    { a: 5.75, r: 40, w: 4, d: 4, h: 20 },
-    { a: 0.35, r: 45, w: 8, d: 6, h: 52 },
-    { a: 2.0, r: 48, w: 6, d: 8, h: 46 },
-    { a: 3.8, r: 46, w: 7, d: 5, h: 55 },
-    { a: 5.1, r: 44, w: 5, d: 7, h: 38 },
+    { a: 0.15, r: 28, w: 5, d: 5, h: 96 },
+    { a: 0.55, r: 32, w: 4, d: 6, h: 78 },
+    { a: 1.0, r: 26, w: 6, d: 4, h: 112 },
+    { a: 1.4, r: 34, w: 5, d: 5, h: 70 },
+    { a: 1.85, r: 29, w: 4, d: 7, h: 102 },
+    { a: 2.3, r: 36, w: 7, d: 4, h: 88 },
+    { a: 2.7, r: 27, w: 5, d: 5, h: 118 },
+    { a: 3.15, r: 33, w: 4, d: 4, h: 64 },
+    { a: 3.55, r: 30, w: 6, d: 5, h: 108 },
+    { a: 4.0, r: 38, w: 5, d: 6, h: 82 },
+    { a: 4.4, r: 28, w: 4, d: 5, h: 94 },
+    { a: 4.85, r: 35, w: 6, d: 4, h: 124 },
+    { a: 5.3, r: 31, w: 5, d: 5, h: 90 },
+    { a: 5.75, r: 40, w: 4, d: 4, h: 68 },
+    { a: 0.35, r: 45, w: 8, d: 6, h: 132 },
+    { a: 2.0, r: 48, w: 6, d: 8, h: 120 },
+    { a: 3.8, r: 46, w: 7, d: 5, h: 140 },
+    { a: 5.1, r: 44, w: 5, d: 7, h: 106 },
   ];
 
   for (const s of specs) {
@@ -1219,8 +1264,8 @@ function createRooftopCity(skin) {
       buildingMat.clone()
     );
     building.userData.cityPart = 'building';
-    // Night: sink city deeper into mist so the deck feels ~1000m up.
-    const yOff = night ? 32 : 18;
+    // Bottoms sit deep in the cloud bank; tops still clear the stadium walls.
+    const yOff = night ? 58 : 48;
     building.position.set(
       Math.cos(s.a) * s.r,
       s.h * 0.5 - yOff,
@@ -1249,22 +1294,22 @@ function createRooftopCity(skin) {
   // Night signature towers — spiral HQ + orb tower taller than the stadium
   if (night) {
     const hq = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.5, 6, 58, 8),
+      new THREE.CylinderGeometry(2.5, 6, 96, 8),
       buildingMat.clone()
     );
     hq.userData.cityPart = 'building';
-    hq.position.set(-34, 10, -30);
+    hq.position.set(-34, 8, -30);
     group.add(hq);
 
     const orbPillarL = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 40, 1.2),
+      new THREE.BoxGeometry(1.2, 72, 1.2),
       buildingMat.clone()
     );
     orbPillarL.userData.cityPart = 'building';
-    orbPillarL.position.set(36, 4, 22);
+    orbPillarL.position.set(36, 2, 22);
     group.add(orbPillarL);
     const orbPillarR = orbPillarL.clone();
-    orbPillarR.position.set(40, 4, 22);
+    orbPillarR.position.set(40, 2, 22);
     group.add(orbPillarR);
 
     const orb = new THREE.Mesh(
@@ -1278,7 +1323,7 @@ function createRooftopCity(skin) {
       })
     );
     orb.userData.cityPart = 'window';
-    orb.position.set(38, 22, 22);
+    orb.position.set(38, 36, 22);
     group.add(orb);
   }
 
