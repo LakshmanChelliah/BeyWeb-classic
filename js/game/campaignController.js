@@ -20,7 +20,7 @@ import { createCasualMode } from './casualMode.js';
 import { createLocalSeriesMode } from './localSeriesMode.js';
 import { dualSeriesDotsHtml, seriesDotsHtml, SERIES_BEST_OF } from './seriesScore.js';
 import { preloadTopModel } from '../render/modelCache.js';
-import { getArenaSkinForBey } from '../render/arenaSkins.js?v=70';
+import { getArenaSkinForBey } from '../render/arenaSkins.js?v=71';
 
 /**
  * Wires tournament + casual progression to DOM and game callbacks (PC and mobile).

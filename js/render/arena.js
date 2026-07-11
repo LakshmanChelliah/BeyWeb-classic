@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=70';
-import { createBackdropTexture } from './arenaBackdrop.js?v=70';
+} from './arenaSkins.js?v=71';
+import { createBackdropTexture } from './arenaBackdrop.js?v=71';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -1180,6 +1180,7 @@ function addRooftopCloudBank(group, skin) {
       opacity: layer.opacity,
       depthWrite: false,
       side: THREE.DoubleSide,
+      fog: false,
     });
     const bank = new THREE.Mesh(new THREE.CircleGeometry(layer.r, 64), mat);
     bank.userData.cityPart = 'mist';
@@ -1218,6 +1219,7 @@ function addRooftopCloudBank(group, skin) {
       transparent: true,
       opacity: night ? 0.4 : 0.55,
       depthWrite: false,
+      fog: false,
     });
     const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), puffMat);
     puff.userData.cityPart = 'mist';
