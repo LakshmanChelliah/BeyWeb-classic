@@ -1066,8 +1066,7 @@ function setLdragoLightningStrike(body, opp) {
     body.userData.ldragoLightningHitX = body.position.x;
     body.userData.ldragoLightningHitZ = body.position.z;
   }
-  body.userData.ldragoLightningHitY =
-    CONFIG.FLOOR_Y + 0.35 + Math.min(body.userData.flightLift ?? 0, 2.5) * 0.15;
+  body.userData.ldragoLightningHitY = CONFIG.FLOOR_Y + 0.12;
 }
 
 function markLdragoSoaringHit(state, attackerSide, body, opp) {
