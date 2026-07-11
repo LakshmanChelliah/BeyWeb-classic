@@ -525,8 +525,11 @@ function createWedgeShape() {
 function addWallSegments(group, wallMat) {
   const wedge = createWedgeShape();
   const radius = CONFIG.WALL_RADIUS + 0.1;
-  // Bury wall bases under the floor so they read as pit walls, not a floating pad.
-  const wallEmbedY = -0.45;
+  // Sit walls higher so the near-camera arc still reads from the fight cam.
+  const wallEmbedY = -0.12;
+  const wallTopY = wallEmbedY + CONFIG.WALL_HEIGHT * 0.9;
+  const capMat = wallMat.clone();
+  capMat.emissiveIntensity = Math.max(wallMat.emissiveIntensity ?? 0, 0.22);
 
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -559,6 +562,17 @@ function addWallSegments(group, wallMat) {
       wall.castShadow = false;
       wall.receiveShadow = true;
       group.add(wall);
+
+      // Top rail — visible from overhead so the near KO border never “disappears”.
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(1.15, 0.14, segDepth * 0.92),
+        capMat
+      );
+      cap.userData.arenaPart = 'wall';
+      cap.position.set(x, wallTopY + 0.02, z);
+      cap.rotation.y = -angle;
+      cap.castShadow = false;
+      group.add(cap);
     }
   }
 }
