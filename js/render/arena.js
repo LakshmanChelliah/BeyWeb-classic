@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=69';
-import { createBackdropTexture } from './arenaBackdrop.js?v=69';
+} from './arenaSkins.js?v=70';
+import { createBackdropTexture } from './arenaBackdrop.js?v=70';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -1152,25 +1152,25 @@ function createRooftopSupports(skin) {
  */
 function addRooftopCloudBank(group, skin) {
   const night = skin.backdrop?.style === 'dn_rooftop_night';
-  // Start just under the deck so supports vanish quickly; stack deep.
+  // Wide enough to cover the sky-dome floor under the city (not just the deck).
   const layers = night
     ? [
-        { y: -2.4, r: 38, color: 0x3b0764, opacity: 0.55 },
-        { y: -4.5, r: 48, color: 0x4c1d95, opacity: 0.5 },
-        { y: -7.5, r: 58, color: 0x5b21b6, opacity: 0.48 },
-        { y: -11, r: 70, color: 0x2e1065, opacity: 0.52 },
-        { y: -16, r: 84, color: 0x0891b2, opacity: 0.3 },
-        { y: -24, r: 98, color: 0x1a0a30, opacity: 0.58 },
-        { y: -34, r: 115, color: 0x0c0420, opacity: 0.7 },
+        { y: -2.4, r: 52, color: 0x3b0764, opacity: 0.62 },
+        { y: -5.0, r: 68, color: 0x4c1d95, opacity: 0.55 },
+        { y: -9.0, r: 82, color: 0x5b21b6, opacity: 0.5 },
+        { y: -14, r: 95, color: 0x2e1065, opacity: 0.55 },
+        { y: -22, r: 110, color: 0x0891b2, opacity: 0.32 },
+        { y: -32, r: 125, color: 0x1a0a30, opacity: 0.7 },
+        { y: -48, r: 140, color: 0x0c0420, opacity: 0.85 },
       ]
     : [
-        { y: -2.2, r: 36, color: 0xffffff, opacity: 0.58 },
-        { y: -4.0, r: 46, color: 0xf4f8fc, opacity: 0.5 },
-        { y: -6.5, r: 56, color: 0xe0eef8, opacity: 0.48 },
-        { y: -10, r: 68, color: 0xc8dcf0, opacity: 0.5 },
-        { y: -15, r: 82, color: 0xa8c8e4, opacity: 0.46 },
-        { y: -22, r: 96, color: 0x8ab4d4, opacity: 0.5 },
-        { y: -32, r: 114, color: 0x6a9ac0, opacity: 0.62 },
+        { y: -2.2, r: 50, color: 0xffffff, opacity: 0.65 },
+        { y: -4.5, r: 64, color: 0xf4f8fc, opacity: 0.55 },
+        { y: -8.0, r: 78, color: 0xe8f2fa, opacity: 0.52 },
+        { y: -13, r: 92, color: 0xd0e4f4, opacity: 0.55 },
+        { y: -20, r: 108, color: 0xb8d4e8, opacity: 0.5 },
+        { y: -30, r: 124, color: 0x9abfe0, opacity: 0.58 },
+        { y: -45, r: 140, color: 0x7aa8c8, opacity: 0.8 },
       ];
 
   for (const layer of layers) {
@@ -1181,7 +1181,7 @@ function addRooftopCloudBank(group, skin) {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    const bank = new THREE.Mesh(new THREE.CircleGeometry(layer.r, 56), mat);
+    const bank = new THREE.Mesh(new THREE.CircleGeometry(layer.r, 64), mat);
     bank.userData.cityPart = 'mist';
     bank.rotation.x = -Math.PI / 2;
     bank.position.y = layer.y;
@@ -1189,7 +1189,7 @@ function addRooftopCloudBank(group, skin) {
     group.add(bank);
   }
 
-  // Soft puffs fill the volume under the deck (reads as clouds, not a floor plate).
+  // Soft puffs fill the volume under/around the deck.
   const puffColor = night ? 0x6d28d9 : 0xf7fbff;
   const puffSpecs = [
     { a: 0.2, r: 10, y: -3.2, sx: 11, sy: 2.4, sz: 9 },
@@ -1204,16 +1204,19 @@ function addRooftopCloudBank(group, skin) {
     { a: 3.2, r: 26, y: -8.0, sx: 17, sy: 3.8, sz: 15 },
     { a: 4.5, r: 23, y: -7.0, sx: 19, sy: 4.2, sz: 14 },
     { a: 5.8, r: 25, y: -9.0, sx: 20, sy: 4.5, sz: 16 },
-    { a: 0.9, r: 32, y: -12, sx: 22, sy: 5.0, sz: 17 },
-    { a: 2.5, r: 34, y: -14, sx: 24, sy: 5.5, sz: 18 },
-    { a: 4.1, r: 36, y: -13, sx: 23, sy: 5.2, sz: 17 },
-    { a: 5.4, r: 33, y: -15, sx: 25, sy: 5.8, sz: 19 },
+    { a: 0.9, r: 34, y: -11, sx: 22, sy: 5.0, sz: 17 },
+    { a: 2.5, r: 38, y: -13, sx: 24, sy: 5.5, sz: 18 },
+    { a: 4.1, r: 42, y: -12, sx: 26, sy: 5.2, sz: 19 },
+    { a: 5.4, r: 40, y: -15, sx: 25, sy: 5.8, sz: 18 },
+    { a: 1.3, r: 52, y: -18, sx: 28, sy: 6.0, sz: 20 },
+    { a: 3.6, r: 55, y: -20, sx: 30, sy: 6.5, sz: 22 },
+    { a: 5.0, r: 50, y: -17, sx: 27, sy: 5.5, sz: 19 },
   ];
   for (const p of puffSpecs) {
     const puffMat = new THREE.MeshBasicMaterial({
       color: puffColor,
       transparent: true,
-      opacity: night ? 0.38 : 0.52,
+      opacity: night ? 0.4 : 0.55,
       depthWrite: false,
     });
     const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), puffMat);
