@@ -1,7 +1,8 @@
 /**
  * Lightning L-Drago — Dragon Emperor, Soaring Destruction VFX.
  * Fair-fight mirror of Star Blast: dash → wall → soar → dive → bounce,
- * themed dark purple/crimson with dragon silhouette apex + lightning impact twist.
+ * themed dark purple/crimson with dragon silhouette apex.
+ * Lightning bolts fire only on opponent impact (ldragoLightningImpactT).
  * No flat impact rings — reach is sold by trails, dragon motif, and particle volume.
  */
 import * as THREE from 'three';
@@ -23,8 +24,6 @@ const _smoothDir = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _ghostPos = new THREE.Vector3();
 const _hint = new THREE.Vector3();
-const _boltA = new THREE.Vector3();
-const _boltB = new THREE.Vector3();
 
 const HISTORY_LEN = 20;
 const VIOLET = 0x5b21d9;
@@ -272,10 +271,9 @@ export function createLdragoSoaringVfx(scene) {
   apexFlare.renderOrder = 7;
   root.add(apexFlare);
 
-  // Impact + continuous crackle bolts (dive / wall / soar electrify).
+  // Impact lightning bolts — only while ldragoLightningImpactT > 0 (opponent hit).
   const IMPACT_BOLT_COUNT = 12;
   const BRANCH_BOLT_COUNT = 10;
-  const CRACKLE_BOLT_COUNT = 8;
   const impactBolts = [];
   for (let i = 0; i < IMPACT_BOLT_COUNT; i++) {
     const line = makeBoltLine(
@@ -292,13 +290,6 @@ export function createLdragoSoaringVfx(scene) {
     root.add(line);
     branchBolts.push(line);
   }
-  const crackleBolts = [];
-  for (let i = 0; i < CRACKLE_BOLT_COUNT; i++) {
-    const line = makeBoltLine(i % 2 === 0 ? VIOLET_LIGHT : LILAC, 10);
-    line.renderOrder = 10;
-    root.add(line);
-    crackleBolts.push(line);
-  }
 
   // Thick bolt ribbons — LineBasicMaterial is 1px on WebGL; planes sell mass.
   const BOLT_RIBBON_COUNT = 6;
@@ -312,18 +303,6 @@ export function createLdragoSoaringVfx(scene) {
     mesh.renderOrder = 13;
     root.add(mesh);
     boltRibbons.push(mesh);
-  }
-  const CRACKLE_RIBBON_COUNT = 4;
-  const crackleRibbons = [];
-  for (let i = 0; i < CRACKLE_RIBBON_COUNT; i++) {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.1 + (i % 2) * 0.04, 5.5),
-      makeTrailMat(i % 2 === 0 ? LILAC : WHITE_HOT, 0)
-    );
-    mesh.visible = false;
-    mesh.renderOrder = 11;
-    root.add(mesh);
-    crackleRibbons.push(mesh);
   }
 
   const skyFlash = new THREE.Mesh(
@@ -390,16 +369,6 @@ export function createLdragoSoaringVfx(scene) {
     colorB: new Vector4(0.6, 0.3, 1, 0),
   });
 
-  const crackleBurst = createBurstSystem(scene, {
-    additive: true,
-    startSpeed: [4, 14],
-    startSize: [0.08, 0.28],
-    gravity: -1,
-    coneAngle: 1.8,
-    colorA: new Vector4(0.95, 0.85, 1, 1),
-    colorB: new Vector4(0.5, 0.25, 0.95, 0),
-  });
-
   const history = Array.from({ length: HISTORY_LEN }, () => new THREE.Vector3());
   let historyCount = 0;
   let hasLast = false;
@@ -408,7 +377,6 @@ export function createLdragoSoaringVfx(scene) {
   let lastBouncePulse = -1;
   let lastLightningPulse = false;
   let lastApexCharge = false;
-  let crackleAcc = 0;
 
   function phaseHint(body, phase, out) {
     out.set(0, 0, 0);
@@ -439,7 +407,6 @@ export function createLdragoSoaringVfx(scene) {
     lastBouncePulse = -1;
     lastLightningPulse = false;
     lastApexCharge = false;
-    crackleAcc = 0;
     _smoothVel.set(0, 0, 0);
     _smoothDir.set(0, 0, -1);
     for (const g of ghosts) g.visible = false;
@@ -456,15 +423,7 @@ export function createLdragoSoaringVfx(scene) {
       b.visible = false;
       b.material.opacity = 0;
     }
-    for (const b of crackleBolts) {
-      b.visible = false;
-      b.material.opacity = 0;
-    }
     for (const r of boltRibbons) {
-      r.visible = false;
-      r.material.opacity = 0;
-    }
-    for (const r of crackleRibbons) {
       r.visible = false;
       r.material.opacity = 0;
     }
@@ -542,14 +501,10 @@ export function createLdragoSoaringVfx(scene) {
         if (phase === 'ascend' && lastPhase === 'dash') {
           apexBurst.setPosition(_pos.x, _pos.y + 1.2, _pos.z);
           apexBurst.burst(36);
-          lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.35, _pos.z);
-          lightningBurst.burst(36);
         }
         if (phase === 'dive' && lastPhase === 'ascend') {
           apexBurst.setPosition(_pos.x, _pos.y + 1.6, _pos.z);
           apexBurst.burst(48);
-          lightningBurst.setPosition(_pos.x, _pos.y + 0.5, _pos.z);
-          lightningBurst.burst(40);
         }
         lastPhase = phase;
       }
@@ -566,82 +521,15 @@ export function createLdragoSoaringVfx(scene) {
         lastBouncePulse = pulse;
       }
 
-      // Apex charge spark burst (lightning twist before dive).
+      // Apex charge spark burst (non-lightning energy at dive turnaround).
       const apexCharge = (body.userData.ldragoApexChargeT ?? 0) > 0.4;
       if (apexCharge && !lastApexCharge) {
         apexBurst.setPosition(_pos.x, _pos.y + 1.8, _pos.z);
         apexBurst.burst(40);
-        lightningBurst.setPosition(_pos.x, _pos.y + 0.8, _pos.z);
-        lightningBurst.burst(48);
       }
       lastApexCharge = apexCharge;
 
-      // Continuous crackle during soar / dive / apex charge (electrified dragon).
-      // Stadium camera pullback makes near-bey arcs tiny — use sky→floor columns.
-      const crackleOn =
-        phase === 'ascend' ||
-        phase === 'dive' ||
-        apexCharge ||
-        (body.userData.ldragoApexChargeT ?? 0) > 0.05;
-      if (crackleOn) {
-        crackleAcc += dt;
-        const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.065));
-        const liftFrac = clamp01((body.userData.flightLift ?? 0) / 38);
-        const cracklePow =
-          (phase === 'dive' ? 0.85 : 0.55 + liftFrac * 0.4) * flicker;
-        const seed = Math.floor(performance.now() * 0.045);
-        const topY = CONFIG.FLOOR_Y + 24 + liftFrac * 6;
-        const botY = CONFIG.FLOOR_Y + 0.12;
-        crackleBolts.forEach((line, bi) => {
-          const spread = 1.1 + bi * 0.35;
-          const ring = 0.4 + bi * 0.55;
-          const ang = (bi / CRACKLE_BOLT_COUNT) * Math.PI * 2 + performance.now() * 0.003;
-          const ox = Math.cos(ang) * ring + boltRand(seed + bi * 5.3) * 0.35;
-          const oz = Math.sin(ang) * ring + boltRand(seed + bi * 7.1) * 0.35;
-          writeBolt(
-            line,
-            buildBoltPoints(seed + bi * 9, _pos.x + ox, _pos.z + oz, topY, botY, spread)
-          );
-          line.material.opacity = cracklePow * (1 - bi * 0.06);
-          line.visible = line.material.opacity > 0.03;
-        });
-        crackleRibbons.forEach((ribbonMesh, ri) => {
-          const ang = (ri / CRACKLE_RIBBON_COUNT) * Math.PI * 2 + performance.now() * 0.004;
-          const ring = 0.25 + ri * 0.4;
-          ribbonMesh.visible = true;
-          ribbonMesh.position.set(
-            _pos.x + Math.cos(ang) * ring,
-            (topY + botY) * 0.5,
-            _pos.z + Math.sin(ang) * ring
-          );
-          ribbonMesh.rotation.order = 'YXZ';
-          ribbonMesh.rotation.y = ang + Math.PI * 0.5;
-          ribbonMesh.rotation.x = -Math.PI * 0.48 + boltRand(seed + ri) * 0.1;
-          ribbonMesh.rotation.z = boltRand(seed + ri * 2) * 0.18;
-          const h = topY - botY;
-          ribbonMesh.scale.set(1.35 + flicker * 0.5, h / 5.5, 1);
-          ribbonMesh.material.opacity = cracklePow * (0.65 - ri * 0.08);
-        });
-        if (crackleAcc > 0.08) {
-          crackleAcc = 0;
-          crackleBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.35, _pos.z);
-          crackleBurst.burst(phase === 'dive' ? 22 : 14);
-          crackleBurst.setPosition(_pos.x, _pos.y + 0.3, _pos.z);
-          crackleBurst.burst(phase === 'dive' ? 12 : 8);
-        }
-      } else {
-        for (const b of crackleBolts) {
-          b.visible = false;
-          b.material.opacity = 0;
-        }
-        for (const r of crackleRibbons) {
-          r.visible = false;
-          r.material.opacity = 0;
-        }
-        crackleAcc = 0;
-      }
-
-      // Dive / wall lightning impact twist — denser main + branch bolts + thick ribbons.
+      // Lightning bolts only on opponent impact (ldragoLightningImpactT).
       const impactT = body.userData.ldragoLightningImpactT ?? 0;
       if (impactT > 0.02) {
         const flicker = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.06));
@@ -652,8 +540,8 @@ export function createLdragoSoaringVfx(scene) {
         if (impactT > 0.5 && !lastLightningPulse) {
           lightningBurst.setPosition(_pos.x, CONFIG.FLOOR_Y + 0.4, _pos.z);
           lightningBurst.burst(72);
-          crackleBurst.setPosition(_pos.x, _pos.y + 0.6, _pos.z);
-          crackleBurst.burst(36);
+          lightningBurst.setPosition(_pos.x, _pos.y + 0.6, _pos.z);
+          lightningBurst.burst(36);
           lastLightningPulse = true;
         }
         if (impactT < 0.12) lastLightningPulse = false;
