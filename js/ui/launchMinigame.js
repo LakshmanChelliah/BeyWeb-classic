@@ -6,11 +6,14 @@
 import { CONFIG, RUNTIME_FLAGS } from '../config.js';
 
 const BEAT_MS = 520;
-const RIP_HOLD_MS = 720;
+/** One-way needle sweep; full bounce is out + back. */
+const METER_ONE_WAY_MS = 520;
+const METER_TOTAL_MS = METER_ONE_WAY_MS * 2;
+const RIP_HOLD_MS = METER_TOTAL_MS + 80;
 const RESULT_HOLD_MS = 720;
-const PERFECT_OFFSET_MS = 160;
-const WINDOW_EARLY_MS = 220;
-const WINDOW_LATE_MS = 380;
+/** Match `.launch-overlay-meter-sweet` (left 18% + half of 22% width). */
+const SWEET_CENTER = 0.29;
+const SWEET_HALF = 0.11;
 
 const GRADE_SPIN = Object.freeze({
   miss: CONFIG.LAUNCH_SPIN_MISS,
@@ -63,15 +66,15 @@ function ensureOverlay() {
   return el;
 }
 
-function gradeFromTiming(offsetMs, swiped, swipePower) {
+function gradeFromNeedle(pos, swiped, swipePower) {
   if (!swiped) return 'miss';
 
-  const abs = Math.abs(offsetMs);
+  const dist = Math.abs(pos - SWEET_CENTER);
   let timing = 'miss';
-  if (abs <= 70) timing = 'perfect';
-  else if (abs <= 140) timing = 'great';
-  else if (abs <= WINDOW_EARLY_MS) timing = 'good';
-  else if (abs <= WINDOW_LATE_MS) timing = 'weak';
+  if (dist <= 0.028) timing = 'perfect';
+  else if (dist <= 0.055) timing = 'great';
+  else if (dist <= SWEET_HALF) timing = 'good';
+  else if (dist <= 0.22) timing = 'weak';
 
   // Weak / reverse swipe knocks the grade down one step.
   if (swipePower < 0.35) {
@@ -84,6 +87,12 @@ function gradeFromTiming(offsetMs, swiped, swipePower) {
   }
 
   return timing;
+}
+
+/** Triangle wave 0→1→0 over progress u in [0, 1]. */
+function needlePosFromProgress(u) {
+  const t = clamp(u, 0, 1);
+  return t <= 0.5 ? t * 2 : 2 - t * 2;
 }
 
 function spinForGrade(grade) {
@@ -195,12 +204,12 @@ export async function runLaunchMinigame(opts = {}) {
   el.setAttribute('aria-hidden', 'false');
 
   const inputState = {
-    p1: { swiped: false, atMs: null, power: 0 },
-    p2: { swiped: false, atMs: null, power: 0 },
+    p1: { swiped: false, atMs: null, power: 0, needlePos: 0 },
+    p2: { swiped: false, atMs: null, power: 0, needlePos: 0 },
     windowOpen: false,
     windowStart: 0,
-    perfectAt: 0,
     windowEnd: 0,
+    needlePos: 0,
     done: false,
   };
 
@@ -215,6 +224,7 @@ export async function runLaunchMinigame(opts = {}) {
     slot.swiped = true;
     slot.atMs = atMs;
     slot.power = clamp(power, 0, 1);
+    slot.needlePos = inputState.needlePos;
   }
 
   function onKeyDown(e) {
@@ -314,15 +324,17 @@ export async function runLaunchMinigame(opts = {}) {
 
   inputState.windowOpen = true;
   inputState.windowStart = performance.now();
-  inputState.perfectAt = inputState.windowStart + PERFECT_OFFSET_MS;
-  inputState.windowEnd = inputState.windowStart + WINDOW_LATE_MS + 120;
+  inputState.windowEnd = inputState.windowStart + METER_TOTAL_MS;
+  inputState.needlePos = 0;
 
   const needleAnim = () => {
     if (!needleEl || inputState.done) return;
     const now = performance.now();
-    const t = clamp((now - inputState.windowStart) / (inputState.windowEnd - inputState.windowStart), 0, 1);
-    needleEl.style.left = `${t * 100}%`;
-    if (t < 1 && el.classList.contains('is-rip')) {
+    const u = clamp((now - inputState.windowStart) / METER_TOTAL_MS, 0, 1);
+    const pos = needlePosFromProgress(u);
+    inputState.needlePos = pos;
+    needleEl.style.left = `${pos * 100}%`;
+    if (u < 1 && el.classList.contains('is-rip')) {
       requestAnimationFrame(needleAnim);
     }
   };
@@ -351,11 +363,10 @@ export async function runLaunchMinigame(opts = {}) {
   inputState.windowOpen = false;
 
   function resolveSide(slot) {
-    if (!slot.swiped || slot.atMs == null) {
+    if (!slot.swiped) {
       return { grade: 'miss', spin: GRADE_SPIN.miss };
     }
-    const offset = slot.atMs - inputState.perfectAt;
-    const grade = gradeFromTiming(offset, true, slot.power);
+    const grade = gradeFromNeedle(slot.needlePos ?? 0, true, slot.power);
     return { grade, spin: spinForGrade(grade) };
   }
 
