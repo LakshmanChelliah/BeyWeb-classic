@@ -292,13 +292,16 @@ function paintRooftop(ctx, w, h) {
     }
   }
 
-  // Below-deck haze / distant streets
-  const below = ctx.createLinearGradient(0, h * 0.55, 0, h);
-  below.addColorStop(0, 'rgba(80,110,140,0)');
-  below.addColorStop(0.4, 'rgba(70,100,130,0.4)');
-  below.addColorStop(1, '#5a7a98');
+  // Sea of clouds under the deck — fills the sky-dome floor so bottoms vanish.
+  paintClouds(ctx, w, h, h * 0.58, 'rgba(255,255,255,0.55)', 10);
+  paintClouds(ctx, w, h, h * 0.72, 'rgba(230,240,250,0.7)', 8);
+  const below = ctx.createLinearGradient(0, h * 0.52, 0, h);
+  below.addColorStop(0, 'rgba(200,220,240,0)');
+  below.addColorStop(0.25, 'rgba(235,245,255,0.55)');
+  below.addColorStop(0.55, 'rgba(255,255,255,0.85)');
+  below.addColorStop(1, '#e8f2fa');
   ctx.fillStyle = below;
-  ctx.fillRect(0, h * 0.55, w, h * 0.45);
+  ctx.fillRect(0, h * 0.52, w, h * 0.48);
 }
 
 /** Dark Nebula HQ Rooftop — purple night sky, city far below in cyan mist. */
@@ -362,13 +365,16 @@ function paintDarkNebula(ctx, w, h) {
   ctx.fill();
 
   // Thick cyan/purple mist bank — city streets 1000m below
-  const mist = ctx.createLinearGradient(0, h * 0.42, 0, h);
+  paintClouds(ctx, w, h, h * 0.5, 'rgba(90,50,160,0.45)', 8);
+  paintClouds(ctx, w, h, h * 0.68, 'rgba(40,160,200,0.35)', 6);
+  const mist = ctx.createLinearGradient(0, h * 0.4, 0, h);
   mist.addColorStop(0, 'rgba(40,20,80,0)');
-  mist.addColorStop(0.25, 'rgba(40,120,200,0.35)');
-  mist.addColorStop(0.55, 'rgba(60,40,120,0.75)');
-  mist.addColorStop(1, '#1a0a28');
+  mist.addColorStop(0.2, 'rgba(40,120,200,0.4)');
+  mist.addColorStop(0.45, 'rgba(60,40,120,0.8)');
+  mist.addColorStop(0.75, 'rgba(20,8,40,0.95)');
+  mist.addColorStop(1, '#0c0418');
   ctx.fillStyle = mist;
-  ctx.fillRect(0, h * 0.42, w, h * 0.58);
+  ctx.fillRect(0, h * 0.4, w, h * 0.6);
 
   // Faint city lights deep in the mist
   for (let i = 0; i < 80; i++) {

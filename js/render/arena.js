@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=59';
-import { createBackdropTexture } from './arenaBackdrop.js?v=59';
+} from './arenaSkins.js?v=74';
+import { createBackdropTexture } from './arenaBackdrop.js?v=74';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -23,7 +23,7 @@ const SKY_RADIUS = 95;
 /** How far the dish rim sits below the surrounding floor. */
 const DISH_RECESS = 0.04;
 /** Visual bowl depth (center below rim) — shallow so tops don’t float. */
-const DISH_BOWL_DEPTH = 0.42;
+const DISH_BOWL_DEPTH = 0.62;
 
 /**
  * Shallow concave dish (lathed parabola). Same outer radius as the old flat circle;
@@ -51,24 +51,71 @@ function createBowlGeometry(radius = DISH_RADIUS, depth = DISH_BOWL_DEPTH, segme
     }
     index.needsUpdate = true;
   }
-  geo.computeVertexNormals();
 
-  // Rebuild UVs so the painted texture maps like a floor disc.
+  // Rebuild UVs, upward normals, and vertex colors so the bowl reads from fight cam.
   const uv = geo.attributes.uv;
   const pos = geo.attributes.position;
   const nrm = geo.attributes.normal;
-  for (let i = 0; i < uv.count; i++) {
+  const colors = new Float32Array(pos.count * 3);
+  const r2 = radius * radius;
+  for (let i = 0; i < pos.count; i++) {
     const px = pos.getX(i);
     const pz = pos.getZ(i);
+    const rho = Math.hypot(px, pz);
+    const t = Math.min(1, rho / radius);
     uv.setXY(i, 0.5 + px / (2 * radius), 0.5 + pz / (2 * radius));
-    // Degenerate center normal
-    if (Math.hypot(nrm.getX(i), nrm.getY(i), nrm.getZ(i)) < 1e-6) {
+
+    // Explicit upward normals for y = -depth*(1-(ρ/R)^2): ∂y/∂ρ = 2·depth·ρ/R².
+    if (rho < 1e-5) {
       nrm.setXYZ(i, 0, 1, 0);
+    } else {
+      const dy = (2 * depth * rho) / r2;
+      const nx = -dy * (px / rho);
+      const nz = -dy * (pz / rho);
+      const len = Math.hypot(nx, 1, nz) || 1;
+      nrm.setXYZ(i, nx / len, 1 / len, nz / len);
     }
+
+    // Concave shade: dark well → bright mid-slope → dark rim.
+    let s;
+    if (t < 0.28) s = 0.28 + (t / 0.28) * 0.4;
+    else if (t < 0.68) s = 0.68 + ((t - 0.28) / 0.4) * 0.32;
+    else s = 1.0 - ((t - 0.68) / 0.32) * 0.78;
+    colors[i * 3] = s;
+    colors[i * 3 + 1] = s;
+    colors[i * 3 + 2] = s;
   }
   uv.needsUpdate = true;
   nrm.needsUpdate = true;
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return geo;
+}
+
+/** Dish material that keeps baked bowl shading visible under venue lights. */
+function createDishMaterial(skin, dishMap) {
+  return new THREE.MeshStandardMaterial({
+    map: dishMap,
+    emissiveMap: dishMap,
+    emissive: new THREE.Color(0xffffff),
+    emissiveIntensity: 0.42,
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    roughness: Math.max(skin.dishRoughness ?? 0.55, 0.7),
+    metalness: 0,
+  });
+}
+
+function applyDishMaterialProps(mat, skin, dishMap) {
+  mat.map = dishMap;
+  mat.emissiveMap = dishMap;
+  mat.emissive.setHex(0xffffff);
+  mat.emissiveIntensity = 0.42;
+  mat.vertexColors = true;
+  mat.side = THREE.DoubleSide;
+  mat.color.setHex(0xffffff);
+  mat.roughness = Math.max(skin.dishRoughness ?? 0.55, 0.7);
+  mat.metalness = 0;
+  mat.needsUpdate = true;
 }
 
 function isElevated(skin) {
@@ -89,57 +136,69 @@ function createDishTexture(skin) {
   const cy = size / 2;
   const r = size / 2;
 
-  // Strong bowl shading: hot center → mid slope → dark rim.
-  const grad = ctx.createRadialGradient(cx, cy * 0.9, r * 0.02, cx, cy, r);
-  grad.addColorStop(0, skin.dishCenter);
-  grad.addColorStop(0.22, skin.dishCenter);
-  grad.addColorStop(0.55, skin.dishMid);
-  grad.addColorStop(0.78, skin.dishEdge);
-  grad.addColorStop(0.92, shadeHex(skin.dishEdge, 0.55));
-  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.38));
+  // Concave bowl shading — high-contrast so it reads on mobile, not a flat pad.
+  const grad = ctx.createRadialGradient(cx, cy, r * 0.02, cx, cy, r);
+  grad.addColorStop(0, shadeHex(skin.dishCenter, 0.55));
+  grad.addColorStop(0.12, shadeHex(skin.dishCenter, 0.7));
+  grad.addColorStop(0.32, skin.dishCenter);
+  grad.addColorStop(0.52, skin.dishMid);
+  grad.addColorStop(0.72, skin.dishEdge);
+  grad.addColorStop(0.88, shadeHex(skin.dishEdge, 0.42));
+  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.22));
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Soft slope shade (mid bowl).
-  const midShade = ctx.createRadialGradient(cx, cy, r * 0.35, cx, cy, r * 0.85);
-  midShade.addColorStop(0, 'rgba(0,0,0,0)');
-  midShade.addColorStop(0.55, 'rgba(0,0,0,0.12)');
-  midShade.addColorStop(1, 'rgba(0,0,0,0.08)');
-  ctx.fillStyle = midShade;
+  // Deep center well (recessed pit).
+  const well = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.48);
+  well.addColorStop(0, 'rgba(0,0,0,0.55)');
+  well.addColorStop(0.4, 'rgba(0,0,0,0.28)');
+  well.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = well;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Deep rim occlusion — strongest depth cue under the lip.
-  const rim = ctx.createRadialGradient(cx, cy, r * 0.62, cx, cy, r);
+  // Lit mid-slope ring (curvature).
+  const slope = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 0.72);
+  slope.addColorStop(0, 'rgba(255,255,255,0)');
+  slope.addColorStop(0.4, 'rgba(255,255,255,0.2)');
+  slope.addColorStop(0.75, 'rgba(255,255,255,0.06)');
+  slope.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = slope;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Heavy rim occlusion under the lip.
+  const rim = ctx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r);
   rim.addColorStop(0, 'rgba(0,0,0,0)');
-  rim.addColorStop(0.55, 'rgba(0,0,0,0.18)');
-  rim.addColorStop(0.82, 'rgba(0,0,0,0.42)');
-  rim.addColorStop(1, 'rgba(0,0,0,0.62)');
+  rim.addColorStop(0.35, 'rgba(0,0,0,0.25)');
+  rim.addColorStop(0.7, 'rgba(0,0,0,0.55)');
+  rim.addColorStop(1, 'rgba(0,0,0,0.82)');
   ctx.fillStyle = rim;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Concentric contour rings (bowl contour lines).
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 3;
-  for (const rr of [0.22, 0.4, 0.58, 0.74, 0.88]) {
+  // Concentric contour rings.
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 4;
+  for (const rr of [0.18, 0.34, 0.5, 0.66, 0.8, 0.9]) {
     ctx.beginPath();
     ctx.arc(cx, cy, r * rr, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
-  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.lineWidth = 8;
   ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.96, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r * 0.97, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Specular highlight on the near slope (sells curvature).
-  const gloss = ctx.createRadialGradient(cx * 0.7, cy * 0.48, 2, cx * 0.7, cy * 0.48, r * 0.42);
-  gloss.addColorStop(0, 'rgba(255,255,255,0.34)');
+  // Specular highlight on the near slope.
+  const gloss = ctx.createRadialGradient(cx * 0.66, cy * 0.58, 2, cx * 0.66, cy * 0.58, r * 0.34);
+  gloss.addColorStop(0, 'rgba(255,255,255,0.3)');
   gloss.addColorStop(0.45, 'rgba(255,255,255,0.1)');
   gloss.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gloss;
@@ -573,10 +632,13 @@ function paintFloorVolcanic(ctx, size, skin) {
 }
 
 function disposeMap(mat) {
-  if (mat?.map) {
-    mat.map.dispose();
-    mat.map = null;
-  }
+  if (!mat) return;
+  const map = mat.map;
+  const emissiveMap = mat.emissiveMap;
+  if (map) map.dispose();
+  if (emissiveMap && emissiveMap !== map) emissiveMap.dispose();
+  mat.map = null;
+  mat.emissiveMap = null;
 }
 
 function createWedgeShape() {
@@ -649,18 +711,21 @@ function addWallSegments(group, wallMat) {
 
 /** Horizon sky — full sphere so elevated rooftops show city sky below the deck. */
 function createSkyDome(skin) {
+  const elevated = isElevated(skin);
   const mat = new THREE.MeshBasicMaterial({
     map: createBackdropTexture(skin),
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
   });
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(SKY_RADIUS, 48, 32),
-    mat
-  );
+  // Elevated: upper hemisphere only — cloud sea fills below so the dome
+  // floor never reads as a reflective void under the deck.
+  const geo = elevated
+    ? new THREE.SphereGeometry(SKY_RADIUS, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.52)
+    : new THREE.SphereGeometry(SKY_RADIUS, 48, 32);
+  const dome = new THREE.Mesh(geo, mat);
   dome.userData.arenaPart = 'sky';
-  dome.position.y = 0;
+  dome.position.y = elevated ? 8 : 0;
   dome.renderOrder = -10;
   return dome;
 }
@@ -997,8 +1062,18 @@ function tintCityForSkin(city, skin) {
       mat.emissiveIntensity = night ? 0.12 : 0;
       mat.metalness = night ? 0.75 : 0.65;
     } else if (obj.userData.cityPart === 'mist') {
-      mat.color.setHex(0x4c1d95);
-      mat.opacity = 0.55;
+      const isPuff = obj.geometry?.type === 'SphereGeometry';
+      const isSea = !obj.material.transparent && obj.geometry?.type === 'CircleGeometry';
+      if (isSea) {
+        // Keep blotchy cloud map; only nudge tint.
+        mat.color.setHex(0xffffff);
+      } else if (night) {
+        mat.color.setHex(isPuff ? 0x5b21b6 : 0x4c1d95);
+        mat.opacity = isPuff ? 0.45 : Math.max(mat.opacity ?? 0.45, 0.4);
+      } else {
+        mat.color.setHex(isPuff ? 0xf2f7fc : 0xc5daf0);
+        mat.opacity = isPuff ? 0.6 : Math.max(mat.opacity ?? 0.45, 0.4);
+      }
     }
   });
 }
@@ -1018,8 +1093,10 @@ function createRooftopSupports(skin) {
     emissiveIntensity: night ? 0.1 : 0,
   });
 
-  // Tall building shaft plunging into the mist / city below
-  const shaftH = night ? 36 : 22;
+  // Tall building shaft plunging into the mist / city below.
+  // Keep the top below the battle bowl so it never occludes the dish.
+  const shaftH = night ? 64 : 48;
+  const bowlClearance = DISH_BOWL_DEPTH + DISH_RECESS + 0.55;
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(
       PLATFORM_OUTER_RADIUS * 0.5,
@@ -1030,13 +1107,13 @@ function createRooftopSupports(skin) {
     steel.clone()
   );
   shaft.userData.cityPart = 'support';
-  shaft.position.y = -shaftH * 0.5 - 0.5;
+  shaft.position.y = -shaftH * 0.5 - bowlClearance;
   shaft.castShadow = true;
   shaft.receiveShadow = true;
   group.add(shaft);
 
-  // Outer ring of pillars at the deck edge
-  const pillarH = night ? 28 : 14;
+  // Outer ring of pillars at the deck edge — long enough to vanish into clouds.
+  const pillarH = night ? 52 : 36;
   const pillarGeo = new THREE.BoxGeometry(0.85, pillarH, 0.85);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
@@ -1049,13 +1126,13 @@ function createRooftopSupports(skin) {
   }
 
   // Diagonal braces under the deck
-  const braceGeo = new THREE.BoxGeometry(0.4, night ? 16 : 10, 0.4);
+  const braceGeo = new THREE.BoxGeometry(0.4, night ? 22 : 14, 0.4);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 + 0.12;
     const r = PLATFORM_OUTER_RADIUS - 2.4;
     const brace = new THREE.Mesh(braceGeo, steel.clone());
     brace.userData.cityPart = 'support';
-    brace.position.set(Math.cos(a) * r, night ? -9 : -5.5, Math.sin(a) * r);
+    brace.position.set(Math.cos(a) * r, night ? -12 : -7.5, Math.sin(a) * r);
     brace.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.5;
     brace.rotation.y = -a;
     group.add(brace);
@@ -1071,36 +1148,129 @@ function createRooftopSupports(skin) {
   lip.position.y = -0.45;
   group.add(lip);
 
-  // Night: cyan/purple mist bank far below the deck
-  if (night) {
-    const mistMat = new THREE.MeshBasicMaterial({
-      color: 0x4c1d95,
-      transparent: true,
-      opacity: 0.5,
-      depthWrite: false,
-    });
-    const mist = new THREE.Mesh(new THREE.CircleGeometry(70, 48), mistMat);
-    mist.userData.cityPart = 'mist';
-    mist.rotation.x = -Math.PI / 2;
-    mist.position.y = -28;
-    group.add(mist);
-
-    const mist2 = new THREE.Mesh(
-      new THREE.CircleGeometry(55, 40),
-      new THREE.MeshBasicMaterial({
-        color: 0x0891b2,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-      })
-    );
-    mist2.userData.cityPart = 'mist';
-    mist2.rotation.x = -Math.PI / 2;
-    mist2.position.y = -24;
-    group.add(mist2);
-  }
+  addRooftopCloudBank(group, skin);
 
   return group;
+}
+
+/**
+ * Layered cloud / mist banks under elevated decks so shafts and towers
+ * disappear into haze instead of ending in empty sky.
+ */
+function addRooftopCloudBank(group, skin) {
+  const night = skin.backdrop?.style === 'dn_rooftop_night';
+  // Wide enough to cover under the city; start just under the deck.
+  const layers = night
+    ? [
+        { y: -2.2, r: 52, color: 0x3b0764, opacity: 0.7 },
+        { y: -4.0, r: 68, color: 0x4c1d95, opacity: 0.6 },
+        { y: -7.0, r: 84, color: 0x5b21b6, opacity: 0.55 },
+        { y: -11, r: 100, color: 0x2e1065, opacity: 0.55 },
+        { y: -16, r: 120, color: 0x0891b2, opacity: 0.35 },
+      ]
+    : [
+        { y: -2.0, r: 50, color: 0xffffff, opacity: 0.72 },
+        { y: -3.8, r: 64, color: 0xf4f8fc, opacity: 0.6 },
+        { y: -6.5, r: 80, color: 0xe8f2fa, opacity: 0.55 },
+        { y: -10, r: 98, color: 0xd0e4f4, opacity: 0.55 },
+        { y: -15, r: 118, color: 0xb8d4e8, opacity: 0.5 },
+      ];
+
+  for (const layer of layers) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: layer.color,
+      transparent: true,
+      opacity: layer.opacity,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      fog: false,
+    });
+    const bank = new THREE.Mesh(new THREE.CircleGeometry(layer.r, 64), mat);
+    bank.userData.cityPart = 'mist';
+    bank.rotation.x = -Math.PI / 2;
+    bank.position.y = layer.y;
+    bank.renderOrder = -5;
+    group.add(bank);
+  }
+
+  // Opaque blotchy cloud floor — hides the void; texture avoids a flat plate look.
+  const seaCanvas = document.createElement('canvas');
+  seaCanvas.width = seaCanvas.height = 512;
+  const sctx = seaCanvas.getContext('2d');
+  sctx.fillStyle = night ? '#140828' : '#eef4fa';
+  sctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 97) % 512;
+    const y = (i * 53) % 512;
+    const rr = 40 + (i % 5) * 18;
+    const g = sctx.createRadialGradient(x, y, 0, x, y, rr);
+    if (night) {
+      g.addColorStop(0, 'rgba(90,40,160,0.55)');
+      g.addColorStop(1, 'rgba(20,8,40,0)');
+    } else {
+      g.addColorStop(0, 'rgba(255,255,255,0.85)');
+      g.addColorStop(0.5, 'rgba(220,232,245,0.45)');
+      g.addColorStop(1, 'rgba(200,220,235,0)');
+    }
+    sctx.fillStyle = g;
+    sctx.beginPath();
+    sctx.arc(x, y, rr, 0, Math.PI * 2);
+    sctx.fill();
+  }
+  const seaMap = new THREE.CanvasTexture(seaCanvas);
+  seaMap.colorSpace = THREE.SRGBColorSpace;
+  const sea = new THREE.Mesh(
+    new THREE.CircleGeometry(160, 64),
+    new THREE.MeshBasicMaterial({
+      map: seaMap,
+      color: 0xffffff,
+      fog: false,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+    })
+  );
+  sea.userData.cityPart = 'mist';
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.y = night ? -8 : -7;
+  sea.renderOrder = -1;
+  sea.frustumCulled = false;
+  group.add(sea);
+
+  // Soft puffs fill the volume under/around the deck.
+  const puffColor = night ? 0x6d28d9 : 0xf7fbff;
+  const puffSpecs = [
+    { a: 0.2, r: 10, y: -3.0, sx: 12, sy: 2.6, sz: 10 },
+    { a: 1.1, r: 14, y: -3.6, sx: 14, sy: 3.0, sz: 11 },
+    { a: 2.0, r: 12, y: -3.2, sx: 13, sy: 2.8, sz: 12 },
+    { a: 2.9, r: 15, y: -4.2, sx: 15, sy: 3.2, sz: 12 },
+    { a: 3.8, r: 11, y: -3.4, sx: 11, sy: 2.4, sz: 10 },
+    { a: 4.7, r: 16, y: -4.0, sx: 16, sy: 3.4, sz: 12 },
+    { a: 5.5, r: 13, y: -3.1, sx: 13, sy: 2.7, sz: 11 },
+    { a: 0.6, r: 22, y: -5.0, sx: 17, sy: 3.8, sz: 14 },
+    { a: 1.8, r: 24, y: -5.5, sx: 19, sy: 4.2, sz: 15 },
+    { a: 3.2, r: 26, y: -5.8, sx: 18, sy: 4.0, sz: 16 },
+    { a: 4.5, r: 23, y: -5.2, sx: 20, sy: 4.4, sz: 15 },
+    { a: 5.8, r: 25, y: -6.2, sx: 21, sy: 4.6, sz: 17 },
+    { a: 0.9, r: 34, y: -6.8, sx: 23, sy: 5.0, sz: 18 },
+    { a: 2.5, r: 38, y: -7.2, sx: 25, sy: 5.4, sz: 19 },
+    { a: 4.1, r: 42, y: -6.5, sx: 27, sy: 5.2, sz: 20 },
+    { a: 5.4, r: 40, y: -7.5, sx: 26, sy: 5.6, sz: 19 },
+  ];
+  for (const p of puffSpecs) {
+    const puffMat = new THREE.MeshBasicMaterial({
+      color: puffColor,
+      transparent: true,
+      opacity: night ? 0.45 : 0.6,
+      depthWrite: false,
+      fog: false,
+    });
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), puffMat);
+    puff.userData.cityPart = 'mist';
+    puff.scale.set(p.sx, p.sy, p.sz);
+    puff.position.set(Math.cos(p.a) * p.r, p.y, Math.sin(p.a) * p.r);
+    puff.renderOrder = -4;
+    group.add(puff);
+  }
 }
 
 /**
@@ -1127,26 +1297,28 @@ function createRooftopCity(skin) {
     emissiveIntensity: night ? 0.5 : 0.18,
   });
 
-  // Deterministic layout — buildings surround the deck and rise above wall height (~2).
+  // Deterministic layout — skyscrapers rise well above the deck and plunge into clouds.
+  // bottom ≈ -yOff (in mist); top ≈ h/2 - yOff (skyline above walls).
+  const yOff = night ? 48 : 42;
   const specs = [
-    { a: 0.15, r: 28, w: 5, d: 5, h: 36 },
-    { a: 0.55, r: 32, w: 4, d: 6, h: 28 },
-    { a: 1.0, r: 26, w: 6, d: 4, h: 42 },
-    { a: 1.4, r: 34, w: 5, d: 5, h: 24 },
-    { a: 1.85, r: 29, w: 4, d: 7, h: 38 },
-    { a: 2.3, r: 36, w: 7, d: 4, h: 30 },
-    { a: 2.7, r: 27, w: 5, d: 5, h: 44 },
-    { a: 3.15, r: 33, w: 4, d: 4, h: 22 },
-    { a: 3.55, r: 30, w: 6, d: 5, h: 40 },
-    { a: 4.0, r: 38, w: 5, d: 6, h: 26 },
-    { a: 4.4, r: 28, w: 4, d: 5, h: 34 },
-    { a: 4.85, r: 35, w: 6, d: 4, h: 48 },
-    { a: 5.3, r: 31, w: 5, d: 5, h: 32 },
-    { a: 5.75, r: 40, w: 4, d: 4, h: 20 },
-    { a: 0.35, r: 45, w: 8, d: 6, h: 52 },
-    { a: 2.0, r: 48, w: 6, d: 8, h: 46 },
-    { a: 3.8, r: 46, w: 7, d: 5, h: 55 },
-    { a: 5.1, r: 44, w: 5, d: 7, h: 38 },
+    { a: 0.15, r: 28, w: 5, d: 5, h: 280 },
+    { a: 0.55, r: 32, w: 4, d: 6, h: 260 },
+    { a: 1.0, r: 26, w: 6, d: 4, h: 310 },
+    { a: 1.4, r: 34, w: 5, d: 5, h: 250 },
+    { a: 1.85, r: 29, w: 4, d: 7, h: 295 },
+    { a: 2.3, r: 36, w: 7, d: 4, h: 270 },
+    { a: 2.7, r: 27, w: 5, d: 5, h: 330 },
+    { a: 3.15, r: 33, w: 4, d: 4, h: 245 },
+    { a: 3.55, r: 30, w: 6, d: 5, h: 300 },
+    { a: 4.0, r: 38, w: 5, d: 6, h: 265 },
+    { a: 4.4, r: 28, w: 4, d: 5, h: 285 },
+    { a: 4.85, r: 35, w: 6, d: 4, h: 340 },
+    { a: 5.3, r: 31, w: 5, d: 5, h: 275 },
+    { a: 5.75, r: 40, w: 4, d: 4, h: 255 },
+    { a: 0.35, r: 45, w: 8, d: 6, h: 360 },
+    { a: 2.0, r: 48, w: 6, d: 8, h: 345 },
+    { a: 3.8, r: 46, w: 7, d: 5, h: 380 },
+    { a: 5.1, r: 44, w: 5, d: 7, h: 320 },
   ];
 
   for (const s of specs) {
@@ -1155,8 +1327,6 @@ function createRooftopCity(skin) {
       buildingMat.clone()
     );
     building.userData.cityPart = 'building';
-    // Night: sink city deeper into mist so the deck feels ~1000m up.
-    const yOff = night ? 32 : 18;
     building.position.set(
       Math.cos(s.a) * s.r,
       s.h * 0.5 - yOff,
@@ -1185,22 +1355,22 @@ function createRooftopCity(skin) {
   // Night signature towers — spiral HQ + orb tower taller than the stadium
   if (night) {
     const hq = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.5, 6, 58, 8),
+      new THREE.CylinderGeometry(2.5, 6, 220, 8),
       buildingMat.clone()
     );
     hq.userData.cityPart = 'building';
-    hq.position.set(-34, 10, -30);
+    hq.position.set(-34, 70, -30);
     group.add(hq);
 
     const orbPillarL = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 40, 1.2),
+      new THREE.BoxGeometry(1.2, 180, 1.2),
       buildingMat.clone()
     );
     orbPillarL.userData.cityPart = 'building';
-    orbPillarL.position.set(36, 4, 22);
+    orbPillarL.position.set(36, 55, 22);
     group.add(orbPillarL);
     const orbPillarR = orbPillarL.clone();
-    orbPillarR.position.set(40, 4, 22);
+    orbPillarR.position.set(40, 55, 22);
     group.add(orbPillarR);
 
     const orb = new THREE.Mesh(
@@ -1214,7 +1384,7 @@ function createRooftopCity(skin) {
       })
     );
     orb.userData.cityPart = 'window';
-    orb.position.set(38, 22, 22);
+    orb.position.set(38, 140, 22);
     group.add(orb);
   }
 
@@ -1271,11 +1441,7 @@ function applySkinToParts(parts, skin) {
   disposeMap(parts.dish.material);
   const dishMap = createDishTexture(skin);
   dishMap.needsUpdate = true;
-  parts.dish.material.map = dishMap;
-  parts.dish.material.color.setHex(0xffffff);
-  parts.dish.material.roughness = skin.dishRoughness;
-  parts.dish.material.metalness = skin.dishMetalness;
-  parts.dish.material.needsUpdate = true;
+  applyDishMaterialProps(parts.dish.material, skin, dishMap);
 
   parts.dishLip.material.color.setHex(skin.dishLip);
   parts.dishLip.material.metalness = isWbba(skin) ? 0.35 : 0.45;
@@ -1302,8 +1468,14 @@ function applySkinToParts(parts, skin) {
 
 function applySceneAmbience(scene, skin) {
   if (!scene || skin.ambience == null) return;
-  if (scene.background?.isColor) scene.background.setHex(skin.ambience);
-  else scene.background = new THREE.Color(skin.ambience);
+  // Elevated: background matches the cloud sea so gaps under the hemisphere stay misty.
+  const bg = isElevated(skin)
+    ? skin.backdrop?.style === 'dn_rooftop_night'
+      ? 0x140828
+      : 0xe8f0f8
+    : skin.ambience;
+  if (scene.background?.isColor) scene.background.setHex(bg);
+  else scene.background = new THREE.Color(bg);
   if (scene.fog?.color) {
     scene.fog.color.setHex(skin.ambience);
     if (skin.fogNear != null) scene.fog.near = skin.fogNear;
@@ -1377,9 +1549,9 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   const wbbaBowl = createWbbaBowl(skin);
   group.add(wbbaBowl);
 
-  // Elevated venues: rooftop deck (finite platform over the city).
+  // Elevated venues: rooftop deck with a hole so the battle bowl stays visible.
   const platform = new THREE.Mesh(
-    new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS, 80),
+    new THREE.RingGeometry(DISH_RADIUS + 0.02, PLATFORM_OUTER_RADIUS, 80),
     new THREE.MeshStandardMaterial({
       map: createPlatformTexture(skin),
       roughness: skin.platformRoughness ?? 0.55,
@@ -1394,17 +1566,22 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   group.add(platform);
 
   // Building mass under the rooftop deck (short cap — tall shaft is in supports).
+  // Open-ended: a solid cap would sit above the recessed bowl and hide it
+  // through the platform hole (reads as a flat grey disc).
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(
       PLATFORM_OUTER_RADIUS - 0.2,
       PLATFORM_OUTER_RADIUS + 0.4,
       2.2,
-      80
+      80,
+      1,
+      true
     ),
     new THREE.MeshStandardMaterial({
       color: skin.base ?? 0x333333,
       metalness: 0.35,
       roughness: 0.7,
+      side: THREE.DoubleSide,
     })
   );
   base.userData.arenaPart = 'base';
@@ -1420,17 +1597,15 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   group.add(city);
 
   // Battle dish — shallow 3D bowl (visual only; physics radii unchanged).
+  const dishMap = createDishTexture(skin);
   const dish = new THREE.Mesh(
     createBowlGeometry(DISH_RADIUS, DISH_BOWL_DEPTH, 80),
-    new THREE.MeshStandardMaterial({
-      map: createDishTexture(skin),
-      roughness: skin.dishRoughness,
-      metalness: skin.dishMetalness,
-    })
+    createDishMaterial(skin, dishMap)
   );
   dish.userData.arenaPart = 'dish';
   // Rim flush with floor recess; center dips by DISH_BOWL_DEPTH.
   dish.position.y = floorY - DISH_RECESS;
+  dish.renderOrder = 2;
   dish.receiveShadow = true;
   dish.castShadow = false;
   group.add(dish);
