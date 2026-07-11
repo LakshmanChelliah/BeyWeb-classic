@@ -1,6 +1,6 @@
 import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=60';
+import { createAppBootstrap } from './app/bootstrap.js?v=61';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
 

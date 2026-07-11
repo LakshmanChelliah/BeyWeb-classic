@@ -522,13 +522,11 @@ function createWedgeShape() {
   return shape;
 }
 
-function addWallSegments(group, wallMat, skin = null) {
+function addWallSegments(group, wallMat) {
   const wedge = createWedgeShape();
   const radius = CONFIG.WALL_RADIUS + 0.1;
   // Bury wall bases under the floor so they read as pit walls, not a floating pad.
   const wallEmbedY = -0.45;
-  // Fight cam sits on +Z — skip that arc on WBBA so a wall slab doesn't fill the lens.
-  const skipCamSide = isWbba(skin);
 
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -544,7 +542,6 @@ function addWallSegments(group, wallMat, skin = null) {
 
     for (let j = 0; j <= segments; j++) {
       const angle = wallStart + (span * j) / segments;
-      if (skipCamSide && Math.sin(angle) > 0.2) continue;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
 
