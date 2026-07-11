@@ -29,8 +29,8 @@ import {
 import { createGameState, resetRoundState } from './state.js';
 import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
-import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=61';
-import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=61';
+import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=62';
+import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=62';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
 import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';
@@ -54,7 +54,7 @@ import {
   cancelAbilitiesOnSpinStop,
   isLibraBusterChannelingBody,
   SPECIAL_LOGO_FLASH_DUR,
-} from './abilities.js?v=61';
+} from './abilities.js?v=62';
 import { createStarBlastVfx } from '../render/starBlastVfx.js';
 import { createLeoneAbilityVfx } from '../render/leoneAbilityVfx.js';
 import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';
