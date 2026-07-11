@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=72';
-import { createBackdropTexture } from './arenaBackdrop.js?v=72';
+} from './arenaSkins.js?v=73';
+import { createBackdropTexture } from './arenaBackdrop.js?v=73';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -711,18 +711,21 @@ function addWallSegments(group, wallMat) {
 
 /** Horizon sky — full sphere so elevated rooftops show city sky below the deck. */
 function createSkyDome(skin) {
+  const elevated = isElevated(skin);
   const mat = new THREE.MeshBasicMaterial({
     map: createBackdropTexture(skin),
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
   });
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(SKY_RADIUS, 48, 32),
-    mat
-  );
+  // Elevated: upper hemisphere only — cloud sea fills below so the dome
+  // floor never reads as a reflective void under the deck.
+  const geo = elevated
+    ? new THREE.SphereGeometry(SKY_RADIUS, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.52)
+    : new THREE.SphereGeometry(SKY_RADIUS, 48, 32);
+  const dome = new THREE.Mesh(geo, mat);
   dome.userData.arenaPart = 'sky';
-  dome.position.y = 0;
+  dome.position.y = elevated ? 8 : 0;
   dome.renderOrder = -10;
   return dome;
 }
@@ -1060,12 +1063,13 @@ function tintCityForSkin(city, skin) {
       mat.metalness = night ? 0.75 : 0.65;
     } else if (obj.userData.cityPart === 'mist') {
       const isPuff = obj.geometry?.type === 'SphereGeometry';
+      const isSea = !obj.material.transparent && obj.geometry?.type === 'CircleGeometry';
       if (night) {
-        mat.color.setHex(isPuff ? 0x5b21b6 : 0x4c1d95);
-        mat.opacity = isPuff ? 0.32 : Math.max(mat.opacity ?? 0.45, 0.4);
+        mat.color.setHex(isPuff ? 0x5b21b6 : isSea ? 0x140828 : 0x4c1d95);
+        if (!isSea) mat.opacity = isPuff ? 0.32 : Math.max(mat.opacity ?? 0.45, 0.4);
       } else {
-        mat.color.setHex(isPuff ? 0xf2f7fc : 0xc5daf0);
-        mat.opacity = isPuff ? 0.4 : Math.max(mat.opacity ?? 0.45, 0.4);
+        mat.color.setHex(isPuff ? 0xf2f7fc : isSea ? 0xe8f0f8 : 0xc5daf0);
+        if (!isSea) mat.opacity = isPuff ? 0.4 : Math.max(mat.opacity ?? 0.45, 0.4);
       }
     }
   });
@@ -1189,6 +1193,23 @@ function addRooftopCloudBank(group, skin) {
     bank.renderOrder = -5;
     group.add(bank);
   }
+
+  // Opaque cloud floor — fully hides anything below the mist shelf.
+  const sea = new THREE.Mesh(
+    new THREE.CircleGeometry(160, 64),
+    new THREE.MeshBasicMaterial({
+      color: night ? 0x140828 : 0xe8f0f8,
+      fog: false,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+    })
+  );
+  sea.userData.cityPart = 'mist';
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.y = night ? -18 : -14;
+  sea.renderOrder = -1;
+  sea.frustumCulled = false;
+  group.add(sea);
 
   // Soft puffs fill the volume under/around the deck.
   const puffColor = night ? 0x6d28d9 : 0xf7fbff;
@@ -1425,8 +1446,14 @@ function applySkinToParts(parts, skin) {
 
 function applySceneAmbience(scene, skin) {
   if (!scene || skin.ambience == null) return;
-  if (scene.background?.isColor) scene.background.setHex(skin.ambience);
-  else scene.background = new THREE.Color(skin.ambience);
+  // Elevated: background matches the cloud sea so gaps under the hemisphere stay misty.
+  const bg = isElevated(skin)
+    ? skin.backdrop?.style === 'dn_rooftop_night'
+      ? 0x140828
+      : 0xe8f0f8
+    : skin.ambience;
+  if (scene.background?.isColor) scene.background.setHex(bg);
+  else scene.background = new THREE.Color(bg);
   if (scene.fog?.color) {
     scene.fog.color.setHex(skin.ambience);
     if (skin.fogNear != null) scene.fog.near = skin.fogNear;
