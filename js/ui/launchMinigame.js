@@ -8,7 +8,9 @@ import { CONFIG, RUNTIME_FLAGS } from '../config.js';
 const BEAT_MS = 520;
 /** One-way needle sweep; full bounce is out + back. */
 const METER_ONE_WAY_MS = 520;
-const METER_TOTAL_MS = METER_ONE_WAY_MS * 2;
+/** How many full out→back needle cycles during the RIP window. */
+const METER_BOUNCES = 3;
+const METER_TOTAL_MS = METER_ONE_WAY_MS * 2 * METER_BOUNCES;
 const RIP_HOLD_MS = METER_TOTAL_MS + 80;
 const RESULT_HOLD_MS = 720;
 /** Perfect zone is centered; radii match colored meter bands. */
@@ -133,10 +135,12 @@ function gradeFromNeedle(pos, swiped, swipePower) {
   return timing;
 }
 
-/** Triangle wave 0→1→0 over progress u in [0, 1]. */
+/** Triangle wave across N full bounces (0→1→0 each) over progress u in [0, 1]. */
 function needlePosFromProgress(u) {
   const t = clamp(u, 0, 1);
-  return t <= 0.5 ? t * 2 : 2 - t * 2;
+  if (t >= 1) return 0;
+  const phase = (t * METER_BOUNCES) % 1;
+  return phase <= 0.5 ? phase * 2 : 2 - phase * 2;
 }
 
 function spinForGrade(grade) {
