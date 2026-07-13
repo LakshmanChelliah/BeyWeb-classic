@@ -1,7 +1,7 @@
 import { createGyroInput } from './input/gyro.js';
 import { createJoystickInput } from './input/joystick.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=64';
+import { createAppBootstrap } from './app/bootstrap.js?v=65';
 import { modeBlurb } from './game/modes.js';
 import { installTouchZoomGuard } from './touchZoomGuard.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
@@ -97,7 +97,7 @@ createAppBootstrap({
     playerAbilitiesId: 'player-abilities',
   },
   syncStartButtonLabel: syncControlModeUi,
-  buildInput({ getGameRef, campaignCtrl, openBeySelect, btnStart, resetAIController }) {
+  buildInput({ getGameRef, campaignCtrl, requestChangeBey, btnStart, resetAIController }) {
     return {
       applySteering(state) {
         if (useJoystickChecked()) {
@@ -176,7 +176,7 @@ createAppBootstrap({
           await resetGame();
         }
       },
-      onChangeBey: openBeySelect,
+      onChangeBey: requestChangeBey,
       onRecalibrate() {
         if (useJoystickChecked()) return;
         if (!btnRecalibrate || btnRecalibrate.disabled) return;
