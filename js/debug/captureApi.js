@@ -188,6 +188,7 @@ export function installCaptureApi(app) {
   /**
    * QA helper: launch a bey toward the solid rim to verify ricochet vs fly-out.
    * `mode: 'ricochet'` keeps lift low; `mode: 'flyOut'` uses an upper-style peak.
+   * Aims at mid-wall (not a KO pocket gap).
    */
   function simulateRimLaunch({
     side = 'ai',
@@ -199,9 +200,13 @@ export function installCaptureApi(app) {
     const other = side === 'player' ? s?.aiBody : s?.playerBody;
     if (!body || !other) return null;
 
+    // Midpoint of the first solid wall arc (pockets sit at 0, 120°, 240°).
+    const wallAngle = Math.PI / 3;
+    const nx = Math.cos(wallAngle);
+    const nz = Math.sin(wallAngle);
     const maxR = wallClampRadius(body);
     const startR = Math.max(4, maxR - 3.2);
-    body.position.set(startR, CONFIG.FLOOR_Y + (body.userData.outerRadius ?? 1), 0);
+    body.position.set(nx * startR, CONFIG.FLOOR_Y + (body.userData.outerRadius ?? 1), nz * startR);
     body.previousPosition.x = body.position.x;
     body.previousPosition.z = body.position.z;
     body.velocity.set(0, 0, 0);
@@ -211,22 +216,30 @@ export function installCaptureApi(app) {
     other.velocity.set(0, 0, 0);
 
     const kbMag = mode === 'flyOut' ? 14 : 9;
-    const liftScale = mode === 'flyOut' ? 1.15 : 0.35;
+    const liftScale = mode === 'flyOut' ? 1.35 : 0.28;
     body.userData.launchBounceSource = source;
-    startLaunchBounce(body, 1, 0, kbMag, source, liftScale);
+    startLaunchBounce(body, nx, nz, kbMag, source, liftScale);
     if (mode === 'ricochet') {
-      // Keep the victim below the rim clearance bar.
+      // Keep the victim below the rim clearance bar for the whole drift.
       body.userData.launchBouncePeakLift = Math.min(
         body.userData.launchBouncePeakLift ?? 4,
-        CONFIG.WALL_CLEAR_LIFT * 0.55
+        CONFIG.WALL_CLEAR_LIFT * 0.45
       );
       body.userData.flightLift = 0;
+    } else {
+      // Ensure we still have vault height when the rim is reached.
+      body.userData.launchBouncePeakLift = Math.max(
+        body.userData.launchBouncePeakLift ?? 10,
+        CONFIG.WALL_CLEAR_LIFT * 4
+      );
+      body.userData.flightLift = CONFIG.WALL_CLEAR_LIFT * 1.2;
     }
     return {
       mode,
       source,
       maxR,
       startR,
+      wallAngle,
       peakLift: body.userData.launchBouncePeakLift ?? null,
     };
   }

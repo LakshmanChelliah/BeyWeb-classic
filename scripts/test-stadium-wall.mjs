@@ -31,15 +31,15 @@ async function waitServer(url, timeoutMs = 20000) {
 }
 
 async function runCase(page, mode) {
-  await page.evaluate(async (m) => {
+  const launched = await page.evaluate(async (m) => {
     await window.__beyCapture.bootCasualFight({ playerBeyId: 'bull' });
     window.__beyCapture.setSpin(1, 1);
-    window.__beyCapture.simulateRimLaunch({ side: 'ai', mode: m });
+    return window.__beyCapture.simulateRimLaunch({ side: 'ai', mode: m });
   }, mode);
 
   const samples = [];
-  for (let i = 0; i < 45; i++) {
-    await sleep(50);
+  for (let i = 0; i < 55; i++) {
+    await sleep(45);
     const snap = await page.evaluate(() => window.__beyCapture.snapshot());
     const ai = snap.ai || {};
     samples.push({
@@ -52,15 +52,16 @@ async function runCase(page, mode) {
       pendingKo: snap.pendingKo,
     });
   }
-  return samples;
+  return { launched, samples };
 }
 
-function summarize(mode, samples) {
+function summarize(mode, { launched, samples }) {
   const maxDist = Math.max(...samples.map((s) => s.dist));
+  const maxLift = Math.max(...samples.map((s) => s.lift));
   const sawFlyOut = samples.some((s) => s.flyOut);
   const sawRicochet = samples.some((s) => s.ricochet);
   const final = samples[samples.length - 1];
-  return { mode, maxDist, sawFlyOut, sawRicochet, final };
+  return { mode, launched, maxDist, maxLift, sawFlyOut, sawRicochet, final };
 }
 
 async function main() {
@@ -85,8 +86,9 @@ async function main() {
 
     console.log(JSON.stringify({ ricochet, flyOut }, null, 2));
 
-    const ricochetOk = !ricochet.sawFlyOut && ricochet.maxDist < 14.5;
-    const flyOutOk = flyOut.sawFlyOut && flyOut.maxDist > 13.0;
+    const ricochetOk =
+      !ricochet.sawFlyOut && ricochet.maxDist < (ricochet.launched?.maxR ?? 12.2) + 0.35;
+    const flyOutOk = flyOut.sawFlyOut && flyOut.maxDist > (flyOut.launched?.maxR ?? 12.1);
     if (!ricochetOk || !flyOutOk) {
       console.error('FAIL', { ricochetOk, flyOutOk });
       process.exitCode = 1;
