@@ -184,6 +184,11 @@ export function startLaunchBounce(victim, nx, nz, kbMag, presetOrId = 'eagle', l
   delete victim.userData.launchBounceVY;
   delete victim.userData.launchBounceWobbleT;
   victim.userData.launchBouncePeakLift = (preset.peakLift ?? 10) * liftScale;
+  // Used by stadium wall clearance (upper launches vault the rim more easily).
+  if (typeof presetOrId === 'string') {
+    victim.userData.launchBounceSource = victim.userData.launchBounceSource ?? presetOrId;
+    victim.userData.stadiumExitSource = victim.userData.launchBounceSource ?? presetOrId;
+  }
   victim.userData.flightTilt = 0;
   victim.userData.flightRoll = 0;
   victim.userData.flightLift = 0;
@@ -262,6 +267,10 @@ export function tickLaunchBounce(body, dt) {
     body.position.x = fromX + (body.userData.launchBounceNx ?? 0) * dist * p;
     body.position.z = fromZ + (body.userData.launchBounceNz ?? 0) * dist * p;
   }
+
+  // Stadium rim resolve runs after stepAbilities (engine) so fly-out / ricochet
+  // can emit wall sparks. Bail if a prior step already started a vault.
+  if (body.userData.stadiumFlyOut) return;
 
   if (phase === 'air') {
     if (!body.userData.launchBounceFalling) {

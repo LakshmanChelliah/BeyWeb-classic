@@ -4390,11 +4390,13 @@ export function canTopsContactVertically(bodyA, bodyB) {
 }
 
 /** Clears all per-body ability flags (used on spawn / round reset). */
-export function clearAbilityFlags(body) {
+export function clearAbilityFlags(body, opts = {}) {
   if (!body) return;
+  // Only preserve vault state when the KO cinematic explicitly asks for it.
+  const keepStadiumExit = !!opts.keepStadiumExit;
   body.userData.steerMult = 1;
-  body.userData.controlLocked = false;
-  body.userData.airborne = false;
+  body.userData.controlLocked = keepStadiumExit ? true : false;
+  body.userData.airborne = keepStadiumExit ? true : false;
   body.userData.boosting = false;
   body.userData.strikerBlitzing = false;
   body.userData.slamming = false;
@@ -4411,10 +4413,12 @@ export function clearAbilityFlags(body) {
   if (body.userData.galeCarried) {
     releaseGaleCarryVictim(body, false);
   }
-  body.userData.flightLift = 0;
-  body.userData.flightTilt = 0;
-  body.userData.flightRoll = 0;
-  body.userData.flightSquash = 1;
+  if (!keepStadiumExit) {
+    body.userData.flightLift = 0;
+    body.userData.flightTilt = 0;
+    body.userData.flightRoll = 0;
+    body.userData.flightSquash = 1;
+  }
   delete body.userData.contactLift;
   delete body.userData.starBlastWindup;
   delete body.userData.starPhase;
@@ -4481,6 +4485,27 @@ export function clearAbilityFlags(body) {
   }
   clearLaunchBounce(body);
   delete body.userData.launchBounceSource;
+  if (keepStadiumExit) {
+    body.userData.airborne = true;
+    body.userData.controlLocked = true;
+  }
+  if (!keepStadiumExit) {
+    delete body.userData.stadiumFlyOut;
+    delete body.userData.stadiumFlyOutT;
+    delete body.userData.stadiumFlyOutNx;
+    delete body.userData.stadiumFlyOutNz;
+    delete body.userData.stadiumFlyOutStrength;
+    delete body.userData.stadiumFlyOutVY;
+    delete body.userData.stadiumFlyOutSpeed;
+    delete body.userData.stadiumFlyOutSpin;
+    delete body.userData.stadiumFlyOutWobbleT;
+    delete body.userData.stadiumExitSource;
+    delete body.userData.wallRicochetT;
+    delete body.userData.wallRicochetPower;
+    delete body.userData.wallRicochetNx;
+    delete body.userData.wallRicochetNz;
+    delete body.userData.ringOutStyle;
+  }
   delete body.userData.bullUpperSlamming;
   delete body.userData.bullImpactFlash;
   delete body.userData.bullImpactFlashT;
@@ -4508,8 +4533,10 @@ export function clearAbilityFlags(body) {
   clearSonicSlow(body);
   clearLibraSandBoost(body);
   clearLibraBusterVibrate(body);
-  if (body.type === CANNON.Body.KINEMATIC) {
-    restoreDynamicBody(body);
+  if (!keepStadiumExit) {
+    if (body.type === CANNON.Body.KINEMATIC) {
+      restoreDynamicBody(body);
+    }
+    setBodyCollisions(body, true);
   }
-  setBodyCollisions(body, true);
 }

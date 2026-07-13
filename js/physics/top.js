@@ -3,6 +3,7 @@ import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { staMult } from '../game/stats.js';
 import { isAtPocketAngle, wallClampRadius } from './arena.js';
+import { resolveStadiumWallBody } from './stadiumWall.js';
 import { clamp01 } from '../utils/math.js';
 
 const _spinQuatA = new THREE.Quaternion();
@@ -82,9 +83,24 @@ export function resetTopWobble(body) {
   delete body.userData.deathBaseSpin;
   delete body.userData.ringOut;
   delete body.userData.ringOutT;
+  delete body.userData.ringOutStyle;
   delete body.userData.launching;
   delete body.userData.launchFloorY;
   delete body.userData.launchDropProgress;
+  delete body.userData.stadiumFlyOut;
+  delete body.userData.stadiumFlyOutT;
+  delete body.userData.stadiumFlyOutNx;
+  delete body.userData.stadiumFlyOutNz;
+  delete body.userData.stadiumFlyOutStrength;
+  delete body.userData.stadiumFlyOutVY;
+  delete body.userData.stadiumFlyOutSpeed;
+  delete body.userData.stadiumFlyOutSpin;
+  delete body.userData.stadiumFlyOutWobbleT;
+  delete body.userData.stadiumExitSource;
+  delete body.userData.wallRicochetT;
+  delete body.userData.wallRicochetPower;
+  delete body.userData.wallRicochetNx;
+  delete body.userData.wallRicochetNz;
 }
 
 /**
@@ -107,7 +123,9 @@ export function launchSpinScale(launchGrace) {
 }
 
 export function stabilizeTop(body, spinPct, spinSign, launchGrace) {
-  if (body?.userData?.bullFlipPhase || body?.userData?.ringOut) return;
+  if (body?.userData?.bullFlipPhase || body?.userData?.ringOut || body?.userData?.stadiumFlyOut) {
+    return;
+  }
   const scaledSpin = spinPct * launchSpinScale(launchGrace);
   const targetRate = CONFIG.MAX_SPIN * scaledSpin * spinSign;
 
@@ -167,9 +185,11 @@ export function syncTopVisual(group, body, spinPct, visualYaw, dt, spinSign = 1)
     });
   }
 
-  // Hold yaw during cinematic moves (abilities, bull-flip knockdown, etc.).
+  // Hold yaw during cinematic moves (abilities, bull-flip knockdown, wall vault, etc.).
   const inCinematic =
     body.userData.bullFlipPhase != null ||
+    body.userData.stadiumFlyOut ||
+    (body.userData.wallRicochetT != null && body.userData.wallRicochetT > 0) ||
     flightLift > 0.5 ||
     Math.abs(flightTilt) > 0.05 ||
     Math.abs(flightRoll) > 0.05;
@@ -405,7 +425,15 @@ export function settleSleepingTop(body, spinPct) {
 
 /** Keeps flat-disc tops resting on the arena floor */
 export function pinTopToFloor(body) {
-  if (body.userData.airborne || body.userData.bullFlipPhase || body.userData.ringOut || body.userData.launching) return;
+  if (
+    body.userData.airborne ||
+    body.userData.bullFlipPhase ||
+    body.userData.ringOut ||
+    body.userData.stadiumFlyOut ||
+    body.userData.launching
+  ) {
+    return;
+  }
   const radius = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
   const targetY = CONFIG.FLOOR_Y + radius + CONFIG.FLOOR_EPSILON;
   if (body.position.y < targetY) {
@@ -597,9 +625,17 @@ function killOutwardRadial(body, nx, nz, emitWallImpact) {
 /**
  * Snaps a bey inside the solid-wall circle and blocks outward velocity that would
  * tunnel through the rim on the next physics step. KO pocket gaps are exempt.
+ * Airborne / cinematic bodies use stadiumWall (ricochet vs over-wall fly-out).
  */
 export function clampSolidWallBody(body, emitWallImpact) {
-  if (!body || body.userData.collisionsDisabled || body.userData.ringOut || body.userData.launching) {
+  if (!body || body.userData.ringOut || body.userData.launching || body.userData.stadiumFlyOut) {
+    return;
+  }
+
+  // Launch victims and other collision-disabled cinematic moves: decide
+  // ricochet-vs-fly-out instead of silently tunnelling through the rim.
+  if (body.userData.collisionsDisabled || body.userData.airborne || body.userData.launchBouncePhase) {
+    resolveStadiumWallBody(body, emitWallImpact);
     return;
   }
 
@@ -617,6 +653,15 @@ export function clampSolidWallBody(body, emitWallImpact) {
     x + body.velocity.x * CONFIG.FIXED_DT,
     z + body.velocity.z * CONFIG.FIXED_DT
   );
+  const vOut = body.velocity.x * nx + body.velocity.z * nz;
+
+  if (dist > maxR || predDist > maxR) {
+    // Extreme shove can vault the rim even when grounded.
+    if (vOut >= CONFIG.WALL_VAULT_SPEED) {
+      resolveStadiumWallBody(body, emitWallImpact);
+      return;
+    }
+  }
 
   if (dist > maxR) {
     const scale = maxR / dist;
@@ -624,9 +669,28 @@ export function clampSolidWallBody(body, emitWallImpact) {
     body.position.z = z * scale;
     body.previousPosition.x = body.position.x;
     body.previousPosition.z = body.position.z;
-    killOutwardRadial(body, nx, nz, emitWallImpact);
+    if (vOut > CONFIG.WALL_BOUNCE_SPEED) {
+      const e = CONFIG.WALL_BOUNCE_RESTITUTION;
+      body.velocity.x -= (1 + e) * vOut * nx;
+      body.velocity.z -= (1 + e) * vOut * nz;
+      body.userData.wallRicochetT = CONFIG.WALL_RICOCHET_DUR * 0.6;
+      body.userData.wallRicochetPower = Math.min(1, vOut / CONFIG.WALL_IMPACT_HARD);
+      body.userData.flightSquash = 0.68;
+      emitWallImpact?.(body, vOut, nx, nz);
+    } else {
+      killOutwardRadial(body, nx, nz, emitWallImpact);
+    }
   } else if (predDist > maxR) {
-    killOutwardRadial(body, nx, nz, emitWallImpact);
+    if (vOut > CONFIG.WALL_BOUNCE_SPEED) {
+      const e = CONFIG.WALL_BOUNCE_RESTITUTION;
+      body.velocity.x -= (1 + e) * vOut * nx;
+      body.velocity.z -= (1 + e) * vOut * nz;
+      body.userData.wallRicochetT = CONFIG.WALL_RICOCHET_DUR * 0.45;
+      body.userData.wallRicochetPower = Math.min(1, vOut / CONFIG.WALL_IMPACT_HARD);
+      emitWallImpact?.(body, vOut, nx, nz);
+    } else {
+      killOutwardRadial(body, nx, nz, emitWallImpact);
+    }
   }
 }
 

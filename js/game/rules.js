@@ -1,5 +1,6 @@
 import { CONFIG } from '../config.js';
 import { isRingOut, isPlatformOut } from '../physics/arena.js';
+import { isStadiumFlyOutKo } from '../physics/stadiumWall.js';
 
 /** True when spin is fully gone, death anim finished, and the still delay elapsed. */
 export function isSleepOutReady(spin, body) {
@@ -25,10 +26,18 @@ export function evaluateWin(state) {
   const ax = aiBody.position.x;
   const az = aiBody.position.z;
 
-  if (isRingOut(px, pz, pRadius) || isPlatformOut(px, pz, pRadius)) {
+  if (
+    isRingOut(px, pz, pRadius) ||
+    isPlatformOut(px, pz, pRadius) ||
+    isStadiumFlyOutKo(playerBody)
+  ) {
     return { outcome: 'KO', winner: 2, loser: 1, cinematic: true };
   }
-  if (isRingOut(ax, az, aRadius) || isPlatformOut(ax, az, aRadius)) {
+  if (
+    isRingOut(ax, az, aRadius) ||
+    isPlatformOut(ax, az, aRadius) ||
+    isStadiumFlyOutKo(aiBody)
+  ) {
     return { outcome: 'KO', winner: 1, loser: 2, cinematic: true };
   }
 

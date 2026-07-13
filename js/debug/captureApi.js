@@ -10,6 +10,9 @@
 import { RUNTIME_FLAGS } from '../config.js';
 import { GAME_MODES } from '../game/modes.js';
 import { getBeyById } from '../game/beys.js';
+import { startLaunchBounce } from '../game/abilities/launchBounce.js';
+import { wallClampRadius } from '../physics/arena.js';
+import { CONFIG } from '../config.js';
 
 function parseCaptureFlag() {
   try {
@@ -52,6 +55,10 @@ function bodySnapshot(body) {
     boosting: Boolean(ud.boosting),
     controlLocked: Boolean(ud.controlLocked),
     flightLift: ud.flightLift ?? 0,
+    stadiumFlyOut: Boolean(ud.stadiumFlyOut),
+    stadiumFlyOutT: ud.stadiumFlyOutT ?? null,
+    wallRicochetT: ud.wallRicochetT ?? null,
+    ringOutStyle: ud.ringOutStyle ?? null,
     bullUpperPhase: ud.bullUpperPhase ?? null,
     eagleDivePhase: ud.eagleDivePhase ?? null,
     strikerFlashPhase: ud.strikerFlashPhase ?? null,
@@ -178,6 +185,52 @@ export function installCaptureApi(app) {
     );
   }
 
+  /**
+   * QA helper: launch a bey toward the solid rim to verify ricochet vs fly-out.
+   * `mode: 'ricochet'` keeps lift low; `mode: 'flyOut'` uses an upper-style peak.
+   */
+  function simulateRimLaunch({
+    side = 'ai',
+    mode = 'ricochet',
+    source = mode === 'flyOut' ? 'bull' : 'striker',
+  } = {}) {
+    const s = gameRef?.state;
+    const body = side === 'player' ? s?.playerBody : s?.aiBody;
+    const other = side === 'player' ? s?.aiBody : s?.playerBody;
+    if (!body || !other) return null;
+
+    const maxR = wallClampRadius(body);
+    const startR = Math.max(4, maxR - 3.2);
+    body.position.set(startR, CONFIG.FLOOR_Y + (body.userData.outerRadius ?? 1), 0);
+    body.previousPosition.x = body.position.x;
+    body.previousPosition.z = body.position.z;
+    body.velocity.set(0, 0, 0);
+
+    // Park the other bey near center so they don't interfere.
+    other.position.set(0, other.position.y, 0);
+    other.velocity.set(0, 0, 0);
+
+    const kbMag = mode === 'flyOut' ? 14 : 9;
+    const liftScale = mode === 'flyOut' ? 1.15 : 0.35;
+    body.userData.launchBounceSource = source;
+    startLaunchBounce(body, 1, 0, kbMag, source, liftScale);
+    if (mode === 'ricochet') {
+      // Keep the victim below the rim clearance bar.
+      body.userData.launchBouncePeakLift = Math.min(
+        body.userData.launchBouncePeakLift ?? 4,
+        CONFIG.WALL_CLEAR_LIFT * 0.55
+      );
+      body.userData.flightLift = 0;
+    }
+    return {
+      mode,
+      source,
+      maxR,
+      startR,
+      peakLift: body.userData.launchBouncePeakLift ?? null,
+    };
+  }
+
   function setSpin(playerSpin, aiSpin) {
     const s = gameRef?.state;
     if (!s) return false;
@@ -282,6 +335,7 @@ export function installCaptureApi(app) {
     snapshot,
     placeBeys,
     placeCloseFaceOff,
+    simulateRimLaunch,
     setSpin,
     freeze,
     trigger,

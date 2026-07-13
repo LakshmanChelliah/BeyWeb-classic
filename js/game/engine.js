@@ -26,11 +26,15 @@ import {
   isRingOutCinematicDone,
   clearRingOut,
 } from '../physics/ringOut.js';
+import {
+  tickStadiumWallBodies,
+  clearStadiumWallState,
+} from '../physics/stadiumWall.js';
 import { createGameState, resetRoundState } from './state.js';
 import { evaluateWin, trackSleepers, formatEndGame } from './rules.js';
 import { createScene, updateCamera, resetMobileCameraFraming } from '../render/scene.js';
-import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=64';
-import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=64';
+import { createArenaMesh, applyArenaSkin } from '../render/arena.js?v=65';
+import { resolveArenaSkinId, saveArenaSkinId } from '../render/arenaSkins.js?v=65';
 import { createTopGroups, loadTopModel, setTopEmissive } from '../render/top.js';
 import { ensureMatchModelsReady } from '../render/modelCache.js';
 import { beyColorHex } from './beys.js';
@@ -54,7 +58,7 @@ import {
   cancelAbilitiesOnSpinStop,
   isLibraBusterChannelingBody,
   SPECIAL_LOGO_FLASH_DUR,
-} from './abilities.js?v=64';
+} from './abilities.js?v=65';
 import { createStarBlastVfx } from '../render/starBlastVfx.js';
 import { createLeoneAbilityVfx } from '../render/leoneAbilityVfx.js';
 import { createPegasusSpeedBoostVfx } from '../render/pegasusSpeedBoostVfx.js';
@@ -66,7 +70,7 @@ import { createEagleAbilityVfx } from '../render/eagleAbilityVfx.js';
 import { createStrikerAbilityVfx } from '../render/strikerAbilityVfx.js';
 import { createCollisionSparksVfx } from '../render/collisionSparksVfx.js';
 import { bindTapWithoutZoom } from '../touchZoomGuard.js';
-import { runLaunchMinigame } from '../ui/launchMinigame.js?v=64';
+import { runLaunchMinigame } from '../ui/launchMinigame.js?v=65';
 import {
   ensureQuarksRuntime,
   updateQuarks,
@@ -538,6 +542,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
     freezeBodies();
     clearRingOut(state.playerBody);
     clearRingOut(state.aiBody);
+    clearStadiumWallState(state.playerBody);
+    clearStadiumWallState(state.aiBody);
     input.clearKeys?.();
     clearAbilityFlags(state.playerBody);
     clearAbilityFlags(state.aiBody);
@@ -766,6 +772,11 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
     // overwritten by gravity or floor pinning in the same step.
     stepAbilities(state, CONFIG.FIXED_DT);
 
+    // Launch-bounce drift / special dashes can push past the rim after the
+    // earlier clamp — resolve again so victims ricochet or vault over the wall.
+    resolveWallClipping(state.playerBody, state.aiBody, contacts.emitWallImpact);
+    tickStadiumWallBodies(state, CONFIG.FIXED_DT);
+
     if (state.playerBody) {
       clampLaunchSpeed(state.playerBody, state.launchGrace);
       stabilizeTop(state.playerBody, state.playerSpin, state.playerBody.userData.spinSign ?? 1, state.launchGrace);
@@ -855,7 +866,9 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
         if (!state.pendingKo) {
           state.pendingKo = { ...result, elapsed: 0 };
           const loserBody = result.loser === 1 ? state.playerBody : state.aiBody;
-          clearAbilityFlags(loserBody);
+          const flyOut = !!loserBody?.userData?.stadiumFlyOut;
+          // Preserve over-wall vault; strip other ability locks.
+          clearAbilityFlags(loserBody, { keepStadiumExit: flyOut });
           beginRingOut(loserBody);
         }
       } else if (result) {

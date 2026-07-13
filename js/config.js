@@ -93,6 +93,32 @@ export const CONFIG = Object.freeze({
   GRAVITY: 14,
   FLOOR_EPSILON: 0.02,
 
+  /**
+   * Stadium rim interactions — stay inside with a ricochet, or vault over the
+   * walls into a fly-out KO when attack height / strength is enough.
+   */
+  /** Visual flightLift needed to clear the rim (upper attacks use a lower bar). */
+  WALL_CLEAR_LIFT: 2.45,
+  /** Near-clear vault when outward speed is this high or above. */
+  WALL_CLEAR_OUT_SPEED: 5.5,
+  /** Grounded radial speed that triggers an elastic wall bounce (vs scrape). */
+  WALL_BOUNCE_SPEED: 5.2,
+  WALL_BOUNCE_RESTITUTION: 0.78,
+  /** Extreme grounded shove that converts into a rim vault fly-out. */
+  WALL_VAULT_SPEED: 24,
+  /** Ricochet squash / tumble window (seconds). */
+  WALL_RICOCHET_DUR: 0.48,
+  /** Energy kept after an airborne wall ricochet (launch drift). */
+  WALL_RICOCHET_ENERGY: 0.52,
+  /** Fly-out arc after clearing the rim. */
+  FLY_OUT_UP_BOOST: 7.2,
+  FLY_OUT_OUT_SPEED: 12.5,
+  FLY_OUT_GRAVITY: 16,
+  FLY_OUT_SPIN_RATE: 9.5,
+  FLY_OUT_MAX_DUR: 3.4,
+  /** Past this center radius a fly-out counts as KO (inside platform, past wall). */
+  FLY_OUT_KO_RADIUS: 14.2,
+
   /** KO cinematic — slide off the stadium; boost exit speed without an upward pop. */
   RING_OUT_MIN_SPEED: 7,
   RING_OUT_SPEED_MULT: 1.12,
