@@ -15,6 +15,7 @@ import {
 } from '../render/arenaSkins.js?v=64';
 import { getTournamentBlader } from '../game/campaign.js';
 import { playArenaTransition } from '../ui/arenaTransition.js?v=64';
+import { showConfirmDialog } from '../ui/confirmDialog.js?v=65';
 
 /** Capture API is optional QA tooling — never block boot if it fails to load. */
 function installCaptureApiLazy(app) {
@@ -142,6 +143,30 @@ export function createAppBootstrap({
     }
   }
 
+  /** Change Bey from game over — tournament requires an extra confirm (progress wipe). */
+  let changeBeyConfirmOpen = false;
+  async function requestChangeBey() {
+    if (changeBeyConfirmOpen) return;
+    if (gameMode === GAME_MODES.TOURNAMENT) {
+      changeBeyConfirmOpen = true;
+      let ok = false;
+      try {
+        ok = await showConfirmDialog({
+          title: 'Change Bey?',
+          message:
+            'Leaving the tournament will erase all progress — stage, series score, and rivals cleared. This cannot be undone.',
+          confirmLabel: 'Change Bey',
+          cancelLabel: 'Keep Playing',
+          danger: true,
+        });
+      } finally {
+        changeBeyConfirmOpen = false;
+      }
+      if (!ok) return;
+    }
+    openBeySelect();
+  }
+
   async function handleSelectionComplete(picks) {
     const { mode, difficulty: diff, arenaSkin } = playSetup.getState();
     gameMode = mode;
@@ -237,6 +262,7 @@ export function createAppBootstrap({
     getBeysChosen: () => beysChosen,
     campaignCtrl,
     openBeySelect,
+    requestChangeBey,
     startOverlay,
     btnStart,
     resetAIController,

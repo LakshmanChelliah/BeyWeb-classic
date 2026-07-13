@@ -1,6 +1,6 @@
 import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=64';
+import { createAppBootstrap } from './app/bootstrap.js?v=65';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
 
@@ -51,7 +51,7 @@ createAppBootstrap({
     getGameMode,
     getBeysChosen,
     campaignCtrl,
-    openBeySelect,
+    requestChangeBey,
     startOverlay,
     resetAIController,
   }) {
@@ -109,7 +109,7 @@ createAppBootstrap({
           await resetGame();
         }
       },
-      onChangeBey: openBeySelect,
+      onChangeBey: requestChangeBey,
     };
   },
 });
