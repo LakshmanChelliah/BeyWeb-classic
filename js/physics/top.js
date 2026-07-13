@@ -88,6 +88,7 @@ export function resetTopWobble(body) {
   delete body.userData.launchFloorY;
   delete body.userData.launchDropProgress;
   delete body.userData.stadiumFlyOut;
+  delete body.userData.stadiumFlyOutPhase;
   delete body.userData.stadiumFlyOutT;
   delete body.userData.stadiumFlyOutNx;
   delete body.userData.stadiumFlyOutNz;
@@ -96,6 +97,7 @@ export function resetTopWobble(body) {
   delete body.userData.stadiumFlyOutSpeed;
   delete body.userData.stadiumFlyOutSpin;
   delete body.userData.stadiumFlyOutWobbleT;
+  delete body.userData.stadiumFlyOutVaultLift;
   delete body.userData.stadiumExitSource;
   delete body.userData.wallRicochetT;
   delete body.userData.wallRicochetPower;
@@ -169,7 +171,9 @@ export function syncTopVisual(group, body, spinPct, visualYaw, dt, spinSign = 1)
   const vanish = body.userData.topVanish ?? 0;
   group.visible = vanish < 0.98;
 
-  const scaleBoost = 1 + Math.min(0.35, (flightLift / 38) * 0.35);
+  const scaleBoost = body.userData.stadiumFlyOut
+    ? 1 + Math.min(0.9, (flightLift / 18) * 0.9)
+    : 1 + Math.min(0.35, (flightLift / 38) * 0.35);
   // Squash & stretch along the bey's spin axis (local Y). >1 stretches tall,
   // <1 flattens; keep XZ volume-ish so contacts read as a real impact.
   const squash = body.userData.flightSquash ?? 1;

@@ -4491,6 +4491,7 @@ export function clearAbilityFlags(body, opts = {}) {
   }
   if (!keepStadiumExit) {
     delete body.userData.stadiumFlyOut;
+    delete body.userData.stadiumFlyOutPhase;
     delete body.userData.stadiumFlyOutT;
     delete body.userData.stadiumFlyOutNx;
     delete body.userData.stadiumFlyOutNz;
@@ -4499,6 +4500,7 @@ export function clearAbilityFlags(body, opts = {}) {
     delete body.userData.stadiumFlyOutSpeed;
     delete body.userData.stadiumFlyOutSpin;
     delete body.userData.stadiumFlyOutWobbleT;
+    delete body.userData.stadiumFlyOutVaultLift;
     delete body.userData.stadiumExitSource;
     delete body.userData.wallRicochetT;
     delete body.userData.wallRicochetPower;

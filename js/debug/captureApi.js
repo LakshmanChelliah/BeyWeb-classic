@@ -57,6 +57,7 @@ function bodySnapshot(body) {
     flightLift: ud.flightLift ?? 0,
     stadiumFlyOut: Boolean(ud.stadiumFlyOut),
     stadiumFlyOutT: ud.stadiumFlyOutT ?? null,
+    stadiumFlyOutPhase: ud.stadiumFlyOutPhase ?? null,
     wallRicochetT: ud.wallRicochetT ?? null,
     ringOutStyle: ud.ringOutStyle ?? null,
     bullUpperPhase: ud.bullUpperPhase ?? null,

@@ -109,8 +109,8 @@ function shouldSkipWallResolve(body) {
 }
 
 /**
- * Kick off an over-the-wall fly-out. Leaves the play bowl; KO registers once
- * past FLY_OUT_KO_RADIUS (or platform edge via existing rules).
+ * Kick off an over-the-wall fly-out. Phase `vault` rises on the lip, then
+ * `arc` carries the bey over the rim into the KO zone.
  */
 export function beginStadiumFlyOut(body, nx, nz, strength = 1) {
   if (!body || body.userData.stadiumFlyOut || body.userData.ringOut) return;
@@ -121,17 +121,22 @@ export function beginStadiumFlyOut(body, nx, nz, strength = 1) {
   const power = clamp01(strength);
 
   body.userData.stadiumFlyOut = true;
+  body.userData.stadiumFlyOutPhase = 'vault';
   body.userData.stadiumFlyOutT = 0;
   body.userData.stadiumFlyOutNx = ox;
   body.userData.stadiumFlyOutNz = oz;
   body.userData.stadiumFlyOutStrength = power;
   body.userData.stadiumFlyOutVY =
-    CONFIG.FLY_OUT_UP_BOOST * (0.85 + 0.4 * power) +
-    Math.max(0, (body.userData.flightLift ?? 0) * 0.15);
+    CONFIG.FLY_OUT_UP_BOOST * (1.05 + 0.55 * power) +
+    Math.max(0, (body.userData.flightLift ?? 0) * 0.12);
   body.userData.stadiumFlyOutSpeed =
     CONFIG.FLY_OUT_OUT_SPEED * (0.72 + 0.45 * power);
   body.userData.stadiumFlyOutSpin = CONFIG.FLY_OUT_SPIN_RATE * (0.8 + 0.5 * power);
   body.userData.stadiumFlyOutWobbleT = 0;
+  body.userData.stadiumFlyOutVaultLift = Math.max(
+    CONFIG.WALL_HEIGHT * 1.55 + power * 3.2,
+    (body.userData.flightLift ?? 0) + 3.2
+  );
 
   // Hand off from launch-bounce cinematic if active.
   delete body.userData.launchBouncePhase;
@@ -143,25 +148,21 @@ export function beginStadiumFlyOut(body, nx, nz, strength = 1) {
   body.userData.airborne = true;
   body.userData.flightLift = Math.max(
     body.userData.flightLift ?? 0,
-    CONFIG.WALL_CLEAR_LIFT * 1.05 + power * 1.8
+    CONFIG.WALL_CLEAR_LIFT * 0.85
   );
-  body.userData.flightSquash = 1.12;
-  body.userData.flightTilt = 0.35 + power * 0.25;
-  body.userData.flightRoll = (Math.random() > 0.5 ? 1 : -1) * (0.4 + power * 0.35);
+  body.userData.flightSquash = 0.72;
+  body.userData.flightTilt = 0.45 + power * 0.3;
+  body.userData.flightRoll = (Math.random() > 0.5 ? 1 : -1) * (0.55 + power * 0.4);
 
   setBodyCollisions(body, false);
   setAirborneKinematic(body);
 
-  // Nudge just past the clamp so we don't immediately re-trigger ricochet.
-  const dist = Math.hypot(body.position.x, body.position.z) || 1;
-  const maxR = wallClampRadius(body);
-  if (dist < maxR + 0.08) {
-    const push = maxR + 0.12;
-    body.position.x = ox * push;
-    body.position.z = oz * push;
-    body.previousPosition.x = body.position.x;
-    body.previousPosition.z = body.position.z;
-  }
+  // Climb the visible rim (not the inset physics clamp) so the vault reads on camera.
+  const visualLip = CONFIG.WALL_RADIUS - 0.35;
+  body.position.x = ox * visualLip;
+  body.position.z = oz * visualLip;
+  body.previousPosition.x = body.position.x;
+  body.previousPosition.z = body.position.z;
 }
 
 /**
@@ -365,17 +366,58 @@ export function tickStadiumWallBody(body, dt) {
   const nz = body.userData.stadiumFlyOutNz ?? 0;
   const speed = body.userData.stadiumFlyOutSpeed ?? CONFIG.FLY_OUT_OUT_SPEED;
   const strength = body.userData.stadiumFlyOutStrength ?? 0.7;
+  const phase = body.userData.stadiumFlyOutPhase ?? 'arc';
 
-  // Outward glide — ease slightly so the vault reads, then accelerate off the platform.
+  body.velocity.set(0, 0, 0);
+  body.angularVelocity.set(0, 0, 0);
+  body.position.y = groundY(body);
+
+  const wobbleT = (body.userData.stadiumFlyOutWobbleT ?? 0) + dt;
+  body.userData.stadiumFlyOutWobbleT = wobbleT;
+  const spin = body.userData.stadiumFlyOutSpin ?? CONFIG.FLY_OUT_SPIN_RATE;
+
+  if (phase === 'vault') {
+    // Climb the visible tan rim — hold XZ on the wall lip while lift rockets up.
+    const lip = CONFIG.WALL_RADIUS - 0.2;
+    body.position.x = nx * lip;
+    body.position.z = nz * lip;
+    body.previousPosition.x = body.position.x;
+    body.previousPosition.z = body.position.z;
+
+    let vy = body.userData.stadiumFlyOutVY ?? CONFIG.FLY_OUT_UP_BOOST;
+    vy -= CONFIG.FLY_OUT_GRAVITY * 0.28 * dt;
+    body.userData.stadiumFlyOutVY = vy;
+    let lift = (body.userData.flightLift ?? 0) + vy * dt;
+    const vaultTarget = body.userData.stadiumFlyOutVaultLift ?? CONFIG.WALL_HEIGHT * 1.6;
+    body.userData.flightLift = lift;
+
+    const tumble = 0.35 + strength * 0.35;
+    body.userData.flightTilt = -0.35 + tumble * Math.sin(wobbleT * spin * 0.7);
+    body.userData.flightRoll = tumble * Math.cos(wobbleT * spin * 0.9);
+    // Stretch tall while climbing the rim.
+    body.userData.flightSquash = 1.22 + 0.14 * clamp01(lift / vaultTarget);
+
+    if (lift >= vaultTarget || (body.userData.stadiumFlyOutT ?? 0) > 0.62) {
+      body.userData.stadiumFlyOutPhase = 'arc';
+      body.userData.stadiumFlyOutVY = Math.max(3.2, vy * 0.55);
+      body.userData.flightSquash = 1.1;
+      // Leap clear of the visible wall top.
+      const over = CONFIG.WALL_RADIUS + 0.85;
+      body.position.x = nx * over;
+      body.position.z = nz * over;
+      body.previousPosition.x = body.position.x;
+      body.previousPosition.z = body.position.z;
+    }
+    return;
+  }
+
+  // Arc: outward glide — ease slightly so the vault reads, then accelerate off.
   const t = body.userData.stadiumFlyOutT;
-  const accel = 1 + Math.min(1.1, t * 0.85);
+  const accel = 1 + Math.min(1.25, t * 0.9);
   body.position.x += nx * speed * accel * dt;
   body.position.z += nz * speed * accel * dt;
   body.previousPosition.x = body.position.x;
   body.previousPosition.z = body.position.z;
-  body.velocity.set(0, 0, 0);
-  body.angularVelocity.set(0, 0, 0);
-  body.position.y = groundY(body);
 
   let vy = body.userData.stadiumFlyOutVY ?? 0;
   vy -= CONFIG.FLY_OUT_GRAVITY * dt;
@@ -395,15 +437,11 @@ export function tickStadiumWallBody(body, dt) {
   }
   body.userData.flightLift = lift;
 
-  const wobbleT = (body.userData.stadiumFlyOutWobbleT ?? 0) + dt;
-  body.userData.stadiumFlyOutWobbleT = wobbleT;
-  const spin = body.userData.stadiumFlyOutSpin ?? CONFIG.FLY_OUT_SPIN_RATE;
-  const tumble = 0.55 + strength * 0.55;
+  const tumble = 0.65 + strength * 0.6;
   body.userData.flightTilt = tumble * Math.sin(wobbleT * spin);
   body.userData.flightRoll = tumble * Math.cos(wobbleT * spin * 0.87 + 0.4);
-  body.userData.flightSquash = 1 + 0.08 * Math.sin(wobbleT * spin * 1.4);
+  body.userData.flightSquash = 1 + 0.1 * Math.sin(wobbleT * spin * 1.4);
 
-  // Once off the platform, drop for real.
   if (!onPlatform && lift < -0.5) {
     body.userData.flightLift = lift;
   }
@@ -428,6 +466,7 @@ export function isStadiumFlyOutKo(body) {
 export function clearStadiumWallState(body) {
   if (!body) return;
   delete body.userData.stadiumFlyOut;
+  delete body.userData.stadiumFlyOutPhase;
   delete body.userData.stadiumFlyOutT;
   delete body.userData.stadiumFlyOutNx;
   delete body.userData.stadiumFlyOutNz;
@@ -436,6 +475,7 @@ export function clearStadiumWallState(body) {
   delete body.userData.stadiumFlyOutSpeed;
   delete body.userData.stadiumFlyOutSpin;
   delete body.userData.stadiumFlyOutWobbleT;
+  delete body.userData.stadiumFlyOutVaultLift;
   delete body.userData.stadiumExitSource;
   delete body.userData.wallRicochetT;
   delete body.userData.wallRicochetPower;
