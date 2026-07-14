@@ -72,7 +72,7 @@ export function createGyroInput(canvas) {
       return { granted: true, reason: 'not-required' };
     }
 
-    // Request BOTH APIs when present — some iOS builds gate orientation
+    // Request BOTH APIs when present - some iOS builds gate orientation
     // behind the motion permission dialog (and vice versa).
     // Call them back-to-back without intervening awaits that aren't the
     // permission call itself; Safari still treats the second as part of

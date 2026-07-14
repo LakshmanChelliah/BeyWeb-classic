@@ -1,26 +1,26 @@
 /**
  * Bey roster used by the selection screen and the game engine.
  *
- * `available` — true when the bey has a model in the build and can be picked.
+ * `available` - true when the bey has a model in the build and can be picked.
  * `color` is a CSS hex string; the engine converts it to a numeric THREE color via
  * `beyColorHex()`. `model` points at an optional GLB asset (the renderer falls
  * back to a procedural top mesh tinted with `color` when the file is missing).
  *
- * packagingStars — Metal Fusion box/card ratings (1–5) for the select UI
- * (Energy Ring + Fusion Wheel + Spin Track + Performance Tip), normalized to 0–100.
+ * packagingStars - Metal Fusion box/card ratings (1-5) for the select UI
+ * (Energy Ring + Fusion Wheel + Spin Track + Performance Tip), normalized to 0-100.
  *
- * atk — scales knockback dealt on impact
- * move — optional steer-force stat (defaults to atk when omitted)
- * def — reduces knockback and spin loss received on impact
- * sta — slows the passive spin-decay rate
+ * atk - scales knockback dealt on impact
+ * move - optional steer-force stat (defaults to atk when omitted)
+ * def - reduces knockback and spin loss received on impact
+ * sta - slows the passive spin-decay rate
  *
- * gimmicks — optional ability loadout. Each slot holds an ability ID (or null)
+ * gimmicks - optional ability loadout. Each slot holds an ability ID (or null)
  *   resolved against ABILITY_REGISTRY in js/game/abilities.js:
  *     { power, special, passive }
- *   This keeps beys purely declarative — new beys/moves only add a registry
+ *   This keeps beys purely declarative - new beys/moves only add a registry
  *   entry and reference its ID here.
  *
- * logo — optional PNG used for the cinematic special-move flash overlay.
+ * logo - optional PNG used for the cinematic special-move flash overlay.
  */
 export const BEYS = Object.freeze([
   {
@@ -29,7 +29,7 @@ export const BEYS = Object.freeze([
     type: 'Attack',
     desc: 'A relentless tornado assault. Rubber-flat tip makes it the fastest, most aggressive bey on the field.',
     // Storm wheel (ATK ****), Pegasus ring (ATK ****), RF rubber-flat tip (ATK ******)
-    // Hasbro / Takara Tomy Metal Fusion card stars (1–5)
+    // Hasbro / Takara Tomy Metal Fusion card stars (1-5)
     packagingStars: { atk: 5, def: 1, sta: 1 },
     atk: 83,
     move: 92,

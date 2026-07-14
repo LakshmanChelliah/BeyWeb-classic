@@ -1,7 +1,7 @@
 /**
- * Storm Pegasus — Star Blast Attack VFX.
+ * Storm Pegasus - Star Blast Attack VFX.
  * Canon: dash → wall → soar → 4-ray star → blue dive → bounce dust.
- * No flat impact rings — reach is sold by trails, star, and particle volume.
+ * No flat impact rings - reach is sold by trails, star, and particle volume.
  */
 import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
@@ -145,7 +145,7 @@ export function createStarBlastVfx(scene) {
   core.renderOrder = 6;
   root.add(core);
 
-  // Soft spirit wing planes (Pegasus motif trailing the bey — canon beast follow).
+  // Soft spirit wing planes (Pegasus motif trailing the bey - canon beast follow).
   const spiritWings = [];
   for (let i = 0; i < 4; i++) {
     const wing = new THREE.Mesh(
@@ -184,7 +184,7 @@ export function createStarBlastVfx(scene) {
   apexStar.renderOrder = 8;
   root.add(apexStar);
 
-  // Outer star bloom (no ring — soft disc bloom only at apex).
+  // Outer star bloom (no ring - soft disc bloom only at apex).
   const starBloom = new THREE.Mesh(
     new THREE.PlaneGeometry(9.2, 9.2),
     makeTrailMat(BLUE_LIGHT, 0)
@@ -455,7 +455,7 @@ export function createStarBlastVfx(scene) {
         billboard(ribbon, camera);
       }
 
-      // Spirit wings during ascend / dive — primary pair + trailing afterimages.
+      // Spirit wings during ascend / dive - primary pair + trailing afterimages.
       const spiritOn = phase === 'ascend' || phase === 'dive';
       for (let i = 0; i < spiritWings.length; i++) {
         const wing = spiritWings[i];
@@ -508,7 +508,7 @@ export function createStarBlastVfx(scene) {
         diveTrail.stop();
       }
 
-      // Apex 4-ray star — larger, brighter, with bloom + flare (no ground ring).
+      // Apex 4-ray star - larger, brighter, with bloom + flare (no ground ring).
       const apexFrac = lift / 38;
       const showStar =
         (phase === 'ascend' && apexFrac > 0.4) || (phase === 'dive' && apexFrac > 0.5);

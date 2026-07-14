@@ -17,7 +17,7 @@ await page.waitForFunction(() => window.__beyCapture?.enabled, { timeout: 30000 
 const api = await page.evaluate(async () => {
   const cap = window.__beyCapture;
   await cap.waitBootReady();
-  // Tournament is the default mode — just pick a bey.
+  // Tournament is the default mode - just pick a bey.
   await cap.pickBey('pegasus');
   await cap.waitUntil(() => {
     const btn = document.getElementById('btn-start');

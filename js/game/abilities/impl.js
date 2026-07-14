@@ -3,14 +3,14 @@
  *
  * Everything about a move lives in ABILITY_REGISTRY; beys only reference ability
  * IDs (see js/game/beys.js `gimmicks`). To add a new bey or move, add a registry
- * entry and reference its ID — no engine changes required.
+ * entry and reference its ID - no engine changes required.
  *
  * Slots:
- *   power   — active, usually instant (windup 0)
- *   special — active, cinematic (windup plays a logo flash before the effect)
- *   passive — always-on, reacts to collisions via resolveContactAbilities
+ *   power   - active, usually instant (windup 0)
+ *   special - active, cinematic (windup plays a logo flash before the effect)
+ *   passive - always-on, reacts to collisions via resolveContactAbilities
  *
- * charge  — seconds to fill before the move is available at match start (and
+ * charge  - seconds to fill before the move is available at match start (and
  *           after each use, cooldown applies). Stronger moves use longer charges.
  *
  * Spin is the 0..1 model stored in game state (playerSpin / aiSpin); all spin
@@ -77,7 +77,7 @@ const STAR_SETTLE_WOBBLES = 3;       // gentle sways over the settle (slower = f
 const STAR_SETTLE_WOBBLE_AMP = 0.08; // radians, kept subtle
 const STAR_BLAST_HIT_SPIN = 0.24;    // opponent spin loss on a connected slam
 const STAR_BLAST_MISS_SELF = 0.05;   // self spin loss when the dive whiffs
-// Special stadium pullback — dramatic enough for wow, still readable on mobile.
+// Special stadium pullback - dramatic enough for wow, still readable on mobile.
 const STAR_BLAST_CAM_Y = 34;
 const STAR_BLAST_CAM_Z = 30;
 const STAR_BLAST_CAM_LOOK_Y = 2.6;
@@ -102,7 +102,7 @@ const GUARD_SPIN_MULT = 2.2;
 const GUARD_SELF_IMPULSE = 0.04;
 const SPIN_STEAL_KB_MULT = 0.4; // 60% knockback reduction while Spin Steal is active
 
-// Meteo L-Drago — Absorb Break (anime dragon-rush finisher that devours rival spin).
+// Meteo L-Drago - Absorb Break (anime dragon-rush finisher that devours rival spin).
 // Coil → accelerate → pierce: a flat speed-30 snap reads as a teleport.
 export const LDRAGO_ABSORB_DURATION = 4.0;
 export const LDRAGO_ABSORB_WINDUP = 0.78;
@@ -122,12 +122,12 @@ const LDRAGO_ABSORB_HIT_REACH = 1.32;
 const LDRAGO_ABSORB_COIL_LIFT = 1.35;
 const METEO_GLOW = '#ef4444';
 
-// Lightning L-Drago — Upper Mode (Smash Attack knockback boost; wiki mode-change gimmick).
+// Lightning L-Drago - Upper Mode (Smash Attack knockback boost; wiki mode-change gimmick).
 const LDRAGO_GLOW = '#5B21D9';
 const LDRAGO_UPPER_MODE_DUR = 3.5;
 const LDRAGO_UPPER_MODE_KB_MULT = 1.5; // +50% outgoing collision knockback
 
-// Rock Leone — Wide Ball anchor + Lion Gale Force Wall (defense-tuned, low ATK).
+// Rock Leone - Wide Ball anchor + Lion Gale Force Wall (defense-tuned, low ATK).
 const LEONE_ANCHOR_KB_OUT = 0.82;  // outgoing (low ATK stat)
 const LEONE_ANCHOR_DAMAGE_TAKEN = 0.2; // knockback felt while planted
 const LEONE_ANCHOR_STEER = 0.68;
@@ -136,8 +136,8 @@ const LEONE_WALL_REPULSE = 4.2;    // max radial push per tornado pulse (XZ)
 const LEONE_WALL_REPULSE_SPIN = 0.0065; // opponent spin chip per strong pulse
 const LEONE_WALL_SELF_SPIN = 0.012; // passive drain per second during the wall
 const LEONE_WALL_PULSE = 0.12;
-export const LEONE_WALL_REACH_MULT = 5.5; // reach = (rSelf + rOpp) * this — full tornado radius
-const LEONE_WALL_HOVER_BASE = 2.75; // disc center height — above ground bey reach
+export const LEONE_WALL_REACH_MULT = 5.5; // reach = (rSelf + rOpp) * this - full tornado radius
+const LEONE_WALL_HOVER_BASE = 2.75; // disc center height - above ground bey reach
 const LEONE_WALL_HOVER_BOB = 0.2;
 export const LEONE_WALL_DURATION = 5.55;  // active tornado time (3× original 1.85s)
 /** Loose-spin beys (≤7%) get sucked into the Gale Force Wall and carried. */
@@ -150,7 +150,7 @@ const LEONE_GALE_CARRY_WOBBLE = 0.42;
 /** Leone takes 15% less spin loss from bey-vs-bey hits and slams. */
 const LEONE_SPIN_LOSS_TAKEN = 0.85;
 
-// Flame Libra — Sonic Shield + Sonic Buster (stamina / control tuned).
+// Flame Libra - Sonic Shield + Sonic Buster (stamina / control tuned).
 const LIBRA_SHIELD_REPULSE = 3.6;
 const LIBRA_SHIELD_REPULSE_SPIN = 0.0055;
 const LIBRA_SHIELD_SELF_SPIN = 0.009;
@@ -173,7 +173,7 @@ const LIBRA_BUSTER_QUICKSAND_PULL = CONFIG.SONIC_QUICKSAND_PULL_MULT;
 const LIBRA_BUSTER_QUICKSAND_SINK = 14;
 const LIBRA_BUSTER_DAMAGE_TAKEN = 0.1;
 
-// Dark Bull — Maximum Stampede + Red Horn Uppercut (balance-tuned).
+// Dark Bull - Maximum Stampede + Red Horn Uppercut (balance-tuned).
 export const BULL_STAMPEDE_DURATION = 3;
 const BULL_STAMPEDE_KB_OUT = 1.35;
 const BULL_STAMPEDE_STEER = 1.35;
@@ -207,7 +207,7 @@ export function isBullFlipActive(body) {
 const BULL_UPPERCUT_SLAM_MULT = 1.2;
 const BULL_UPPERCUT_LIFT = 14;
 
-// Ray Striker — Blitz Charge + Lightning Sword Flash (Ray wheel / CS tip rush).
+// Ray Striker - Blitz Charge + Lightning Sword Flash (Ray wheel / CS tip rush).
 const STRIKER_GLOW = '#14b8a6';
 const STRIKER_BLITZ_STEER = 1.95;
 export const STRIKER_FLASH_DURATION = 3.4;
@@ -222,7 +222,7 @@ const STRIKER_FLASH_SPIN = 0.17;
 const STRIKER_FLASH_MISS_SELF = 0.035;
 const STRIKER_COAST_ARRIVE = 0.35;
 
-// Earth Eagle — Counter Stance + Diving Crush.
+// Earth Eagle - Counter Stance + Diving Crush.
 const EAGLE_GLOW = '#f59e0b';
 const EAGLE_COUNTER_DUR = 3.2;
 const EAGLE_COUNTER_KB_MULT = 2.2;
@@ -261,7 +261,7 @@ const easeOutBack = (t) => {
   const c3 = c1 + 1;
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 };
-// Damped oscillation that settles to 0 — used for the upright wobble.
+// Damped oscillation that settles to 0 - used for the upright wobble.
 const dampedWobble = (t) => Math.cos(t * Math.PI * 3.2) * Math.pow(1 - t, 2.2);
 
 function setAirborneKinematic(body) {
@@ -331,14 +331,14 @@ function homingXZ(body, opp, rate) {
 
 /**
  * Lock a linear dash heading toward the foe at dash start (after windup).
- * Aim is fixed for the whole charge — no mid-dash re-tracking.
+ * Aim is fixed for the whole charge - no mid-dash re-tracking.
  * Uses a short velocity lead so the line is not aimed at a stale spot.
  */
 function initBullDashTarget(body, opp) {
   const fromX = body.userData.bullChargeFromX ?? body.position.x;
   const fromZ = body.userData.bullChargeFromZ ?? body.position.z;
 
-  // Always snapshot at dash start — windup aim would be ~0.4s stale.
+  // Always snapshot at dash start - windup aim would be ~0.4s stale.
   const lead = BULL_DASH_AIM_LEAD;
   let aimX = (opp?.position.x ?? body.position.x) + (opp?.velocity?.x ?? 0) * lead;
   let aimZ = (opp?.position.z ?? body.position.z) + (opp?.velocity?.z ?? 0) * lead;
@@ -832,7 +832,7 @@ function stepLdragoAbsorbRush(state, dt) {
 
     if (phase === 'rush') {
       if (advanceLdragoAbsorbRush(state, side, body, opp, dt)) {
-        // Missed / reached rim — end after a short coast if we already hit.
+        // Missed / reached rim - end after a short coast if we already hit.
         if (body.userData.ldragoAbsorbHit) beginLdragoAbsorbPierce(body);
         else body.userData.ldragoAbsorbDashDone = true;
       }
@@ -957,7 +957,7 @@ function integrateStarKnockback(body, dt) {
   body.userData.starKnockbackVZ = vz * decay;
 }
 
-/** Smooth knockback for the opponent — physics velocity only, never a position snap. */
+/** Smooth knockback for the opponent - physics velocity only, never a position snap. */
 function applyPhysicsKnockback(body, nx, nz, distance) {
   if (!body || distance <= 0) return;
   const speed = distance * STAR_PHYSICS_KB_SCALE;
@@ -1054,7 +1054,7 @@ function initStarBlast(body) {
   setBodyCollisions(body, false);
 }
 
-/** Lightning L-Drago Soaring Destruction — Star Blast twin; lightning only on opponent impact. */
+/** Lightning L-Drago Soaring Destruction - Star Blast twin; lightning only on opponent impact. */
 function setLdragoLightningStrike(body, opp) {
   if (!body) return;
   body.userData.ldragoLightningImpactT = 1;
@@ -1654,7 +1654,7 @@ function tickGaleCarry(state, dt) {
     victim.userData.galeCarryAngle = ang;
 
     const rHost = host.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
-    // Orbit inside the funnel wall — tight helix like the show.
+    // Orbit inside the funnel wall - tight helix like the show.
     const orbitR = rHost * LEONE_GALE_CARRY_ORBIT * (0.85 + 0.2 * Math.sin(t * 2.4));
     const bob = Math.sin(t * 5.2) * 0.18 * rise;
     const lift = LEONE_GALE_CARRY_LIFT * rise + bob;
@@ -1685,11 +1685,11 @@ function tickBullFlipDecay(body, dt) {
       body.userData.bullFlipBurstT = body.userData.launchBounceBurstT;
     }
   } else if (body.userData.bullFlipPhase && body.userData.launchBounceSource === 'bull') {
-    // Launch bounce finished — clear legacy flag.
+    // Launch bounce finished - clear legacy flag.
     delete body.userData.bullFlipPhase;
     delete body.userData.launchBounceSource;
   } else if (body.userData.bullFlipPhase && !isLaunchBounceActive(body)) {
-    // Orphaned legacy flip — release.
+    // Orphaned legacy flip - release.
     releaseBullFlipVictim(body, true);
   }
 }
@@ -1861,7 +1861,7 @@ export const ABILITY_REGISTRY = {
     glow: METEO_GLOW,
     onActivate(ctx) {
       const b = ctx.body;
-      // Grounded cinematic rush — do NOT set airborne (that hijacks Soaring Destruction VFX).
+      // Grounded cinematic rush - do NOT set airborne (that hijacks Soaring Destruction VFX).
       b.userData.controlLocked = true;
       b.userData.invulnerable = true;
       b.userData.ldragoAbsorbPhase = 'coil';
@@ -2060,7 +2060,7 @@ export const ABILITY_REGISTRY = {
       const nz = dz / dist;
       const falloff = 1 - dist / reach;
 
-      // Continuous gale push — ground beys are shoved even though vertical contact is blocked.
+      // Continuous gale push - ground beys are shoved even though vertical contact is blocked.
       const push = LEONE_WALL_REPULSE * falloff * (ctx.dt / LEONE_WALL_PULSE);
       opp.velocity.x += nx * push;
       opp.velocity.z += nz * push;
@@ -2812,7 +2812,7 @@ export function tickAbilityVisuals(state, dt) {
         const e = easeInQuad(t);
         homingXZ(body, opp, 8 * dt);
         body.userData.flightLift = STAR_APEX * (1 - e);
-        // Nose-down dive — pitch hard enough to read underside without cartoon flip.
+        // Nose-down dive - pitch hard enough to read underside without cartoon flip.
         body.userData.flightTilt = STAR_FALL_PITCH * (0.85 + 0.15 * easeOutQuad(t));
         body.userData.flightRoll = STAR_FALL_ROLL * 0.85 * easeOutQuad(t);
         body.userData.flightSquash = 1 + 0.18 * e;
@@ -2855,7 +2855,7 @@ export function tickAbilityVisuals(state, dt) {
           lift = 0;
           const contactSpeed = Math.abs(vy);
           if (contactSpeed < STAR_BOUNCE_MIN_V) {
-            // Too slow to bounce again — settle upright.
+            // Too slow to bounce again - settle upright.
             body.userData.flightLift = 0;
             body.userData.starSettleTilt = body.userData.flightTilt ?? 0;
             body.userData.starSettleRoll = body.userData.flightRoll ?? 0;
@@ -2998,7 +2998,7 @@ export function tickLeoneAbilityVisuals(state, dt) {
       body.userData.flightRoll = 0;
       body.userData.flightLift = body.userData.contactLift;
     } else {
-      // Active: high hover + slow bob — out of ground contact range.
+      // Active: high hover + slow bob - out of ground contact range.
       const wt = body.userData.lionWallT ?? 0;
       body.userData.lionWallT = wt + dt;
       const dur = spSlot.ability.duration || LEONE_WALL_DURATION;
@@ -3073,7 +3073,7 @@ export function tickBullAbilityVisuals(state, dt) {
       const windup = slotWindupTotal(spSlot, BULL_UPPERCUT_WINDUP);
       const t = clamp01(1 - spSlot.windupRemaining / windup);
       const e = easeInOutCubic(t);
-      // Stay planted during windup — aim locks when the dash starts.
+      // Stay planted during windup - aim locks when the dash starts.
       body.userData.flightLift = 0;
       // Horn-lower windup: tip forward and squash into the charge.
       body.userData.bullWindupEndTilt = 0.18 * easeOutCubic(t);
@@ -3181,7 +3181,7 @@ export function tickStrikerAbilityVisuals(state, dt) {
       const t = clamp01(phaseT / STRIKER_REAPPEAR_DUR);
       body.userData.topVanish = 1 - easeOutCubic(t);
       body.userData.strikerReappearFlash = body.userData.strikerReappearFlash ?? 1 - t;
-      // Brief settle pop — readable, not cartoon bounce.
+      // Brief settle pop - readable, not cartoon bounce.
       body.userData.flightSquash = 0.88 + 0.12 * easeOutCubic(t);
       body.userData.flightTilt = 0.16 * easeOutCubic(t);
       body.userData.flightRoll = (body.userData.strikerCoastNz ?? 0) * 0.035 * t;
@@ -3293,13 +3293,13 @@ export function tickEagleAbilityVisuals(state, dt) {
       case 'hover': {
         const t = clamp01(body.userData.eagleDivePhaseT / EAGLE_DIVE_HOVER_DUR);
         body.userData.flightLift = EAGLE_DIVE_APEX + Math.sin(t * Math.PI) * 1.0;
-        // Wing-spread tilt — slight open lean while tracking.
+        // Wing-spread tilt - slight open lean while tracking.
         body.userData.flightTilt = 0.14 * Math.sin(t * Math.PI);
         body.userData.flightRoll = Math.sin(t * Math.PI * 2) * 0.16;
         body.userData.flightSquash = 1;
         body.userData.slamming = false;
         body.userData.eagleDiveSlamming = false;
-        // Keep tracking the live opponent position during hover — target locks only at dive start.
+        // Keep tracking the live opponent position during hover - target locks only at dive start.
         homingXZ(body, opp, 7 * dt);
         setBodyCollisions(body, false);
         if (t >= 1) {
@@ -3396,7 +3396,7 @@ export function tickLibraAbilityVisuals(state, dt) {
 
     const vt = (body.userData.sonicBusterVibrateT ?? 0) + dt;
     body.userData.sonicBusterVibrateT = vt;
-    // High-frequency bob — readable at distance without jittery chaos.
+    // High-frequency bob - readable at distance without jittery chaos.
     const w = Math.min(LIBRA_BUSTER_VIBRATE_HZ, 48) * Math.PI * 2;
     const phase = vt * w;
     const bob = Math.sin(phase);
@@ -3493,12 +3493,12 @@ export function tickLdragoAbilityVisuals(state, dt) {
           if (spAbsorb.windupRemaining > 0) {
             t = clamp01(windup > 0 ? 1 - spAbsorb.windupRemaining / windup : 1);
           } else {
-            // Post-logo coil beat — keep gathering before the rush launches.
+            // Post-logo coil beat - keep gathering before the rush launches.
             const coilT = clamp01((body.userData.ldragoAbsorbPhaseT ?? 0) / LDRAGO_ABSORB_COIL_DUR);
             t = 0.65 + 0.35 * easeOutQuad(coilT);
           }
           if (opp && t > 0.12) pullTowardAbsorb(body, opp, LDRAGO_ABSORB_PULL_RATE * dt);
-          // Coil rises slightly then drops into the rush — anime crouch-to-pounce.
+          // Coil rises slightly then drops into the rush - anime crouch-to-pounce.
           const coilLift = LDRAGO_ABSORB_COIL_LIFT * Math.sin(t * Math.PI) * 0.85;
           body.userData.flightLift = coilLift;
           body.userData.ldragoAbsorbCoilTilt = 0.28 * easeOutQuad(t);
@@ -3554,7 +3554,7 @@ export function tickLdragoAbilityVisuals(state, dt) {
       }
     }
 
-    // --- Soaring Destruction (special) — Star Blast twin + lightning impact ---
+    // --- Soaring Destruction (special) - Star Blast twin + lightning impact ---
     const spSlot = runtime.special;
     if (!spSlot || spSlot.ability.id !== 'ldrago_soaring_destruction') continue;
 
@@ -3713,7 +3713,7 @@ export function tickLdragoAbilityVisuals(state, dt) {
         homingXZ(body, opp, 8 * dt);
         body.userData.flightLift = STAR_APEX * (1 - e);
         body.userData.flightTilt = STAR_FALL_PITCH * (0.85 + 0.15 * easeOutQuad(t));
-        // Opposite roll sense vs Pegasus — left-spin dragon corkscrew.
+        // Opposite roll sense vs Pegasus - left-spin dragon corkscrew.
         body.userData.flightRoll = -STAR_FALL_ROLL * 0.85 * easeOutQuad(t);
         body.userData.flightSquash = 1 + 0.18 * e;
         if (e >= 1 || body.userData.flightLift <= STAR_LAND_LIFT) {
@@ -3847,7 +3847,7 @@ export function shouldLdragoSoaringGlow(body) {
   );
 }
 
-/** Max visual flight height across both tops — used for other cinematic camera lift. */
+/** Max visual flight height across both tops - used for other cinematic camera lift. */
 export function getCinematicFlightLift(state) {
   let lift = 0;
   for (const body of [state.playerBody, state.aiBody]) {
@@ -4220,7 +4220,7 @@ function trySteal(state, impact, selfTag, oppTag) {
   const oppLoss = Math.max(0, -oppDelta);
   if (oppLoss <= 0) return;
 
-  // No spin loss for L-Drago — absorb whatever the opponent lost on this hit.
+  // No spin loss for L-Drago - absorb whatever the opponent lost on this hit.
   impact['spinDelta' + selfTag] = Math.max(0, impact['spinDelta' + selfTag]) + oppLoss;
 
   const stealBody = impact['body' + selfTag];
@@ -4296,7 +4296,7 @@ function applyLeoneSpinResist(impact) {
   }
 }
 
-/** Sonic Buster — Libra takes only 10% of bey-vs-bey knockback and spin loss. */
+/** Sonic Buster - Libra takes only 10% of bey-vs-bey knockback and spin loss. */
 function applyLibraBusterMitigation(state, impact) {
   for (const tag of ['A', 'B']) {
     const body = impact['body' + tag];

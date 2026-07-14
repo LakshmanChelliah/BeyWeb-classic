@@ -118,7 +118,7 @@ function applySpinDelta(state, side, delta, body) {
 }
 
 function buildImpact(bodyA, bodyB, closingSpeed) {
-  // userData.atkCombatMultMult stacks on top of the base ATK stat — used by
+  // userData.atkCombatMultMult stacks on top of the base ATK stat - used by
   // L-Drago Upper Mode to grant a temporary +50% outgoing knockback boost.
   const mAtkA = atkCombatMult(bodyA.userData.beyStats) * (bodyA.userData.atkCombatMultMult ?? 1);
   const mDefA = defMult(bodyA.userData.beyStats);

@@ -6,12 +6,12 @@ import { isAtPocketAngle } from '../physics/arena.js';
 const _force = new CANNON.Vec3();
 
 /**
- * Per-tier tuning — tier index 0 is easiest.
+ * Per-tier tuning - tier index 0 is easiest.
  * Player archetypes: Beginner → Bot.
  *
- * outAvoidance — how hard they fight ring-outs (low = rim suicide, high = pro survival)
- * edgeSkill    — how early they read rim / pocket danger
- * mistakeRate  — wrong steer choices (suppressed near the rim when outAvoidance is high)
+ * outAvoidance - how hard they fight ring-outs (low = rim suicide, high = pro survival)
+ * edgeSkill    - how early they read rim / pocket danger
+ * mistakeRate  - wrong steer choices (suppressed near the rim when outAvoidance is high)
  */
 const AI_TIERS = [
   { forceMult: 0.72, decisionInterval: 0.42, specialReach: 2.8, powerReach: 4.2, leadSkill: 0.0,  edgeSkill: 0.10, outAvoidance: 0.06, mistakeRate: 0.42, abilityDiscipline: 0.30 },
@@ -122,7 +122,7 @@ function analyzeBey(beyStats) {
     move,
     def,
     sta,
-    /** Attack / speed types chase harder — edge safety scales up to match their velocity. */
+    /** Attack / speed types chase harder - edge safety scales up to match their velocity. */
     aggression: clamp01((move - 38) / 58),
     caution: clamp01((def - 28) / 68),
     patience: clamp01((sta - 28) / 68),
@@ -245,7 +245,7 @@ function computeChaseDir(aiBody, playerBody, leadSkill) {
   return { dx: tx - ax, dz: tz - az };
 }
 
-/** Blend chase toward center when rim-riding — strength scales with player archetype. */
+/** Blend chase toward center when rim-riding - strength scales with player archetype. */
 function blendEdgeSafeDir(aiBody, dx, dz, persona) {
   const ax = aiBody.position.x;
   const az = aiBody.position.z;
@@ -397,7 +397,7 @@ function tickSteerDecisions(aiBody, playerBody, spin, playerSpin) {
   }
 }
 
-/** Fast beys need less raw steer near the rim — physics move mult already makes them quick. */
+/** Fast beys need less raw steer near the rim - physics move mult already makes them quick. */
 function steerForceScale(persona, aiBody) {
   const edgeFrac = edgeFracForBody(aiBody);
   if (persona.aggression < 0.45) return 1;

@@ -1,5 +1,5 @@
 /**
- * Earth Eagle — Counter Stance + Diving Crush VFX.
+ * Earth Eagle - Counter Stance + Diving Crush VFX.
  * Canon Diving Crush: soar, gather wind, bright purple glow, dive crush.
  * Feather trails + talon dive; impact/bounce as dust+feathers (no brace rings).
  */
@@ -62,7 +62,7 @@ export function createEagleAbilityVfx(scene) {
     counterSparks.push({ mesh, phase: (i / 10) * Math.PI * 2 });
   }
 
-  // Dive wings — purple wind sheath (canon bright purple glow).
+  // Dive wings - purple wind sheath (canon bright purple glow).
   const wings = [];
   for (let i = 0; i < 2; i++) {
     const mesh = new THREE.Mesh(
@@ -201,7 +201,7 @@ export function createEagleAbilityVfx(scene) {
 
       const radius = body.userData.outerRadius ?? 1.6;
 
-      // Counter stance — orbiting amber sparks, no rings.
+      // Counter stance - orbiting amber sparks, no rings.
       for (let i = 0; i < counterSparks.length; i++) {
         const s = counterSparks[i];
         s.mesh.visible = counterActive || counterFlash > 0;

@@ -48,7 +48,7 @@ function clashRimPoint(body, nx, nz, sign) {
   };
 }
 
-/** Two mirrored bursts — one from each bey's rim, normals opposed 180°. */
+/** Two mirrored bursts - one from each bey's rim, normals opposed 180°. */
 export function buildClashSparkEvents(bodyA, bodyB, nx, nz, closingSpeed, special, sustained = false) {
   const speed = sparkSpeedFromClash(bodyA, bodyB, closingSpeed);
   const shared = { speed, kind: 'clash', special, sustained, countMult: 0.5 };

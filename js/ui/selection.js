@@ -37,7 +37,7 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
     root.appendChild(picksEl);
   }
 
-  // Legacy: picks used to live inside .select-mount — always hoist to overlay root.
+  // Legacy: picks used to live inside .select-mount - always hoist to overlay root.
   mount.querySelectorAll('.select-picks').forEach((el) => el.remove());
   if (picksEl.parentElement !== root) {
     root.appendChild(picksEl);
@@ -390,7 +390,7 @@ export function createBeySelection({ root, players, onComplete, rivalLabel = nul
   render();
 
   return {
-    /** Returns remaining (unlocked, playable) beys — handy for an AI auto-pick. */
+    /** Returns remaining (unlocked, playable) beys - handy for an AI auto-pick. */
     remaining() {
       return BEYS.filter((b) => isBeyPlayable(b) && !locked.has(b.id));
     },

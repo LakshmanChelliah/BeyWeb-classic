@@ -37,7 +37,7 @@ function lerpAngle(a, b, t) {
   return a + d * clamp01(t);
 }
 
-/** Spinning-top orientation: precession → tilt → spin (Y–X–Y). */
+/** Spinning-top orientation: precession → tilt → spin (Y-X-Y). */
 function applyTopOrientation(group, spinYaw, precessionDir, tiltRad) {
   _spinQuatA.setFromAxisAngle(_axisY, precessionDir);
   _spinQuatB.setFromAxisAngle(_axisX, tiltRad);
@@ -54,7 +54,7 @@ function applyPrecessionOrbit(group, body, tiltRad, precessionDir, strength) {
   group.position.z += Math.sin(precessionDir) * orbit;
 }
 
-/** Visual rotation speed multiplier — full rate until 60%, boosted during wobble. */
+/** Visual rotation speed multiplier - full rate until 60%, boosted during wobble. */
 function getVisualSpinMult(spinPct, wobbleActive, dead) {
   if (dead) return 0;
   const slowStart = CONFIG.VISUAL_SPIN_SLOW_START;
@@ -88,7 +88,7 @@ export function resetTopWobble(body) {
 }
 
 /**
- * Decays spin each frame. Higher stamina (0–100) slows the decay rate.
+ * Decays spin each frame. Higher stamina (0-100) slows the decay rate.
  * See staMult in stats.js: sta=100 → 0.5×, sta=0 → 1.5×.
  */
 export function decaySpin(spin, dt, sta = 50, slowRate = 1) {
@@ -419,7 +419,7 @@ export function pinTopToFloor(body) {
  * Sphere-based collision is the most stable narrow-phase in cannon-es.
  * Because the sphere sits with its centre well above the floor, the visual model
  * is offset downward (visualYOffset) so its bottom edge rests on the floor while
- * the XZ of the visual and the sphere remain aligned — collision fires exactly
+ * the XZ of the visual and the sphere remain aligned - collision fires exactly
  * when the visible disc circumferences meet.
  */
 export function fitColliderToModel(body, modelHolder) {
@@ -480,10 +480,10 @@ export function createTopPhysicsBody(world, topMaterial, x, z, collisionGroup, p
  * Applies a small tangential (perpendicular-to-velocity) drift force for beys
  * whose tip creates natural orbital precession (e.g. Earth Eagle's WD tip).
  * The force curves straight-line movement into wide sweeping arcs without
- * fighting player/AI steering — it just makes the bey want to arc rather than
+ * fighting player/AI steering - it just makes the bey want to arc rather than
  * charge dead-straight. Direction follows spinSign so the curve is consistent.
  *
- * Beys opt in by setting `beyStats.orbitDrift` (0–1). Eagle uses ~0.35.
+ * Beys opt in by setting `beyStats.orbitDrift` (0-1). Eagle uses ~0.35.
  */
 export function applyOrbitDrift(body, spin) {
   if (!body || spin < CONFIG.SLEEP_THRESHOLD) return;

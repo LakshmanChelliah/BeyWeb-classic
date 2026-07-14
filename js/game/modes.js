@@ -14,8 +14,8 @@ export function modeBlurb(mode) {
     case GAME_MODES.CASUAL:
       return 'Casual: best of 3 vs a random CPU rival. Win the series, then face a new rival.';
     case GAME_MODES.TOURNAMENT:
-      return 'Tournament: best of 3 vs seven bladers in rising order — Benkei to Ryuga.';
+      return 'Tournament: best of 3 vs seven bladers in rising order - Benkei to Ryuga.';
     default:
-      return 'Two-player local battle — best of 5. P1: WASD + Q/E. P2: arrows + N/M';
+      return 'Two-player local battle - best of 5. P1: WASD + Q/E. P2: arrows + N/M';
   }
 }

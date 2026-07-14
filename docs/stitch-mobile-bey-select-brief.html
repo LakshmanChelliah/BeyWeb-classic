@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Stitch Brief — Bey Web Mobile Bey Selection</title>
+  <title>Stitch Brief - Bey Web Mobile Bey Selection</title>
   <!--
   =============================================================================
-  GOOGLE STITCH AI BRIEF — Mobile Bey Selection Screen Redesign
+  GOOGLE STITCH AI BRIEF - Mobile Bey Selection Screen Redesign
   =============================================================================
 
   PROJECT: Bey Web (Beyblade browser game)
@@ -14,7 +14,7 @@
   GOAL: Redesign layout so NOTHING overlaps. All text readable. Large tap targets.
 
   KNOWN OVERLAP BUGS (current build):
-  1. Mode tabs + 5 difficulty pills + hint compete with title "YOU — CHOOSE YOUR BEY"
+  1. Mode tabs + 5 difficulty pills + hint compete with title "YOU - CHOOSE YOUR BEY"
   2. Bey card is taller than carousel container (emblem + stats + 2 abilities + button)
   3. 3D carousel side cards bleed into center card text
   4. Left/right arrow buttons overlap card edges on narrow screens
@@ -22,7 +22,7 @@
   6. Pick row (YOU + RIVAL) overlaps carousel on short viewports (iPhone SE)
   7. Fixed-height .bey-desc clips awkwardly; ability names wrap into stats
 
-  MUST KEEP (JavaScript depends on these IDs/classes — do not rename):
+  MUST KEEP (JavaScript depends on these IDs/classes - do not rename):
   - #select-overlay (full-screen overlay root)
   - #play-setup (mode + difficulty injected here by playSetup.js)
   - .play-setup-modes, .play-setup-mode-btn, .play-setup-diff, .play-setup-diff-btn
@@ -32,7 +32,7 @@
   - .bey-item, .bey-card, .bey-select-btn, .select-picks, .pick-slot, .pick-label, .pick-bey
   - body.mobile class on body
 
-  LAYOUT ZONES (suggested — Stitch can improve):
+  LAYOUT ZONES (suggested - Stitch can improve):
   ┌─────────────────────────────┐
   │ ZONE A: Mode (Casual|Tourney)│  ~56px, sticky top
   │ ZONE B: Difficulty pills     │  ~72px, collapsible feel
@@ -86,7 +86,7 @@
       overflow: hidden;
     }
 
-    /* ZONE A + B — play setup (KEEP structure) */
+    /* ZONE A + B - play setup (KEEP structure) */
     .play-setup {
       flex: 0 0 auto;
       display: flex;
@@ -183,7 +183,7 @@
       margin-top: 2px;
     }
 
-    /* ZONE D — carousel: PROBLEM AREA — card overflows container */
+    /* ZONE D - carousel: PROBLEM AREA - card overflows container */
     .carousel-scene {
       flex: 1 1 auto;
       min-height: 0;
@@ -232,7 +232,7 @@
     }
     .carousel-dot.on { background: #4f8cff; transform: scale(1.2); }
 
-    /* Bey card — sample content (Storm Pegasus) */
+    /* Bey card - sample content (Storm Pegasus) */
     .bey-item {
       position: absolute;
       top: 0;
@@ -347,7 +347,7 @@
       touch-action: manipulation;
     }
 
-    /* ZONE E — pick chips */
+    /* ZONE E - pick chips */
     .select-picks {
       flex: 0 0 auto;
       display: flex;
@@ -408,7 +408,7 @@
   <!-- KEEP: #select-overlay is the JS root -->
   <div id="select-overlay">
 
-    <!-- KEEP: #play-setup — mode/difficulty buttons injected by JS -->
+    <!-- KEEP: #play-setup - mode/difficulty buttons injected by JS -->
     <div id="play-setup" class="play-setup">
       <div class="play-setup-modes" role="tablist">
         <button type="button" class="play-setup-mode-btn active">Casual</button>
@@ -427,10 +427,10 @@
       </div>
     </div>
 
-    <!-- KEEP: .select-mount — carousel injected by selection.js -->
+    <!-- KEEP: .select-mount - carousel injected by selection.js -->
     <div class="select-mount">
       <div class="select-header">
-        <h1 class="select-title">YOU — CHOOSE YOUR BEY</h1>
+        <h1 class="select-title">YOU - CHOOSE YOUR BEY</h1>
         <p class="select-sub">Choose your bey</p>
       </div>
 
@@ -438,7 +438,7 @@
         <button class="carousel-arrow left" type="button" aria-label="Previous">&#8249;</button>
         <button class="carousel-arrow right" type="button" aria-label="Next">&#8250;</button>
         <div class="carousel-container">
-          <!-- Sample bey card — real app has 5 cards in 3D carousel -->
+          <!-- Sample bey card - real app has 5 cards in 3D carousel -->
           <div class="bey-item">
             <div class="bey-card active" style="--bey-color:#3b82f6">
               <div class="bey-emblem">
@@ -482,7 +482,7 @@
       <div class="select-picks">
         <div class="pick-slot active">
           <span class="pick-label">YOU</span>
-          <span class="pick-bey empty">— choosing —</span>
+          <span class="pick-bey empty">- choosing -</span>
         </div>
         <div class="pick-slot rival-slot">
           <span class="pick-label">RIVAL</span>
@@ -493,6 +493,6 @@
     </div>
   </div>
 
-  <p class="stitch-note">Stitch preview — fix overlapping zones A–E on 320px–430px width</p>
+  <p class="stitch-note">Stitch preview - fix overlapping zones A-E on 320px-430px width</p>
 </body>
 </html>

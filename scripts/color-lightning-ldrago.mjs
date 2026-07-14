@@ -66,7 +66,7 @@ function rgb255(c) {
   return [Math.round(c[0] * 255), Math.round(c[1] * 255), Math.round(c[2] * 255)];
 }
 
-/** Brushed silver — 3-fold radial bump for the three Lightning dragon-head sections. */
+/** Brushed silver - 3-fold radial bump for the three Lightning dragon-head sections. */
 function silverWheelRgb(ang) {
   const bump = 0.5 + 0.5 * Math.cos(ang * 3);
   return rgb255(mixRgb(COLORS.silverDark, COLORS.silver, bump));
@@ -74,7 +74,7 @@ function silverWheelRgb(ang) {
 
 /** Magenta accent lines recessed in each dragon-head section. */
 function magentaAccent(ang, r) {
-  // Two parallel grooves per section — modulate radius bands.
+  // Two parallel grooves per section - modulate radius bands.
   const sectorAng = ((ang % (Math.PI * 2)) + Math.PI * 2) % ((2 * Math.PI) / 3);
   const inSector = sectorAng > 0.20 && sectorAng < 0.95;
   if (!inSector) return null;

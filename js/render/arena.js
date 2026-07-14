@@ -22,7 +22,7 @@ const GROUND_RADIUS = 78;
 const SKY_RADIUS = 95;
 /** How far the dish rim sits below the surrounding floor. */
 const DISH_RECESS = 0.04;
-/** Visual bowl depth (center below rim) — shallow so tops don’t float. */
+/** Visual bowl depth (center below rim) - shallow so tops don’t float. */
 const DISH_BOWL_DEPTH = 0.62;
 
 /**
@@ -41,7 +41,7 @@ function createBowlGeometry(radius = DISH_RADIUS, depth = DISH_BOWL_DEPTH, segme
   }
   const geo = new THREE.LatheGeometry(pts, segments);
 
-  // Lathe winds so normals face downward for this profile — flip for an upward bowl.
+  // Lathe winds so normals face downward for this profile - flip for an upward bowl.
   const index = geo.index;
   if (index) {
     for (let i = 0; i < index.count; i += 3) {
@@ -181,7 +181,7 @@ function createDishTexture(skin) {
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Very faint contour hints — not hard bullseye rings.
+  // Very faint contour hints - not hard bullseye rings.
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 2;
   for (const rr of [0.35, 0.58, 0.78]) {
@@ -205,7 +205,7 @@ function createDishTexture(skin) {
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Clean glossy plastic for Koma green dish — no etched spokes.
+  // Clean glossy plastic for Koma green dish - no etched spokes.
   if (skin.dishAccent && skin.backdrop?.style !== 'koma_village') {
     ctx.strokeStyle = skin.dishAccent;
     ctx.globalAlpha = 0.32;
@@ -262,7 +262,7 @@ function shadeHex(hexOrCss, factor) {
 
 /**
  * Near-field floor ring (dish rim → barrier): large tiles / venue surface,
- * continuous with the far ground — same height, not a raised pad.
+ * continuous with the far ground - same height, not a raised pad.
  */
 function createPlatformTexture(skin) {
   const size = 1024;
@@ -284,7 +284,7 @@ function createPlatformTexture(skin) {
 }
 
 /**
- * Far out-of-bounds ground — same level as the stadium rim.
+ * Far out-of-bounds ground - same level as the stadium rim.
  */
 function createGroundTexture(skin) {
   const size = 1024;
@@ -342,7 +342,7 @@ function paintVenueFloor(ctx, size, skin, style, nearField) {
   }
 }
 
-/** Large square tiles — tournament plaza / WBBA / rooftop. */
+/** Large square tiles - tournament plaza / WBBA / rooftop. */
 function paintFloorTiles(ctx, size, skin, divisions) {
   const tile = size / divisions;
   ctx.fillStyle = skin.platformBase;
@@ -368,7 +368,7 @@ function paintFloorTiles(ctx, size, skin, divisions) {
   }
 }
 
-/** Metal Fusion WBBA — polished gold platform panels. */
+/** Metal Fusion WBBA - polished gold platform panels. */
 function paintFloorWbbaGold(ctx, size, skin) {
   const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.55);
   g.addColorStop(0, skin.platformBase || '#d4a84a');
@@ -448,7 +448,7 @@ function nearLine(divisions) {
   return divisions <= 5 ? 5 : 3;
 }
 
-/** Construction site — grey concrete slabs + hazard accents. */
+/** Construction site - grey concrete slabs + hazard accents. */
 function paintFloorConcrete(ctx, size, skin, nearField) {
   const tile = size / (nearField ? 3 : 4);
   ctx.fillStyle = skin.platformBase;
@@ -487,7 +487,7 @@ function paintFloorConcrete(ctx, size, skin, nearField) {
   }
 }
 
-/** Survival Island — grass near dish, sand grain. */
+/** Survival Island - grass near dish, sand grain. */
 function paintFloorIsland(ctx, size, skin) {
   const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.55);
   g.addColorStop(0, '#6aaa48');
@@ -514,7 +514,7 @@ function paintFloorIsland(ctx, size, skin) {
   ctx.globalAlpha = 1;
 }
 
-/** Koma / earth — cracked ground radiating from center (impact crater). */
+/** Koma / earth - cracked ground radiating from center (impact crater). */
 function paintFloorCrackedEarth(ctx, size, skin) {
   ctx.fillStyle = skin.platformBase;
   ctx.fillRect(0, 0, size, size);
@@ -660,7 +660,7 @@ function wallCapColor(wallHex) {
   return (l << 16) | (l << 8) | l;
 }
 
-/** Top rail material — neutral grey (no colored emissive glow on the rim tops). */
+/** Top rail material - neutral grey (no colored emissive glow on the rim tops). */
 function createWallCapMaterial(skin) {
   return new THREE.MeshStandardMaterial({
     color: wallCapColor(skin.wall),
@@ -714,12 +714,12 @@ function addWallSegments(group, wallMat, wallCapMat) {
       wall.userData.arenaPart = 'wall';
       wall.position.set(x, wallEmbedY, z);
       wall.rotation.y = -angle;
-      // No cast shadow — under-wall shadows were reading as a floating stadium pad.
+      // No cast shadow - under-wall shadows were reading as a floating stadium pad.
       wall.castShadow = false;
       wall.receiveShadow = true;
       group.add(wall);
 
-      // Top rail — visible from overhead; matches wall color (no red emissive glow).
+      // Top rail - visible from overhead; matches wall color (no red emissive glow).
       const cap = new THREE.Mesh(
         new THREE.BoxGeometry(1.15, 0.14, segDepth * 0.92),
         wallCapMat
@@ -733,7 +733,7 @@ function addWallSegments(group, wallMat, wallCapMat) {
   }
 }
 
-/** Horizon sky — elevated venues use an upper hemisphere; city fills below. */
+/** Horizon sky - elevated venues use an upper hemisphere; city fills below. */
 function createSkyDome(skin) {
   const elevated = isElevated(skin);
   const mat = new THREE.MeshBasicMaterial({
@@ -742,7 +742,7 @@ function createSkyDome(skin) {
     depthWrite: false,
     fog: false,
   });
-  // Elevated: upper hemisphere only — 3D city + street plate hide the void under the deck.
+  // Elevated: upper hemisphere only - 3D city + street plate hide the void under the deck.
   const geo = elevated
     ? new THREE.SphereGeometry(SKY_RADIUS, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.52)
     : new THREE.SphereGeometry(SKY_RADIUS, 48, 32);
@@ -756,7 +756,7 @@ function createSkyDome(skin) {
 function applyPlacement(parts, skin) {
   const elevated = isElevated(skin);
   const wbba = isWbba(skin);
-  // Huge open ground only for outdoor ground venues — not WBBA (indoor bowl).
+  // Huge open ground only for outdoor ground venues - not WBBA (indoor bowl).
   if (parts.ground) parts.ground.visible = !elevated && !wbba;
   if (parts.plaza) parts.plaza.visible = wbba;
   if (parts.wbbaBowl) parts.wbbaBowl.visible = wbba;
@@ -780,7 +780,7 @@ function createWbbaBowl(skin) {
   const platformH = 1.3;
   const tealY = -platformH;
   const standsInner = goldR + 9;
-  // Fight cam approaches on +Z — leave that sector open on curb / stands.
+  // Fight cam approaches on +Z - leave that sector open on curb / stands.
   const camGap = 1.7;
   const thetaStart = Math.PI / 2 + camGap / 2;
   const thetaLength = Math.PI * 2 - camGap;
@@ -841,7 +841,7 @@ function createWbbaBowl(skin) {
     roughness: 0.4,
   });
 
-  // Raised gold platform curb — thick disc on teal floor, open on camera arc
+  // Raised gold platform curb - thick disc on teal floor, open on camera arc
   const curb = new THREE.Mesh(
     new THREE.CylinderGeometry(
       goldR,
@@ -892,7 +892,7 @@ function createWbbaBowl(skin) {
   tealFloor.receiveShadow = true;
   group.add(tealFloor);
 
-  // Steep packed stands — leave a clear +Z camera corridor (fight cam / zoom).
+  // Steep packed stands - leave a clear +Z camera corridor (fight cam / zoom).
   const tiers = 10;
   const bodyGeo = new THREE.BoxGeometry(0.34, 0.68, 0.26);
   const headGeo = new THREE.SphereGeometry(0.13, 5, 5);
@@ -963,9 +963,9 @@ function createWbbaBowl(skin) {
   const ceilingY = 48;
   const canopyInner = 30;
 
-  // No vertical support columns — they sat in the fight-cam lens on zoom/start.
+  // No vertical support columns - they sat in the fight-cam lens on zoom/start.
 
-  // Jumbotron screens — keep off the camera-facing arc
+  // Jumbotron screens - keep off the camera-facing arc
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     if (Math.sin(a) > 0.2) continue;
@@ -980,7 +980,7 @@ function createWbbaBowl(skin) {
     group.add(screen);
   }
 
-  // Floodlights on the outer canopy only — not hanging in the open center / cam arc
+  // Floodlights on the outer canopy only - not hanging in the open center / cam arc
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
     if (Math.sin(a) > 0.35) continue;
@@ -1072,7 +1072,7 @@ function tintCityForSkin(city, skin) {
     if (!obj.isMesh || !obj.material) return;
     const mat = obj.material;
     if (obj.userData.cityPart === 'building') {
-      // Facade textures carry their own look — keep color white so maps read.
+      // Facade textures carry their own look - keep color white so maps read.
       if (mat.map) {
         mat.color.setHex(0xffffff);
         mat.emissiveIntensity = night ? 0.22 : 0.04;
@@ -1106,7 +1106,7 @@ function tintCityForSkin(city, skin) {
 }
 
 /**
- * Steel supports under the rooftop deck — reads as a stadium in the sky.
+ * Steel supports under the rooftop deck - reads as a stadium in the sky.
  */
 function createRooftopSupports(skin) {
   const group = new THREE.Group();
@@ -1139,7 +1139,7 @@ function createRooftopSupports(skin) {
   shaft.receiveShadow = true;
   group.add(shaft);
 
-  // Outer ring of pillars at the deck edge — long enough to reach the city below.
+  // Outer ring of pillars at the deck edge - long enough to reach the city below.
   const pillarH = night ? 42 : 36;
   const pillarGeo = new THREE.BoxGeometry(0.85, pillarH, 0.85);
   for (let i = 0; i < 12; i++) {
@@ -1307,7 +1307,7 @@ function makeFacadeMaterial(facadeMap, night, variant = 0) {
 }
 
 /**
- * 3D city around an elevated rooftop — dense skyscraper rings that rise above
+ * 3D city around an elevated rooftop - dense skyscraper rings that rise above
  * the deck and plunge far below so no empty sky shows under the platform.
  */
 function createRooftopCity(skin) {
@@ -1667,7 +1667,7 @@ function applySkinToParts(parts, skin) {
   parts.dishLip.material.color.setHex(skin.dishLip);
   parts.dishLip.material.metalness = isWbba(skin) ? 0.35 : 0.45;
   parts.dishLip.material.roughness = isWbba(skin) ? 0.35 : 0.4;
-  // No colored emissive on the rim — avoids red/orange glow on border tops.
+  // No colored emissive on the rim - avoids red/orange glow on border tops.
   parts.dishLip.material.emissive.setHex(isWbba(skin) ? skin.dishLip : 0x000000);
   parts.dishLip.material.emissiveIntensity = isWbba(skin) ? 0.22 : 0;
   parts.dishLip.material.needsUpdate = true;
@@ -1789,7 +1789,7 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   platform.castShadow = false;
   group.add(platform);
 
-  // Building mass under the rooftop deck (short cap — tall shaft is in supports).
+  // Building mass under the rooftop deck (short cap - tall shaft is in supports).
   // Open-ended: a solid cap would sit above the recessed bowl and hide it
   // through the platform hole (reads as a flat grey disc).
   const base = new THREE.Mesh(
@@ -1820,7 +1820,7 @@ export function createArenaMesh(scene, skinId = resolveArenaSkinId()) {
   const city = createRooftopCity(skin);
   group.add(city);
 
-  // Battle dish — shallow 3D bowl (visual only; physics radii unchanged).
+  // Battle dish - shallow 3D bowl (visual only; physics radii unchanged).
   const dishMap = createDishTexture(skin);
   const dish = new THREE.Mesh(
     createBowlGeometry(DISH_RADIUS, DISH_BOWL_DEPTH, 80),

@@ -1,9 +1,9 @@
 import { getBeyById } from './beys.js';
 
-/** Bot tier for L-Drago — keep in sync with last entry in input/ai.js AI_TIERS. */
+/** Bot tier for L-Drago - keep in sync with last entry in input/ai.js AI_TIERS. */
 const BOT_AI_TIER = 6;
 
-/** Show bladers — names, AI skill, and tournament-only stat boosts (harder to KO). */
+/** Show bladers - names, AI skill, and tournament-only stat boosts (harder to KO). */
 export const TOURNAMENT_BLADERS = Object.freeze({
   bull: {
     name: 'Benkei',
@@ -76,19 +76,19 @@ export const TOURNAMENT_BLADERS = Object.freeze({
 
 /** Opponents in rising difficulty (easiest → hardest). */
 export const CAMPAIGN_OPPONENT_IDS = Object.freeze([
-  'bull',              // Benkei — Dark Bull
-  'libra',             // Yu — Flame Libra
-  'eagle',             // Tsubasa — Earth Eagle
-  'leone',             // Kyoya — Rock Leone
-  'pegasus',           // Gingka — Storm Pegasus
-  'lightning_ldrago',  // Ryuga — Lightning L-Drago
-  'striker',           // Masamune — Ray Striker
-  'meteo_ldrago',      // Ryuga — Meteo L-Drago
+  'bull',              // Benkei - Dark Bull
+  'libra',             // Yu - Flame Libra
+  'eagle',             // Tsubasa - Earth Eagle
+  'leone',             // Kyoya - Rock Leone
+  'pegasus',           // Gingka - Storm Pegasus
+  'lightning_ldrago',  // Ryuga - Lightning L-Drago
+  'striker',           // Masamune - Ray Striker
+  'meteo_ldrago',      // Ryuga - Meteo L-Drago
 ]);
 
 export const CAMPAIGN_STAGE_COUNT = CAMPAIGN_OPPONENT_IDS.length;
 
-/** Opponents for this run — full order minus the player's bey (7 rivals when using a roster bey). */
+/** Opponents for this run - full order minus the player's bey (7 rivals when using a roster bey). */
 export function getTournamentRoster(excludeBey) {
   const excludeId = typeof excludeBey === 'string' ? excludeBey : excludeBey?.id;
   if (!excludeId) return [...CAMPAIGN_OPPONENT_IDS];
