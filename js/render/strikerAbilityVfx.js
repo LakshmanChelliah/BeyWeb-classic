@@ -1,5 +1,5 @@
 /**
- * Ray Striker — Blitz Charge + Lightning Sword Flash VFX.
+ * Ray Striker - Blitz Charge + Lightning Sword Flash VFX.
  * Canon Flash (紫電の一閃): purple lightning pierce; anime vanish as green light rays.
  * Blitz Charge keeps teal speed trails. No vanish rings.
  */
@@ -112,7 +112,7 @@ export function createStrikerAbilityVfx(scene) {
   blitzCore.renderOrder = 7;
   blitzGroup.add(blitzCore);
 
-  // --- Lightning Sword Flash — green vanish rays ---
+  // --- Lightning Sword Flash - green vanish rays ---
   const vanishCore = new THREE.Mesh(
     new THREE.PlaneGeometry(1.25, 1.25),
     makeMat(GREEN_PALE, 0)
@@ -138,7 +138,7 @@ export function createStrikerAbilityVfx(scene) {
   afterimage.renderOrder = 4;
   vanishGroup.add(afterimage);
 
-  // Reappear / pierce — purple lightning sword motif.
+  // Reappear / pierce - purple lightning sword motif.
   const reappearBurst = new THREE.Mesh(
     new THREE.PlaneGeometry(1.5, 1.5),
     makeMat(PURPLE_HOT, 0)
@@ -146,7 +146,7 @@ export function createStrikerAbilityVfx(scene) {
   reappearBurst.renderOrder = 10;
   dashGroup.add(reappearBurst);
 
-  // Sword-motif dash streaks — purple lightning blades.
+  // Sword-motif dash streaks - purple lightning blades.
   const dashStreaks = [];
   for (let i = 0; i < 7; i++) {
     const mesh = new THREE.Mesh(

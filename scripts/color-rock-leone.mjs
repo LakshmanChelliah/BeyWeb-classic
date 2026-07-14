@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const INPUT = resolve(ROOT, 'Rock_Leone.glb');
 const FACE_PNG = resolve(ROOT, 'rockleonelogandFacebolt.png');
-const OUTPUT = resolve(ROOT, 'rock_leone.glb'); // do NOT delete before write — Windows paths are case-insensitive
+const OUTPUT = resolve(ROOT, 'rock_leone.glb'); // do NOT delete before write - Windows paths are case-insensitive
 const TEX_SIZE = 2048;
 
 const COLORS = {
@@ -324,7 +324,7 @@ async function main() {
     writeFileSync(beysPath, beys);
     console.log('Enabled Rock Leone in js/game/beys.js');
   } else {
-    console.warn('Output still large — keeping Rock Leone locked until size is under 15 MB.');
+    console.warn('Output still large - keeping Rock Leone locked until size is under 15 MB.');
   }
 }
 

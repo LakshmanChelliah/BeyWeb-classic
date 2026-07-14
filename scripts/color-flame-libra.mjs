@@ -74,7 +74,7 @@ function blit(dst, dstW, dstH, src, srcW, srcH, left, top, opaque = false) {
         continue;
       }
       let blendA = sa;
-      // Logo PNG ships with a solid black matte — treat as transparent.
+      // Logo PNG ships with a solid black matte - treat as transparent.
       if (sr + sg + sb < 48) continue;
       if (blendA <= 0.01) blendA = 1;
       const inv = 1 - blendA;
@@ -86,7 +86,7 @@ function blit(dst, dstW, dstH, src, srcW, srcH, left, top, opaque = false) {
   }
 }
 
-/** Libra logo has blue/gray art on black — remap to navy and skip yellow so it doesn't green-tint the disc. */
+/** Libra logo has blue/gray art on black - remap to navy and skip yellow so it doesn't green-tint the disc. */
 function prepareFaceLogo(src) {
   const out = new Uint8Array(src.length);
   const navy = COLORS.navy.map((c) => Math.round(c * 255));
@@ -96,7 +96,7 @@ function prepareFaceLogo(src) {
     const b = src[i + 2];
     const a = src[i + 3];
     if (a < 10 || r + g + b < 48) continue;
-    // Yellow border in the PNG — keep the baked golden disc underneath.
+    // Yellow border in the PNG - keep the baked golden disc underneath.
     if (r > 175 && g > 150 && b < 130) continue;
     out[i] = navy[0];
     out[i + 1] = navy[1];
@@ -146,7 +146,7 @@ function buildTopTexture() {
       if (r < RING_INNER) {
         rgb = COLORS.faceBoltBg.map((c) => Math.round(c * 255));
       } else if (r < RING_OUTER) {
-        // White here — vertex colors on the top cap supply the chartreuse ring.
+        // White here - vertex colors on the top cap supply the chartreuse ring.
         rgb = [255, 255, 255];
         const navyWedge =
           Math.abs(Math.sin(ang)) < 0.32 && r > RING_INNER + 0.02 && r < RING_OUTER - 0.04;
@@ -199,7 +199,7 @@ function topCapPaint(rNorm) {
 function sidePaint(h, r) {
   if (h < 0.14) return { rgb: COLORS.tip, alpha: 1 };
   if (h < 0.32) return { rgb: COLORS.track, alpha: 1 };
-  // Facebolt hex sidewalls — vertex color only (no top-down UV on sides).
+  // Facebolt hex sidewalls - vertex color only (no top-down UV on sides).
   if (r < RING_INNER && h >= 0.35) return { rgb: COLORS.faceBoltBg, alpha: 1 };
   // Clear-wheel sidewalls
   if (r >= RING_INNER && r < RING_OUTER && h >= 0.10 && h < 0.58) {
@@ -284,7 +284,7 @@ async function main() {
   const hasRaw = existsSync(RAW_INPUT) && statSync(RAW_INPUT).size > 5_000_000;
   const inputPath = hasRaw ? RAW_INPUT : BAKED_OUTPUT;
   if (!existsSync(inputPath)) {
-    console.error('Missing input — place Flame_Libra_RAW.glb or an existing flame_libra.glb in the repo root.');
+    console.error('Missing input - place Flame_Libra_RAW.glb or an existing flame_libra.glb in the repo root.');
     process.exit(1);
   }
 
@@ -423,7 +423,7 @@ async function main() {
     writeFileSync(beysPath, beys);
     console.log('Enabled Flame Libra in js/game/beys.js');
   } else {
-    console.warn('Output still large — keeping Flame Libra locked until size is under 15 MB.');
+    console.warn('Output still large - keeping Flame Libra locked until size is under 15 MB.');
   }
 }
 

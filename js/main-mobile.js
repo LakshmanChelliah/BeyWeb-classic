@@ -17,7 +17,7 @@ function lockPortraitOrientation() {
   lock.call(screen.orientation, 'portrait-primary').catch(() => {});
 }
 
-// Do NOT lock orientation on every pointerdown — screen.orientation.lock()
+// Do NOT lock orientation on every pointerdown - screen.orientation.lock()
 // consumes iOS Safari's transient user activation, so a later
 // DeviceOrientationEvent.requestPermission() never shows the system prompt.
 // Lock only after motion permission is handled, or on orientation changes.
@@ -125,7 +125,7 @@ createAppBootstrap({
         joystick.hide();
         // CRITICAL: requestPermission must be the first await in this tap
         // handler. Do not disable the button, lock orientation, or await
-        // anything else first — iOS will refuse to show the prompt.
+        // anything else first - iOS will refuse to show the prompt.
         btnStart.textContent = 'Allow Motion…';
         const result = await gyro.requestMotionPermission();
         const granted = result?.granted === true;
@@ -143,7 +143,7 @@ createAppBootstrap({
               'Motion access denied. In iOS Settings → Safari → Motion & Orientation Access, allow it, then tap again. Or use On-screen stick.';
           } else {
             permissionHint.textContent =
-              'Motion sensors unavailable. On desktop, use mouse to steer — or pick On-screen stick on phone.';
+              'Motion sensors unavailable. On desktop, use mouse to steer - or pick On-screen stick on phone.';
           }
           gyro.setMouseFallback();
           return;

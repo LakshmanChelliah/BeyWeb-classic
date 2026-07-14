@@ -175,7 +175,7 @@ export {
 
 fs.writeFileSync(
   path.join(root, 'abilities.js'),
-  `/** Barrel re-export — implementation lives in ./abilities/ */
+  `/** Barrel re-export - implementation lives in ./abilities/ */
 export * from './abilities/index.js';
 `
 );

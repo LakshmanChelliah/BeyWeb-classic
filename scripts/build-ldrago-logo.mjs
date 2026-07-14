@@ -34,7 +34,7 @@ function resizeNearest(src, srcW, srcH, dstW, dstH) {
 }
 
 /**
- * Alpha from luminance — near-black is transparent, near-white/magenta art is opaque.
+ * Alpha from luminance - near-black is transparent, near-white/magenta art is opaque.
  * Soft ramp around the threshold so JPEG compression artifacts don't leave a black halo.
  */
 function alphaFromSource(data, w, h) {

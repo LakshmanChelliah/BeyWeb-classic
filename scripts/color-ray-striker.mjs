@@ -1,5 +1,5 @@
 /**
- * Color Ray Striker / Ray Unicorno — same mesh layout as Storm Pegasus.
+ * Color Ray Striker / Ray Unicorno - same mesh layout as Storm Pegasus.
  * Preserves all 16 sub-meshes (no merge/decimate) so size and spin axis match pegasus.
  *
  * Input:  beystoadd/rayStriker.glb

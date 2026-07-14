@@ -175,8 +175,8 @@ export function rollAiLaunchGrade(difficulty = 1) {
 function defaultHint({ twoPlayer, touch }) {
   if (twoPlayer) {
     return touch
-      ? 'P1 swipe left · P2 swipe right — on RIP'
-      : 'P1 Space · P2 Enter — on RIP';
+      ? 'P1 swipe left · P2 swipe right - on RIP'
+      : 'P1 Space · P2 Enter - on RIP';
   }
   return touch ? 'Swipe up on RIP!' : 'Press Space or click on RIP!';
 }
@@ -326,7 +326,7 @@ export async function runLaunchMinigame(opts = {}) {
   }
 
   function onClick(e) {
-    // Mouse click without drag — still counts if no pointer path fired.
+    // Mouse click without drag - still counts if no pointer path fired.
     if (e.pointerType === 'touch') return;
     if (inputState.p1.swiped || inputState.p2.swiped) return;
     const side = twoPlayer && e.clientX > window.innerWidth * 0.5 ? 'p2' : 'p1';
@@ -351,7 +351,7 @@ export async function runLaunchMinigame(opts = {}) {
     await sleep(BEAT_MS);
   }
 
-  // RIP — input window
+  // RIP - input window
   if (countEl) {
     countEl.textContent = 'RIP!';
     countEl.classList.remove('is-pop');

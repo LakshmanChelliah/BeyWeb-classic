@@ -41,7 +41,7 @@ function createMatCache() {
   };
 }
 
-// Lightning L-Drago wears a purple/magenta accent (wiki) — palette names kept
+// Lightning L-Drago wears a purple/magenta accent (wiki) - palette names kept
 // for diff history, but the constants are tuned to the new purple theme.
 const CRIMSON = 0x5b21d9;   // primary dark violet
 const RED_DEEP = 0x4510a8;  // saturated deep violet
@@ -88,7 +88,7 @@ function buildTraits(count, kind) {
               ? 0.04 + rand(s + 4) * 0.07
               : 0.03 + rand(s + 4) * 0.05,
       colorPick: Math.floor(rand(s + 5) * 3),
-      // Pre-baked heat band for helix strands — avoids per-frame material.color.setHex.
+      // Pre-baked heat band for helix strands - avoids per-frame material.color.setHex.
       heatBand: Math.floor(rand(s + 11) * 3),
     });
   }
@@ -220,7 +220,7 @@ export function createLdragoAbilityVfx(scene) {
   const fireInnerTex = createFireStreakTexture();
   const dragonSilhouetteTex = createDragonSilhouetteTexture();
 
-  // Quarks — violet dragon fire / shock (no flat floor rings).
+  // Quarks - violet dragon fire / shock (no flat floor rings).
   const windupGatherBurst = createBurstSystem(scene, {
     additive: true,
     startSpeed: [2, 7],
@@ -249,7 +249,7 @@ export function createLdragoAbilityVfx(scene) {
     colorA: new Vector4(0.35, 0.08, 0.55, 0.9),
     colorB: new Vector4(0.15, 0.02, 0.3, 0),
   });
-  // Meteo Absorb Break — crimson rush trail + impact (grounded dragon charge).
+  // Meteo Absorb Break - crimson rush trail + impact (grounded dragon charge).
   const absorbTrail = createSpeedTrail(scene, { rate: 130, tint: 'crimson' });
   const absorbVortex = createTrailSystem(scene, {
     rate: 90,
@@ -367,7 +367,7 @@ export function createLdragoAbilityVfx(scene) {
   stealCore.renderOrder = 7;
   stealGroup.add(stealCore);
 
-  // Upper Mode — orbiting sparks + core glow (no floor range rings).
+  // Upper Mode - orbiting sparks + core glow (no floor range rings).
   const upperCore = new THREE.Mesh(
     new THREE.PlaneGeometry(1.25, 1.25),
     getMat(PALE, true)
@@ -437,7 +437,7 @@ export function createLdragoAbilityVfx(scene) {
     windupGather.push({ mesh, phase: (i / WINDUP_IN_GATHER) * Math.PI * 2, band: rand(i + 40) });
   }
 
-  // Volumetric windup crater — rising spark curtain (no flat RingGeometry).
+  // Volumetric windup crater - rising spark curtain (no flat RingGeometry).
   const windupCraterSparks = [];
   for (let i = 0; i < WINDUP_CRATER_SPARKS; i++) {
     const mesh = new THREE.Mesh(
@@ -474,7 +474,7 @@ export function createLdragoAbilityVfx(scene) {
   pillarInner.renderOrder = 2;
   flightGroup.add(pillarInner);
 
-  // Soft hover glow disc (billboard) — not a ground range ring.
+  // Soft hover glow disc (billboard) - not a ground range ring.
   const hoverGlow = new THREE.Mesh(
     new THREE.PlaneGeometry(2.2, 2.2),
     getMat(CRIMSON, true)
@@ -669,7 +669,7 @@ export function createLdragoAbilityVfx(scene) {
 
       hideUpper();
 
-      // Absorb Break — dedicated crimson coil / rush / pierce (not Soaring Destruction).
+      // Absorb Break - dedicated crimson coil / rush / pierce (not Soaring Destruction).
       if (inAbsorb) {
         hideFlight();
         hideSteal();

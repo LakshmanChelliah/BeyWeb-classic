@@ -15,7 +15,7 @@ Recyclable loop for **eyes-on** ability VFX QA without hand-playing every specia
 
 - After changing `js/render/*AbilityVfx.js`, `starBlastVfx.js`, or ability physics
 - When asked to “record the fight”, “cycle frames”, or “browser-automate specials”
-- Before claiming recruiter-wow / anime fidelity — **frames beat guesses**
+- Before claiming recruiter-wow / anime fidelity - **frames beat guesses**
 
 ## Prerequisites
 
@@ -132,8 +132,8 @@ __beyCapture.trigger('player', 'special');
 
 ## Files
 
-- `js/debug/captureApi.js` — capture API
-- `js/app/bootstrap.js` — installs API
-- `js/config.js` — `RUNTIME_FLAGS` / `isAbilityTestNoDelays()`
-- `scripts/capture-fight.mjs` — Playwright recorder
-- `js/ui/selection.js` — `focusBey` / `confirmCurrent`
+- `js/debug/captureApi.js` - capture API
+- `js/app/bootstrap.js` - installs API
+- `js/config.js` - `RUNTIME_FLAGS` / `isAbilityTestNoDelays()`
+- `scripts/capture-fight.mjs` - Playwright recorder
+- `js/ui/selection.js` - `focusBey` / `confirmCurrent`

@@ -1,6 +1,6 @@
 /**
  * Reusable three.quarks emitter presets for ability VFX.
- * Thin wrappers over quarksRuntime — trails, bursts, debris, wind, sand,
+ * Thin wrappers over quarksRuntime - trails, bursts, debris, wind, sand,
  * lightning sparks, and impact shockwaves as particle bursts (not rings).
  */
 import {

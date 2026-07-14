@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Fight-capture recorder — Playwright drives pc.html?capture=1, fires specials,
+ * Fight-capture recorder - Playwright drives pc.html?capture=1, fires specials,
  * and dumps canvas frames + phase JSON for VFX QA.
  *
  * Usage:
@@ -102,7 +102,7 @@ async function captureClip(page, {
 
   const snap0 = await page.evaluate(async ({ beyId }) => {
     const api = window.__beyCapture;
-    if (!api) throw new Error('__beyCapture missing — open with ?capture=1');
+    if (!api) throw new Error('__beyCapture missing - open with ?capture=1');
     return api.bootCasualFight({ playerBeyId: beyId, difficulty: 0 });
   }, { beyId: bey });
 

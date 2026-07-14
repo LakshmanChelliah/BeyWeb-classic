@@ -76,7 +76,7 @@ for (const stadium of STADIUMS) {
       cam.lookAt(0, indoor ? 2 : 0, 0);
       cam.updateProjectionMatrix?.();
     }
-    // Don't blow out venue fog — outdoor captures can open slightly.
+    // Don't blow out venue fog - outdoor captures can open slightly.
     if (game?.scene?.fog && !indoor) {
       game.scene.fog.near = Math.max(game.scene.fog.near ?? 40, 70);
       game.scene.fog.far = Math.max(game.scene.fog.far ?? 120, 180);
