@@ -255,50 +255,58 @@ function paintIsland(ctx, w, h) {
   ctx.fillRect(0, h * 0.75, w, h * 0.25);
 }
 
-/** Metal Bey Rooftop — elevated deck; painted skyline with towers taller than the stadium. */
+/** Metal Bey Rooftop — elevated deck over a dense city that fills below the deck. */
 function paintRooftop(ctx, w, h) {
   paintSky(ctx, w, h, '#2a78c0', '#6ab0e0', '#a8d0f0');
   paintSun(ctx, w * 0.8, h * 0.12, 110, 'rgba(255,250,220,0.8)');
-  paintClouds(ctx, w, h, h * 0.1, 'rgba(255,255,255,0.45)', 6);
+  paintClouds(ctx, w, h, h * 0.08, 'rgba(255,255,255,0.4)', 5);
 
-  // Far skyline — very tall towers that rise into the upper sky
-  for (let i = 0; i < 28; i++) {
-    const x = (i / 28) * w;
-    const bh = 120 + ((i * 61) % 220);
-    const bw = 22 + (i % 4) * 10;
+  // Dense far skyline — towers fill from mid canvas well into the lower half
+  for (let i = 0; i < 36; i++) {
+    const x = (i / 36) * w;
+    const bh = 140 + ((i * 61) % 260);
+    const bw = 18 + (i % 5) * 9;
     ctx.fillStyle = i % 3 === 0 ? '#4a5868' : i % 3 === 1 ? '#3a4858' : '#2a3848';
-    // Tops reach well into the upper third of the canvas (above stadium eye-line)
-    ctx.fillRect(x, h * 0.55 - bh, bw, bh);
-    ctx.fillStyle = 'rgba(200,220,240,0.35)';
-    for (let wy = 0; wy < Math.floor(bh / 12); wy++) {
-      for (let wx = 0; wx < Math.floor(bw / 9); wx++) {
+    ctx.fillRect(x, h * 0.72 - bh, bw, bh);
+    ctx.fillStyle = 'rgba(200,220,240,0.32)';
+    for (let wy = 0; wy < Math.floor(bh / 11); wy++) {
+      for (let wx = 0; wx < Math.floor(bw / 8); wx++) {
         if ((wx + wy + i) % 2 === 0) continue;
-        ctx.fillRect(x + 3 + wx * 9, h * 0.55 - bh + 5 + wy * 12, 4, 6);
+        ctx.fillRect(x + 2 + wx * 8, h * 0.72 - bh + 4 + wy * 11, 3, 5);
       }
     }
   }
 
   // Near taller towers (looming past the deck)
-  for (let i = 0; i < 8; i++) {
-    const x = w * (0.05 + i * 0.12);
-    const bh = 200 + (i % 3) * 60;
-    const bw = 36 + (i % 2) * 14;
+  for (let i = 0; i < 10; i++) {
+    const x = w * (0.02 + i * 0.1);
+    const bh = 220 + (i % 4) * 55;
+    const bw = 32 + (i % 3) * 12;
     ctx.fillStyle = '#2a3545';
-    ctx.fillRect(x, h * 0.62 - bh, bw, bh);
-    ctx.fillStyle = 'rgba(180,210,240,0.4)';
-    for (let wy = 0; wy < 18; wy++) {
-      ctx.fillRect(x + 6, h * 0.62 - bh + 10 + wy * 12, 10, 7);
-      ctx.fillRect(x + bw - 16, h * 0.62 - bh + 10 + wy * 12, 10, 7);
+    ctx.fillRect(x, h * 0.78 - bh, bw, bh);
+    ctx.fillStyle = 'rgba(180,210,240,0.38)';
+    for (let wy = 0; wy < 22; wy++) {
+      ctx.fillRect(x + 5, h * 0.78 - bh + 8 + wy * 11, 9, 6);
+      ctx.fillRect(x + bw - 14, h * 0.78 - bh + 8 + wy * 11, 9, 6);
     }
   }
 
-  // Below-deck haze / distant streets
+  // Lower city streets / rooftops — no empty sky under the deck line
   const below = ctx.createLinearGradient(0, h * 0.55, 0, h);
   below.addColorStop(0, 'rgba(80,110,140,0)');
-  below.addColorStop(0.4, 'rgba(70,100,130,0.4)');
-  below.addColorStop(1, '#5a7a98');
+  below.addColorStop(0.25, 'rgba(70,95,120,0.55)');
+  below.addColorStop(0.55, '#4a5a68');
+  below.addColorStop(1, '#3a4858');
   ctx.fillStyle = below;
   ctx.fillRect(0, h * 0.55, w, h * 0.45);
+
+  // Blocky street grid in the lower band
+  ctx.fillStyle = 'rgba(40,50,60,0.5)';
+  for (let i = 0; i < 24; i++) {
+    const x = ((i * 73) % (w - 40)) + 10;
+    const y = h * 0.72 + ((i * 41) % (h * 0.22));
+    ctx.fillRect(x, y, 14 + (i % 4) * 8, 10 + (i % 3) * 6);
+  }
 }
 
 /** Dark Nebula HQ Rooftop — purple night sky, city far below in cyan mist. */

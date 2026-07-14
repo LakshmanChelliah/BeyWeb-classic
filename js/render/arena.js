@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=67';
-import { createBackdropTexture } from './arenaBackdrop.js?v=67';
+} from './arenaSkins.js?v=68';
+import { createBackdropTexture } from './arenaBackdrop.js?v=68';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -733,20 +733,22 @@ function addWallSegments(group, wallMat, wallCapMat) {
   }
 }
 
-/** Horizon sky — full sphere so elevated rooftops show city sky below the deck. */
+/** Horizon sky — elevated venues use an upper hemisphere; city fills below. */
 function createSkyDome(skin) {
+  const elevated = isElevated(skin);
   const mat = new THREE.MeshBasicMaterial({
     map: createBackdropTexture(skin),
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
   });
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(SKY_RADIUS, 48, 32),
-    mat
-  );
+  // Elevated: upper hemisphere only — 3D city + street plate hide the void under the deck.
+  const geo = elevated
+    ? new THREE.SphereGeometry(SKY_RADIUS, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.52)
+    : new THREE.SphereGeometry(SKY_RADIUS, 48, 32);
+  const dome = new THREE.Mesh(geo, mat);
   dome.userData.arenaPart = 'sky';
-  dome.position.y = 0;
+  dome.position.y = elevated ? 10 : 0;
   dome.renderOrder = -10;
   return dome;
 }
@@ -1082,9 +1084,13 @@ function tintCityForSkin(city, skin) {
       mat.emissive?.setHex?.(night ? 0x5b21b6 : 0x000000);
       mat.emissiveIntensity = night ? 0.12 : 0;
       mat.metalness = night ? 0.75 : 0.65;
+    } else if (obj.userData.cityPart === 'street') {
+      mat.color.setHex(night ? 0x1a1028 : 0x4a5560);
+      mat.emissive?.setHex?.(night ? 0x2a1848 : 0x000000);
+      mat.emissiveIntensity = night ? 0.08 : 0;
     } else if (obj.userData.cityPart === 'mist') {
-      mat.color.setHex(0x4c1d95);
-      mat.opacity = 0.55;
+      mat.color.setHex(night ? 0x4c1d95 : 0xb8d0e4);
+      mat.opacity = night ? 0.55 : 0.45;
     }
   });
 }
@@ -1104,9 +1110,9 @@ function createRooftopSupports(skin) {
     emissiveIntensity: night ? 0.1 : 0,
   });
 
-  // Tall building shaft plunging into the mist / city below.
+  // Tall building shaft plunging into the city below.
   // Keep the top below the battle bowl so it never occludes the dish.
-  const shaftH = night ? 36 : 22;
+  const shaftH = night ? 48 : 40;
   const bowlClearance = DISH_BOWL_DEPTH + DISH_RECESS + 0.55;
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(
@@ -1123,8 +1129,8 @@ function createRooftopSupports(skin) {
   shaft.receiveShadow = true;
   group.add(shaft);
 
-  // Outer ring of pillars at the deck edge
-  const pillarH = night ? 28 : 14;
+  // Outer ring of pillars at the deck edge — long enough to reach the city below.
+  const pillarH = night ? 42 : 36;
   const pillarGeo = new THREE.BoxGeometry(0.85, pillarH, 0.85);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
@@ -1137,13 +1143,13 @@ function createRooftopSupports(skin) {
   }
 
   // Diagonal braces under the deck
-  const braceGeo = new THREE.BoxGeometry(0.4, night ? 16 : 10, 0.4);
+  const braceGeo = new THREE.BoxGeometry(0.4, night ? 22 : 16, 0.4);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 + 0.12;
     const r = PLATFORM_OUTER_RADIUS - 2.4;
     const brace = new THREE.Mesh(braceGeo, steel.clone());
     brace.userData.cityPart = 'support';
-    brace.position.set(Math.cos(a) * r, night ? -9 : -5.5, Math.sin(a) * r);
+    brace.position.set(Math.cos(a) * r, night ? -12 : -8.5, Math.sin(a) * r);
     brace.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.5;
     brace.rotation.y = -a;
     group.add(brace);
@@ -1192,8 +1198,8 @@ function createRooftopSupports(skin) {
 }
 
 /**
- * 3D city around an elevated rooftop — skyscrapers taller than the stadium
- * so the venue reads as a deck in the sky, not a pad in a blue void.
+ * 3D city around an elevated rooftop — dense skyscraper rings that rise above
+ * the deck and plunge far below so no empty sky shows under the platform.
  */
 function createRooftopCity(skin) {
   const group = new THREE.Group();
@@ -1207,6 +1213,13 @@ function createRooftopCity(skin) {
     emissive: night ? 0x4a2080 : 0x000000,
     emissiveIntensity: night ? 0.12 : 0,
   });
+  const buildingMatB = new THREE.MeshStandardMaterial({
+    color: night ? 0x0e0a18 : 0x4a5868,
+    roughness: 0.78,
+    metalness: 0.2,
+    emissive: night ? 0x2a1050 : 0x000000,
+    emissiveIntensity: night ? 0.1 : 0,
+  });
   const windowMat = new THREE.MeshStandardMaterial({
     color: night ? 0xc084fc : 0xc8dce8,
     roughness: 0.35,
@@ -1215,36 +1228,79 @@ function createRooftopCity(skin) {
     emissiveIntensity: night ? 0.5 : 0.18,
   });
 
-  // Deterministic layout — buildings surround the deck and rise above wall height (~2).
-  const specs = [
-    { a: 0.15, r: 28, w: 5, d: 5, h: 36 },
-    { a: 0.55, r: 32, w: 4, d: 6, h: 28 },
-    { a: 1.0, r: 26, w: 6, d: 4, h: 42 },
-    { a: 1.4, r: 34, w: 5, d: 5, h: 24 },
-    { a: 1.85, r: 29, w: 4, d: 7, h: 38 },
-    { a: 2.3, r: 36, w: 7, d: 4, h: 30 },
-    { a: 2.7, r: 27, w: 5, d: 5, h: 44 },
-    { a: 3.15, r: 33, w: 4, d: 4, h: 22 },
-    { a: 3.55, r: 30, w: 6, d: 5, h: 40 },
-    { a: 4.0, r: 38, w: 5, d: 6, h: 26 },
-    { a: 4.4, r: 28, w: 4, d: 5, h: 34 },
-    { a: 4.85, r: 35, w: 6, d: 4, h: 48 },
-    { a: 5.3, r: 31, w: 5, d: 5, h: 32 },
-    { a: 5.75, r: 40, w: 4, d: 4, h: 20 },
-    { a: 0.35, r: 45, w: 8, d: 6, h: 52 },
-    { a: 2.0, r: 48, w: 6, d: 8, h: 46 },
-    { a: 3.8, r: 46, w: 7, d: 5, h: 55 },
-    { a: 5.1, r: 44, w: 5, d: 7, h: 38 },
-  ];
+  // How far towers extend below the deck (fills the blue void under the platform).
+  const yOff = night ? 52 : 44;
+  // Keep a clear fight-cam corridor on +Z (camera approaches from ~a = π/2).
+  const camGapA0 = Math.PI / 2 - 0.55;
+  const camGapA1 = Math.PI / 2 + 0.55;
+  const inCamGap = (a) => {
+    let x = a;
+    while (x < 0) x += Math.PI * 2;
+    while (x >= Math.PI * 2) x -= Math.PI * 2;
+    return x > camGapA0 && x < camGapA1;
+  };
 
-  for (const s of specs) {
-    const building = new THREE.Mesh(
-      new THREE.BoxGeometry(s.w, s.h, s.d),
-      buildingMat.clone()
-    );
+  // Rings sit outside the deck (PLATFORM_OUTER ≈ 18) — dense, but not camera-blocking.
+  const specs = [
+    // Near ring (just outside deck)
+    { a: 0.05, r: 30, w: 5, d: 5, h: 78 },
+    { a: 0.4, r: 32, w: 4, d: 6, h: 70 },
+    { a: 0.85, r: 31, w: 6, d: 4, h: 88 },
+    { a: 1.35, r: 33, w: 5, d: 5, h: 74 },
+    // skip cam corridor (~1.57)
+    { a: 2.15, r: 31, w: 4, d: 7, h: 82 },
+    { a: 2.55, r: 34, w: 7, d: 4, h: 68 },
+    { a: 2.95, r: 30, w: 5, d: 5, h: 92 },
+    { a: 3.35, r: 33, w: 4, d: 4, h: 72 },
+    { a: 3.8, r: 32, w: 6, d: 5, h: 86 },
+    { a: 4.25, r: 34, w: 5, d: 6, h: 76 },
+    { a: 4.7, r: 31, w: 4, d: 5, h: 80 },
+    { a: 5.15, r: 33, w: 6, d: 4, h: 95 },
+    { a: 5.55, r: 30, w: 5, d: 5, h: 74 },
+    { a: 5.95, r: 32, w: 4, d: 4, h: 70 },
+    // Mid ring
+    { a: 0.2, r: 42, w: 6, d: 6, h: 105 },
+    { a: 0.65, r: 44, w: 5, d: 7, h: 95 },
+    { a: 1.15, r: 41, w: 7, d: 5, h: 115 },
+    { a: 2.05, r: 45, w: 5, d: 5, h: 90 },
+    { a: 2.5, r: 43, w: 6, d: 8, h: 108 },
+    { a: 3.0, r: 46, w: 8, d: 5, h: 112 },
+    { a: 3.5, r: 42, w: 5, d: 6, h: 98 },
+    { a: 4.0, r: 44, w: 6, d: 5, h: 120 },
+    { a: 4.5, r: 47, w: 7, d: 6, h: 102 },
+    { a: 5.05, r: 43, w: 5, d: 7, h: 110 },
+    { a: 5.55, r: 45, w: 6, d: 5, h: 118 },
+    { a: 5.95, r: 48, w: 5, d: 5, h: 94 },
+    // Far ring — fills horizon / under-deck gaps
+    { a: 0.0, r: 56, w: 8, d: 7, h: 130 },
+    { a: 0.45, r: 60, w: 6, d: 8, h: 120 },
+    { a: 0.95, r: 58, w: 9, d: 6, h: 140 },
+    { a: 1.35, r: 62, w: 7, d: 7, h: 115 },
+    { a: 2.1, r: 57, w: 8, d: 9, h: 135 },
+    { a: 2.6, r: 61, w: 6, d: 6, h: 125 },
+    { a: 3.1, r: 59, w: 9, d: 7, h: 145 },
+    { a: 3.6, r: 63, w: 7, d: 8, h: 118 },
+    { a: 4.15, r: 58, w: 8, d: 6, h: 138 },
+    { a: 4.65, r: 60, w: 6, d: 9, h: 128 },
+    { a: 5.2, r: 64, w: 9, d: 7, h: 150 },
+    { a: 5.7, r: 57, w: 7, d: 7, h: 122 },
+    // Low fillers under the deck rim (shorter tops, still deep bottoms)
+    { a: 0.55, r: 26, w: 3.5, d: 3.5, h: 55 },
+    { a: 1.15, r: 27, w: 3.5, d: 4, h: 50 },
+    { a: 2.25, r: 26, w: 4, d: 3.5, h: 58 },
+    { a: 2.85, r: 28, w: 3.5, d: 3.5, h: 52 },
+    { a: 3.55, r: 27, w: 4, d: 4, h: 60 },
+    { a: 4.4, r: 26, w: 3.5, d: 3.5, h: 54 },
+    { a: 5.25, r: 28, w: 4, d: 3.5, h: 56 },
+    { a: 5.85, r: 27, w: 3.5, d: 4, h: 52 },
+  ].filter((s) => !inCamGap(s.a));
+
+  for (let i = 0; i < specs.length; i++) {
+    const s = specs[i];
+    const mat = i % 3 === 0 ? buildingMatB.clone() : buildingMat.clone();
+    const building = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), mat);
     building.userData.cityPart = 'building';
-    // Night: sink city deeper into mist so the deck feels ~1000m up.
-    const yOff = night ? 32 : 18;
+    // Top sits above deck; bottom plunges well under so sky never peeks through.
     building.position.set(
       Math.cos(s.a) * s.r,
       s.h * 0.5 - yOff,
@@ -1254,41 +1310,168 @@ function createRooftopCity(skin) {
     building.receiveShadow = true;
     group.add(building);
 
-    // Simple window strip on the face toward the stadium
+    // Slim window band (not a giant blue slab)
     const win = new THREE.Mesh(
-      new THREE.BoxGeometry(s.w * 0.7, s.h * 0.85, 0.15),
+      new THREE.BoxGeometry(s.w * 0.55, s.h * 0.55, 0.12),
       windowMat.clone()
     );
     win.userData.cityPart = 'window';
     const inward = Math.atan2(-Math.sin(s.a), -Math.cos(s.a));
     win.position.set(
       Math.cos(s.a) * (s.r - s.d * 0.52),
-      s.h * 0.5 - yOff,
+      s.h * 0.35 - yOff,
       Math.sin(s.a) * (s.r - s.d * 0.52)
     );
     win.rotation.y = inward;
     group.add(win);
   }
 
+  // Street / lower-city plate — opaque city mass under the deck (kills blue void).
+  const streetCanvas = document.createElement('canvas');
+  streetCanvas.width = streetCanvas.height = 512;
+  const sctx = streetCanvas.getContext('2d');
+  sctx.fillStyle = night ? '#1a1028' : '#4a5560';
+  sctx.fillRect(0, 0, 512, 512);
+  // Blocky rooftop / street grid
+  sctx.strokeStyle = night ? 'rgba(80,40,120,0.5)' : 'rgba(30,40,50,0.45)';
+  sctx.lineWidth = 3;
+  for (let i = 0; i < 16; i++) {
+    const p = (i / 16) * 512;
+    sctx.beginPath();
+    sctx.moveTo(p, 0);
+    sctx.lineTo(p, 512);
+    sctx.stroke();
+    sctx.beginPath();
+    sctx.moveTo(0, p);
+    sctx.lineTo(512, p);
+    sctx.stroke();
+  }
+  // Tiny building-top blocks
+  for (let i = 0; i < 80; i++) {
+    const x = ((i * 97) % 480) + 8;
+    const y = ((i * 53) % 480) + 8;
+    const bw = 8 + (i % 5) * 4;
+    const bh = 8 + (i % 4) * 3;
+    sctx.fillStyle = night
+      ? i % 3 === 0
+        ? '#2a1840'
+        : '#120c20'
+      : i % 3 === 0
+        ? '#6a7888'
+        : '#3a4858';
+    sctx.fillRect(x, y, bw, bh);
+    if (i % 4 === 0) {
+      sctx.fillStyle = night ? 'rgba(100,220,255,0.35)' : 'rgba(180,210,230,0.35)';
+      sctx.fillRect(x + 2, y + 2, bw - 4, 2);
+    }
+  }
+  const streetMap = new THREE.CanvasTexture(streetCanvas);
+  streetMap.colorSpace = THREE.SRGBColorSpace;
+  streetMap.wrapS = streetMap.wrapT = THREE.RepeatWrapping;
+  streetMap.repeat.set(4, 4);
+
+  // Raise street plate so it's visible just under the deck rim from fight cam.
+  const streetY = night ? -10 : -8;
+  const street = new THREE.Mesh(
+    new THREE.RingGeometry(PLATFORM_OUTER_RADIUS + 0.3, 95, 72),
+    new THREE.MeshStandardMaterial({
+      map: streetMap,
+      color: night ? 0xffffff : 0xd0d8e0,
+      roughness: 0.88,
+      metalness: 0.05,
+      fog: true,
+      side: THREE.DoubleSide,
+    })
+  );
+  street.userData.cityPart = 'street';
+  street.rotation.x = -Math.PI / 2;
+  street.position.y = streetY;
+  street.receiveShadow = true;
+  group.add(street);
+
+  // Dense low-rise ring just outside the deck — fills the under-rim void.
+  // Keep these in the camera corridor too (short enough not to block the fight view).
+  const lowriseMat = buildingMatB.clone();
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2 + 0.04;
+    const r = PLATFORM_OUTER_RADIUS + 1.8 + (i % 4) * 1.2;
+    const w = 2.0 + (i % 4) * 0.55;
+    const d = 1.8 + (i % 3) * 0.5;
+    const h = 8 + (i % 5) * 2.5;
+    const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lowriseMat.clone());
+    block.userData.cityPart = 'building';
+    block.position.set(Math.cos(a) * r, streetY + h * 0.5, Math.sin(a) * r);
+    block.castShadow = true;
+    block.receiveShadow = true;
+    group.add(block);
+  }
+
+  // Second low-rise band a bit farther out (also fills cam corridor).
+  for (let i = 0; i < 32; i++) {
+    const a = (i / 32) * Math.PI * 2 + 0.1;
+    const r = PLATFORM_OUTER_RADIUS + 6.5 + (i % 4) * 1.6;
+    const w = 2.6 + (i % 3) * 0.7;
+    const d = 2.2 + (i % 3) * 0.55;
+    const h = 12 + (i % 6) * 3.5;
+    const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat.clone());
+    block.userData.cityPart = 'building';
+    block.position.set(Math.cos(a) * r, streetY + h * 0.5, Math.sin(a) * r);
+    block.castShadow = true;
+    group.add(block);
+  }
+
+  // Inner under-deck city disk
+  const underDeck = new THREE.Mesh(
+    new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS + 0.8, 48),
+    new THREE.MeshStandardMaterial({
+      map: streetMap,
+      color: night ? 0x1a1028 : 0x5a6870,
+      roughness: 0.95,
+      metalness: 0.05,
+    })
+  );
+  underDeck.userData.cityPart = 'street';
+  underDeck.rotation.x = -Math.PI / 2;
+  underDeck.position.y = streetY - 0.8;
+  group.add(underDeck);
+
+  // Soft outer haze — city color, not sky blue.
+  const haze = new THREE.Mesh(
+    new THREE.CircleGeometry(110, 48),
+    new THREE.MeshBasicMaterial({
+      color: night ? 0x2a1450 : 0x5a7080,
+      transparent: true,
+      opacity: night ? 0.55 : 0.5,
+      depthWrite: false,
+      fog: false,
+      side: THREE.DoubleSide,
+    })
+  );
+  haze.userData.cityPart = 'mist';
+  haze.rotation.x = -Math.PI / 2;
+  haze.position.y = streetY - 1.2;
+  haze.renderOrder = -3;
+  group.add(haze);
+
   // Night signature towers — spiral HQ + orb tower taller than the stadium
   if (night) {
     const hq = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.5, 6, 58, 8),
+      new THREE.CylinderGeometry(2.5, 6, 72, 8),
       buildingMat.clone()
     );
     hq.userData.cityPart = 'building';
-    hq.position.set(-34, 10, -30);
+    hq.position.set(-34, 8, -30);
     group.add(hq);
 
     const orbPillarL = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 40, 1.2),
+      new THREE.BoxGeometry(1.2, 52, 1.2),
       buildingMat.clone()
     );
     orbPillarL.userData.cityPart = 'building';
-    orbPillarL.position.set(36, 4, 22);
+    orbPillarL.position.set(36, 2, 22);
     group.add(orbPillarL);
     const orbPillarR = orbPillarL.clone();
-    orbPillarR.position.set(40, 4, 22);
+    orbPillarR.position.set(40, 2, 22);
     group.add(orbPillarR);
 
     const orb = new THREE.Mesh(
@@ -1302,7 +1485,7 @@ function createRooftopCity(skin) {
       })
     );
     orb.userData.cityPart = 'window';
-    orb.position.set(38, 22, 22);
+    orb.position.set(38, 24, 22);
     group.add(orb);
   }
 
@@ -1389,10 +1572,16 @@ function applySkinToParts(parts, skin) {
 
 function applySceneAmbience(scene, skin) {
   if (!scene || skin.ambience == null) return;
-  if (scene.background?.isColor) scene.background.setHex(skin.ambience);
-  else scene.background = new THREE.Color(skin.ambience);
+  // Elevated: background matches city haze so gaps under the hemisphere stay urban.
+  const bg = isElevated(skin)
+    ? skin.backdrop?.style === 'dn_rooftop_night'
+      ? 0x140828
+      : 0x5a7088
+    : skin.ambience;
+  if (scene.background?.isColor) scene.background.setHex(bg);
+  else scene.background = new THREE.Color(bg);
   if (scene.fog?.color) {
-    scene.fog.color.setHex(skin.ambience);
+    scene.fog.color.setHex(isElevated(skin) ? bg : skin.ambience);
     if (skin.fogNear != null) scene.fog.near = skin.fogNear;
     if (skin.fogFar != null) scene.fog.far = skin.fogFar;
   }
