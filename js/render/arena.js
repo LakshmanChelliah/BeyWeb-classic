@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=66';
-import { createBackdropTexture } from './arenaBackdrop.js?v=66';
+} from './arenaSkins.js?v=67';
+import { createBackdropTexture } from './arenaBackdrop.js?v=67';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -76,11 +76,11 @@ function createBowlGeometry(radius = DISH_RADIUS, depth = DISH_BOWL_DEPTH, segme
       nrm.setXYZ(i, nx / len, 1 / len, nz / len);
     }
 
-    // Concave shade: dark well → bright mid-slope → dark rim.
+    // Smooth concave shade: dark well → lit mid-slope → dark rim (no hard bands).
     let s;
-    if (t < 0.28) s = 0.28 + (t / 0.28) * 0.4;
-    else if (t < 0.68) s = 0.68 + ((t - 0.28) / 0.4) * 0.32;
-    else s = 1.0 - ((t - 0.68) / 0.32) * 0.78;
+    if (t < 0.3) s = 0.42 + (t / 0.3) * 0.38;
+    else if (t < 0.7) s = 0.8 + Math.sin(((t - 0.3) / 0.4) * Math.PI) * 0.2;
+    else s = 1.0 - ((t - 0.7) / 0.3) * 0.55;
     colors[i * 3] = s;
     colors[i * 3 + 1] = s;
     colors[i * 3 + 2] = s;
@@ -136,70 +136,69 @@ function createDishTexture(skin) {
   const cy = size / 2;
   const r = size / 2;
 
-  // Concave bowl shading — high-contrast so it reads as a stadium, not a flat pad.
+  // Smooth concave bowl: soft radial shade + off-center highlight (no bullseye bands).
   const grad = ctx.createRadialGradient(cx, cy, r * 0.02, cx, cy, r);
-  grad.addColorStop(0, shadeHex(skin.dishCenter, 0.55));
-  grad.addColorStop(0.12, shadeHex(skin.dishCenter, 0.7));
-  grad.addColorStop(0.32, skin.dishCenter);
-  grad.addColorStop(0.52, skin.dishMid);
-  grad.addColorStop(0.72, skin.dishEdge);
-  grad.addColorStop(0.88, shadeHex(skin.dishEdge, 0.42));
-  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.22));
+  grad.addColorStop(0, shadeHex(skin.dishCenter, 0.72));
+  grad.addColorStop(0.18, skin.dishCenter);
+  grad.addColorStop(0.42, skin.dishMid);
+  grad.addColorStop(0.68, skin.dishEdge);
+  grad.addColorStop(0.88, shadeHex(skin.dishEdge, 0.55));
+  grad.addColorStop(1, shadeHex(skin.dishEdge, 0.32));
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Deep center well (recessed pit).
-  const well = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.48);
-  well.addColorStop(0, 'rgba(0,0,0,0.55)');
-  well.addColorStop(0.4, 'rgba(0,0,0,0.28)');
+  // Soft center well (recessed).
+  const well = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.55);
+  well.addColorStop(0, 'rgba(0,0,0,0.38)');
+  well.addColorStop(0.45, 'rgba(0,0,0,0.14)');
   well.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = well;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Lit mid-slope ring (curvature).
-  const slope = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 0.72);
+  // Soft lit mid-slope (curvature).
+  const slope = ctx.createRadialGradient(cx, cy, r * 0.28, cx, cy, r * 0.78);
   slope.addColorStop(0, 'rgba(255,255,255,0)');
-  slope.addColorStop(0.4, 'rgba(255,255,255,0.2)');
-  slope.addColorStop(0.75, 'rgba(255,255,255,0.06)');
+  slope.addColorStop(0.35, 'rgba(255,255,255,0.16)');
+  slope.addColorStop(0.7, 'rgba(255,255,255,0.05)');
   slope.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = slope;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Heavy rim occlusion under the lip.
-  const rim = ctx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r);
+  // Soft rim occlusion under the lip.
+  const rim = ctx.createRadialGradient(cx, cy, r * 0.58, cx, cy, r);
   rim.addColorStop(0, 'rgba(0,0,0,0)');
-  rim.addColorStop(0.35, 'rgba(0,0,0,0.25)');
-  rim.addColorStop(0.7, 'rgba(0,0,0,0.55)');
-  rim.addColorStop(1, 'rgba(0,0,0,0.82)');
+  rim.addColorStop(0.45, 'rgba(0,0,0,0.18)');
+  rim.addColorStop(0.78, 'rgba(0,0,0,0.4)');
+  rim.addColorStop(1, 'rgba(0,0,0,0.62)');
   ctx.fillStyle = rim;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Concentric contour rings.
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-  ctx.lineWidth = 4;
-  for (const rr of [0.18, 0.34, 0.5, 0.66, 0.8, 0.9]) {
+  // Very faint contour hints — not hard bullseye rings.
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 2;
+  for (const rr of [0.35, 0.58, 0.78]) {
     ctx.beginPath();
     ctx.arc(cx, cy, r * rr, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  ctx.lineWidth = 8;
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.97, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Specular highlight on the near slope (sells curvature).
-  const gloss = ctx.createRadialGradient(cx * 0.66, cy * 0.58, 2, cx * 0.66, cy * 0.58, r * 0.34);
-  gloss.addColorStop(0, 'rgba(255,255,255,0.34)');
-  gloss.addColorStop(0.45, 'rgba(255,255,255,0.1)');
+  // Specular highlight on the near slope (primary curved-surface cue).
+  const gloss = ctx.createRadialGradient(cx * 0.68, cy * 0.55, 2, cx * 0.68, cy * 0.55, r * 0.38);
+  gloss.addColorStop(0, 'rgba(255,255,255,0.38)');
+  gloss.addColorStop(0.4, 'rgba(255,255,255,0.14)');
   gloss.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gloss;
   ctx.beginPath();
@@ -221,8 +220,8 @@ function createDishTexture(skin) {
     ctx.globalAlpha = 1;
   }
 
-  // Extra plastic gloss for classic green stadium dishes (Koma / Metal Bey Rooftop).
-  if (skin.backdrop?.style === 'koma_village' || skin.backdrop?.style === 'rooftop_day') {
+  // Extra plastic gloss for the classic green Koma dish.
+  if (skin.backdrop?.style === 'koma_village') {
     const gloss2 = ctx.createRadialGradient(cx * 0.65, cy * 0.45, 2, cx * 0.65, cy * 0.45, r * 0.5);
     gloss2.addColorStop(0, 'rgba(255,255,255,0.35)');
     gloss2.addColorStop(1, 'rgba(255,255,255,0)');
