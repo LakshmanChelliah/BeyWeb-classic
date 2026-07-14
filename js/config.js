@@ -16,7 +16,7 @@ export const CONFIG = Object.freeze({
   // Collider radius = measured disc radius * this. The GLB bounding box (and
   // thin blade tips) sit outside the solid metal wheel, so < 1 pulls contact
   // in until the discs actually meet. Toggle the KeyC debug ring to recalibrate.
-  COLLIDER_INSET: 0.84,
+  COLLIDER_INSET: 0.8,
   // Horizontal-radius percentile used when fitting the bey-vs-bey disc. High
   // enough to keep the solid wheel, low enough to ignore sparse wing/tip verts
   // and AABB padding that made slow clashes fire with a visible gap.
