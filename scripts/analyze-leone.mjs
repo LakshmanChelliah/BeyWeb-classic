@@ -2,7 +2,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { resolve } from 'node:path';
 
-const file = resolve(process.argv[2] || 'Rock_Leone.glb');
+const file = resolve(process.argv[2] || 'assets/models/rock_leone.glb');
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(file);
 const root = doc.getRoot();

@@ -1,7 +1,14 @@
+/**
+ * Mobile entrypoint (index.html).
+ *
+ * Wires gyro + virtual joystick into the shared app bootstrap, locks portrait
+ * carefully around iOS motion permission, and starts the boot-icon preload
+ * before the rest of the module graph settles.
+ */
 import { createGyroInput } from './input/gyro.js';
 import { createJoystickInput } from './input/joystick.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=66';
+import { createAppBootstrap } from './app/bootstrap.js?v=70';
 import { modeBlurb } from './game/modes.js';
 import { installTouchZoomGuard } from './touchZoomGuard.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';

@@ -1,3 +1,11 @@
+/**
+ * Bey top physics + visual sync.
+ *
+ * Owns body creation, spin decay/wobble/tip-over, launch drop intro, center
+ * pull / orbit drift, and clamping against solid walls vs pocket exits.
+ * `syncTopVisual` mirrors Cannon pose into the Three.js group each frame;
+ * spin sign and death animation are driven by gauge thresholds in CONFIG.
+ */
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';

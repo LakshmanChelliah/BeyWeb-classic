@@ -1,3 +1,13 @@
+/**
+ * Core match loop: physics world + Three.js scene + ability runtime.
+ *
+ * `createGame` builds arena/tops, then `tick` runs a fixed-dt accumulator:
+ * launch intro → steer/abilities → Cannon step → contacts/ring-out → visual
+ * sync → camera/VFX. Win evaluation (sleep-out / ring-out) lives in rules.js.
+ *
+ * Invariants: tops stay floor-pinned outside ring-out cinematics; spin gauge is
+ * authoritative for sleep-out; models may fall back to procedural meshes.
+ */
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { createPhysicsWorld } from '../physics/world.js';

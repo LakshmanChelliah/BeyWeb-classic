@@ -2,7 +2,7 @@
  * Build Lightning L-Drago UI logo from Lightning_lDrago_Logo_wBlackBackground.jpg.
  * Drops the solid black background, preserves the white dragon art and magenta outline.
  * Used for carousel emblem + special-move flash overlay.
- * Output: ldrago_logo.png
+ * Output: assets/logos/ldrago_logo.png
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -11,8 +11,8 @@ import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'beystoadd/Lightning_lDrago_Logo_wBlackBackground.jpg');
-const OUT = resolve(ROOT, 'ldrago_logo.png');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/Lightning_lDrago_Logo_wBlackBackground.jpg');
+const OUT = resolve(ROOT, 'assets/logos/ldrago_logo.png');
 const SIZE = 512;
 const PAD = 0.06;
 

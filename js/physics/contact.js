@@ -1,3 +1,10 @@
+/**
+ * Collision resolution for top↔top and top↔wall contacts.
+ *
+ * Translates Cannon contact events into knockback impulses, spin loss, spark
+ * bursts, and ability hooks. ATK/DEF/STA multipliers come from stats.js;
+ * special-move and Libra-buster exceptions live in the ability layer.
+ */
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { atkCombatMult, defMult, spinDefMult } from '../game/stats.js';

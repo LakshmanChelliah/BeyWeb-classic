@@ -11,8 +11,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GLB = resolve(ROOT, 'rock_leone.glb');
-const FACE_PNG = resolve(ROOT, 'rockleonelogandFacebolt.png');
+const GLB = resolve(ROOT, 'assets/models/rock_leone.glb');
+const FACE_PNG = resolve(ROOT, 'assets/logos/rockleonelogandFacebolt.png');
 const TEX_SIZE = 2048;
 
 const COLORS = {
@@ -200,7 +200,7 @@ prim.setAttribute('COLOR_0', doc.createAccessor().setType('VEC4').setArray(color
 prim.setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(uvs).setBuffer(buffer));
 
 const texBytes = buildTopTexture();
-writeFileSync(resolve(ROOT, 'rock_leone_texture.png'), texBytes);
+writeFileSync(resolve(ROOT, 'pipeline/debug/rock_leone_texture.png'), texBytes);
 
 const texture = doc.createTexture('leone-top').setMimeType('image/png').setImage(texBytes);
 const material = doc.createMaterial('RockLeone')

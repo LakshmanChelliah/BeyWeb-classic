@@ -1,8 +1,8 @@
 {
-  "name": "beyweb",
+  "name": "beyweb-classic",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Browser Beyblade stadium fighter - 3D arena battles with gyro/keyboard controls, unique bey abilities, and static GitHub Pages deploy.",
+  "main": "js/main-pc.js",
   "scripts": {
     "color-leone": "node scripts/color-rock-leone.mjs",
     "color-libra": "node scripts/color-flame-libra.mjs",
@@ -18,11 +18,27 @@
     "recolor-leone": "node scripts/recolor-leone-top.mjs",
     "dev": "npx --yes http-server -p 8000 -c-1 -a 127.0.0.1 .",
     "capture-fight": "node scripts/capture-fight.mjs",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "verify": "node scripts/verify-local-site.mjs",
+    "verify:pc": "node scripts/verify-pc-page.mjs",
+    "test": "node scripts/verify-local-site.mjs"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "beyblade",
+    "threejs",
+    "cannon-es",
+    "webgl",
+    "game",
+    "physics",
+    "github-pages",
+    "static-site"
+  ],
+  "author": "Lakshman Chelliah",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LakshmanChelliah/BeyWeb-classic.git"
+  },
+  "homepage": "https://lakshmanchelliah.github.io/BeyWeb-classic/",
   "type": "commonjs",
   "dependencies": {
     "@gltf-transform/core": "^4.4.0",

@@ -2,7 +2,7 @@ import trimesh
 import numpy as np
 
 print('loading...')
-scene = trimesh.load('Rock_Leone.glb')
+scene = trimesh.load('assets/models/rock_leone.glb')
 if isinstance(scene, trimesh.Scene):
     mesh = trimesh.util.concatenate(tuple(
         g for g in scene.geometry.values() if isinstance(g, trimesh.Trimesh)

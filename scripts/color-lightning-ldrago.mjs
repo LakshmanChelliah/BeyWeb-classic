@@ -1,6 +1,6 @@
 /**
  * Simplify, color, and texture Lightning L-Drago for BeyWeb.
- * Output: lightning_ldrago.glb (+ debug lightning_ldrago_texture.png)
+ * Output: assets/models/lightning_ldrago.glb (+ pipeline/debug texture)
  *
  * Palette per the Lightning L-Drago 100HF wiki page:
  *   - Lightning fusion wheel: brushed silver, 3-fold symmetry (three dragon-head slopes)
@@ -18,11 +18,11 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'beystoadd/Lightning_LDrago.glb');
-const REF_JPG = resolve(ROOT, 'beystoadd/Lightning_Ldrago_Top_view.jpg');
-const FACE_PNG = resolve(ROOT, 'ldrago_logo.png');
-const OUTPUT = resolve(ROOT, 'lightning_ldrago.glb');
-const TEX_DEBUG = resolve(ROOT, 'lightning_ldrago_texture.png');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/Lightning_LDrago.glb');
+const REF_JPG = resolve(ROOT, 'pipeline/beystoadd/Lightning_Ldrago_Top_view.jpg');
+const FACE_PNG = resolve(ROOT, 'assets/logos/ldrago_logo.png');
+const OUTPUT = resolve(ROOT, 'assets/models/lightning_ldrago.glb');
+const TEX_DEBUG = resolve(ROOT, 'pipeline/debug/lightning_ldrago_texture.png');
 const TEX_SIZE = 2048;
 
 // Sampled from Lightning_Ldrago_Top_view.jpg

@@ -1,3 +1,10 @@
+/**
+ * CPU opponent steering and ability usage.
+ *
+ * Tiered personalities scale force, decision interval, rim survival, and
+ * special discipline. `applyAISteering` runs every physics tick; ability
+ * firing is gated by reach + cooldown heuristics so lower tiers feel human.
+ */
 import * as CANNON from 'cannon-es';
 import { CONFIG, isAbilityTestNoDelays } from '../config.js';
 import { applySteerForce, computeSteerForce } from '../physics/steer.js';

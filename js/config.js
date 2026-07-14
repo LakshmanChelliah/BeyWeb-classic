@@ -1,4 +1,10 @@
-/** Shared game constants */
+/**
+ * Shared tunable constants for physics, combat, launch, and VFX.
+ *
+ * Frozen at module load - use RUNTIME_FLAGS for capture/QA overrides instead
+ * of mutating CONFIG. Arena radii and pocket angles must stay in sync with
+ * render/arena.js and physics/arena.js.
+ */
 export const CONFIG = Object.freeze({
   ARENA_RADIUS: 14.0,
   WALL_RADIUS: 13.55,

@@ -1,8 +1,18 @@
+/**
+ * Boot / start-screen grey Pegasus icon.
+ *
+ * Prefers rendering a desaturated storm_pegasus.glb into a shared WebGL
+ * render target (avoids a second context on iOS). Falls back to the static
+ * logo PNG if the GLB or GPU path fails. `preloadGreyPegasusIcon` starts the
+ * load as early as the entry modules import.
+ */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { logoUrl, modelUrl } from '../assets.js';
 import { prepareTopModelHolder } from '../render/modelCache.js';
 
-const MODEL_URL = 'storm_pegasus.glb';
+const MODEL_URL = modelUrl('storm_pegasus.glb');
+const LOGO_URL = logoUrl('pegasusLogo.png');
 /** Slow analysis spin - positive Y matches in-game Pegasus right-spin (spinSign +1). */
 const SPIN_RAD_PER_SEC = 0.55;
 const ICON_CSS_PX = 120;
@@ -117,7 +127,7 @@ function showFallbackStatic(containerEl, canvas) {
   if (!containerEl.querySelector('.bey-icon-placeholder')) {
     const img = document.createElement('img');
     img.className = 'bey-icon-placeholder';
-    img.src = new URL('pegasusLogo.png', window.location.href).href;
+    img.src = new URL(LOGO_URL, window.location.href).href;
     img.alt = '';
     img.decoding = 'async';
     containerEl.appendChild(img);
@@ -163,7 +173,7 @@ export function mountBeyIcon(containerEl, { overlayEl = null, getRenderer = null
   if (!placeholder) {
     placeholder = document.createElement('img');
     placeholder.className = 'bey-icon-placeholder';
-    placeholder.src = new URL('pegasusLogo.png', window.location.href).href;
+    placeholder.src = new URL(LOGO_URL, window.location.href).href;
     placeholder.alt = '';
     placeholder.decoding = 'async';
     placeholder.setAttribute('aria-hidden', 'true');

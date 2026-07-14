@@ -1,3 +1,9 @@
+/**
+ * Keyboard steering + ability keys for PC (P1 WASD/Q/E, P2 arrows/N/M).
+ *
+ * Polls key state each tick and applies steer forces; ability presses are
+ * surfaced through the input object for the engine to fire power/special.
+ */
 import { CONFIG } from '../config.js';
 import { applySteerForce } from '../physics/steer.js';
 

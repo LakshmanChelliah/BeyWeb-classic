@@ -1,3 +1,10 @@
+/**
+ * Cannon-es world factory for Bey Web.
+ *
+ * Sets gravity, broadphase, and contact materials for top↔floor vs top↔wall.
+ * Floor friction keeps steering readable; wall restitution stays low so rim
+ * hits dump energy into spin loss instead of wild bounces.
+ */
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 

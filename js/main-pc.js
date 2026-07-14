@@ -1,6 +1,12 @@
+/**
+ * PC entrypoint (pc.html).
+ *
+ * Same bootstrap as mobile, but keyboard (and optional local 2-player) replace
+ * gyro/joystick. HUD labels and control hints adapt per selected game mode.
+ */
 import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=69';
+import { createAppBootstrap } from './app/bootstrap.js?v=70';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
 

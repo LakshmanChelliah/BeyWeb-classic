@@ -1,3 +1,10 @@
+/**
+ * Three.js scene, renderer, camera, and lighting setup.
+ *
+ * Mobile uses a lower DPR/shadow budget; PC keeps soft shadows. Camera follow
+ * helpers (`updateCamera`) track both tops while respecting arena ceiling for
+ * rooftop venue skins.
+ */
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 

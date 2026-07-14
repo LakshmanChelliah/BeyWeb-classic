@@ -1,0 +1,8 @@
+# Pipeline / tooling artifacts — not needed for static hosting or container images.
+pipeline/
+node_modules/
+.cursor/
+.git/
+*.log
+.DS_Store
+Thumbs.db

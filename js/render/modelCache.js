@@ -1,3 +1,11 @@
+/**
+ * GLB template cache for bey tops.
+ *
+ * Loads each model URL once, applies material/orientation/scale fixes, and
+ * clones holders for matches. Concurrent callers share the same in-flight
+ * promise. Missing files resolve to a procedural tinted mesh so selection UI
+ * and fights still boot.
+ */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG } from '../config.js';
