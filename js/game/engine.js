@@ -305,7 +305,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
         const pulse = 0.55 + 0.25 * Math.sin(performance.now() * 0.007);
         const base = pulse * 0.28;
         const intensity = burst > 0 ? Math.max(base, 0.35 + burst * 0.25) : base;
-        // Dusty wind haze — keep glow subdued so the funnel reads as wind, not light.
+        // Dusty wind haze - keep glow subdued so the funnel reads as wind, not light.
         return { color: '#8a857c', intensity };
       }
       if (sp.ability.id === 'ldrago_absorb_break') {

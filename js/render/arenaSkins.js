@@ -58,7 +58,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 55,
     fogFar: 160,
     name: 'Abandoned Construction Site',
-    desc: "Benkei's training ground — concrete dish on unfinished slabs and hazard tape",
+    desc: "Benkei's training ground - concrete dish on unfinished slabs and hazard tape",
     placement: 'ground',
     backdrop: {
       style: 'construction',
@@ -97,7 +97,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 60,
     fogFar: 160,
     name: 'Survival Island',
-    desc: "Yu's remote island arena — sand-gold dish on a bright Pacific beach",
+    desc: "Yu's remote island arena - sand-gold dish on a bright Pacific beach",
     placement: 'ground',
     backdrop: {
       style: 'survival_island',
@@ -135,7 +135,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 55,
     fogFar: 110,
     name: 'WBBA Headquarters',
-    desc: "Tsubasa's indoor tournament arena — gold platform on teal floor, packed stands",
+    desc: "Tsubasa's indoor tournament arena - gold platform on teal floor, packed stands",
     placement: 'ground',
     backdrop: {
       style: 'wbba_hq',
@@ -152,7 +152,7 @@ export const ARENA_SKINS = Object.freeze([
     dishLip: 0xd4a84a,
     dishRoughness: 0.38,
     dishMetalness: 0.4,
-    // Dark KO rim — must contrast against the gold platform (esp. near-camera arc)
+    // Dark KO rim - must contrast against the gold platform (esp. near-camera arc)
     wall: 0x2a3038,
     wallEmissive: 0x4a5568,
     wallEmissiveIntensity: 0.14,
@@ -161,7 +161,7 @@ export const ARENA_SKINS = Object.freeze([
     barrier: 0xd4a84a,
     barrierMetalness: 0.35,
     barrierRoughness: 0.35,
-    // Gold raised platform top (flush OOB around dish) — keep saturated under blue lights
+    // Gold raised platform top (flush OOB around dish) - keep saturated under blue lights
     platformBase: '#f0c45a',
     platformVein: '#e0b040',
     platformGrid: '#b88828',
@@ -179,7 +179,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 70,
     fogFar: 180,
     name: 'Metal Bey Rooftop',
-    desc: "Kyoya's rooftop stadium — elevated deck on steel supports above the city",
+    desc: "Kyoya's rooftop stadium - elevated deck on steel supports above the city",
     placement: 'elevated',
     backdrop: {
       style: 'rooftop_day',
@@ -217,7 +217,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 55,
     fogFar: 160,
     name: 'Koma Village',
-    desc: "Gingka's home ground — classic green dish set into cracked village earth",
+    desc: "Gingka's home ground - classic green dish set into cracked village earth",
     placement: 'ground',
     backdrop: {
       style: 'koma_village',
@@ -257,7 +257,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 65,
     fogFar: 175,
     name: 'Dark Nebula HQ Rooftop',
-    desc: "Ryuga's forbidden roof — steel-supported deck over a purple night city far below",
+    desc: "Ryuga's forbidden roof - steel-supported deck over a purple night city far below",
     placement: 'elevated',
     backdrop: {
       style: 'dn_rooftop_night',
@@ -296,7 +296,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 52,
     fogFar: 160,
     name: 'City Streets',
-    desc: "Masamune's street challenge — asphalt dish in a neon canyon",
+    desc: "Masamune's street challenge - asphalt dish in a neon canyon",
     placement: 'ground',
     backdrop: {
       style: 'city_streets',
@@ -334,7 +334,7 @@ export const ARENA_SKINS = Object.freeze([
     fogNear: 38,
     fogFar: 160,
     name: 'Volcano Interior',
-    desc: "Final L-Drago ground — molten dish inside a living crater",
+    desc: "Final L-Drago ground - molten dish inside a living crater",
     placement: 'ground',
     backdrop: {
       style: 'volcano',

@@ -22,7 +22,7 @@ body.mobile {
   -webkit-touch-callout: none;
 }
 
-/* Portrait-only — shown when the phone is rotated to landscape */
+/* Portrait-only - shown when the phone is rotated to landscape */
 .orientation-lock {
   display: none;
   position: fixed;
@@ -421,7 +421,7 @@ kbd {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 
-/* Steering mode picker — large exclusive choice (Fitts + recognition) */
+/* Steering mode picker - large exclusive choice (Fitts + recognition) */
 .control-mode {
   width: min(100%, 360px);
   margin: 0 0 22px;
@@ -933,7 +933,7 @@ body.mobile #btn-recalibrate.hidden {
   color: #d8e2f8;
 }
 
-/* Tournament — no CPU difficulty / arena picker; tighter top section */
+/* Tournament - no CPU difficulty / arena picker; tighter top section */
 .play-setup.play-setup--tournament {
   gap: 6px;
 }
@@ -2262,7 +2262,7 @@ body.mobile:not(.joystick-mode) #player-abilities .ability-status {
   font-size: 9px;
 }
 
-/* Joystick mode: huge left / right pads — slap without aiming */
+/* Joystick mode: huge left / right pads - slap without aiming */
 body.mobile.joystick-mode #player-abilities.ability-bar {
   left: 0;
   right: 0;
@@ -2942,7 +2942,7 @@ body.mobile .pick-bey {
   }
 }
 
-/* Compact fallback — older / smaller phones only */
+/* Compact fallback - older / smaller phones only */
 @media (max-height: 700px), (max-width: 374px) {
   body.mobile .play-setup-hint,
   body.mobile .select-sub,

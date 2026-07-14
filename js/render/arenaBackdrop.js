@@ -1,6 +1,6 @@
 /**
  * Painted sky-dome horizons for each anime venue.
- * Upper hemisphere only — the ground ring owns the floor.
+ * Upper hemisphere only - the ground ring owns the floor.
  * Styled after Metal Fusion stadium locations (recessed pit in a real place).
  */
 
@@ -56,7 +56,7 @@ function paintCrowd(ctx, w, h, y, height, density = 140) {
   }
 }
 
-/** WBBA Headquarters — indoor tournament bowl with a wall of still crowds. */
+/** WBBA Headquarters - indoor tournament bowl with a wall of still crowds. */
 function paintWbba(ctx, w, h) {
   // Dark indoor ceiling + warm stadium floodlights
   paintSky(ctx, w, h, '#0a1020', '#1a2a48', '#2a4a58');
@@ -120,7 +120,7 @@ function paintWbba(ctx, w, h) {
   ctx.fill();
 }
 
-/** Abandoned Construction Site — blue girders, unfinished slabs (anime site). */
+/** Abandoned Construction Site - blue girders, unfinished slabs (anime site). */
 function paintConstruction(ctx, w, h) {
   paintSky(ctx, w, h, '#6a9ab8', '#a8c0d0', '#c8b8a0');
   paintSun(ctx, w * 0.8, h * 0.2, 85, 'rgba(255,230,180,0.5)');
@@ -180,7 +180,7 @@ function paintConstruction(ctx, w, h) {
   ctx.fillRect(0, h * 0.7, w, h * 0.3);
 }
 
-/** Survival Island — lush green isle in turquoise water. */
+/** Survival Island - lush green isle in turquoise water. */
 function paintIsland(ctx, w, h) {
   paintSky(ctx, w, h, '#4aa0d8', '#87ceeb', '#b8e0f0');
   paintSun(ctx, w * 0.85, h * 0.18, 100, 'rgba(255,250,200,0.7)');
@@ -255,13 +255,13 @@ function paintIsland(ctx, w, h) {
   ctx.fillRect(0, h * 0.75, w, h * 0.25);
 }
 
-/** Metal Bey Rooftop — elevated deck; painted skyline with towers taller than the stadium. */
+/** Metal Bey Rooftop - elevated deck; painted skyline with towers taller than the stadium. */
 function paintRooftop(ctx, w, h) {
   paintSky(ctx, w, h, '#2a78c0', '#6ab0e0', '#a8d0f0');
   paintSun(ctx, w * 0.8, h * 0.12, 110, 'rgba(255,250,220,0.8)');
   paintClouds(ctx, w, h, h * 0.1, 'rgba(255,255,255,0.45)', 6);
 
-  // Far skyline — very tall towers that rise into the upper sky
+  // Far skyline - very tall towers that rise into the upper sky
   for (let i = 0; i < 28; i++) {
     const x = (i / 28) * w;
     const bh = 120 + ((i * 61) % 220);
@@ -301,7 +301,7 @@ function paintRooftop(ctx, w, h) {
   ctx.fillRect(0, h * 0.55, w, h * 0.45);
 }
 
-/** Dark Nebula HQ Rooftop — purple night sky, city far below in cyan mist. */
+/** Dark Nebula HQ Rooftop - purple night sky, city far below in cyan mist. */
 function paintDarkNebula(ctx, w, h) {
   // Deep purple night sky
   paintSky(ctx, w, h, '#1a0a30', '#2a1450', '#3a2080');
@@ -347,7 +347,7 @@ function paintDarkNebula(ctx, w, h) {
     ctx.fillRect(w * 0.28 - tw / 2, h * 0.42 - t * 26 - 40, tw, th);
   }
 
-  // Orb tower (right) — glowing cyan sphere cradled by pillars
+  // Orb tower (right) - glowing cyan sphere cradled by pillars
   const ox = w * 0.78;
   ctx.fillStyle = '#0e0a1a';
   ctx.fillRect(ox - 18, h * 0.2, 12, h * 0.28);
@@ -361,7 +361,7 @@ function paintDarkNebula(ctx, w, h) {
   ctx.arc(ox + 1, h * 0.28, 42, 0, Math.PI * 2);
   ctx.fill();
 
-  // Thick cyan/purple mist bank — city streets 1000m below
+  // Thick cyan/purple mist bank - city streets 1000m below
   const mist = ctx.createLinearGradient(0, h * 0.42, 0, h);
   mist.addColorStop(0, 'rgba(40,20,80,0)');
   mist.addColorStop(0.25, 'rgba(40,120,200,0.35)');
@@ -379,7 +379,7 @@ function paintDarkNebula(ctx, w, h) {
   ctx.globalAlpha = 1;
 }
 
-/** Koma Village — rural mountains, forest, dirt path. */
+/** Koma Village - rural mountains, forest, dirt path. */
 function paintVillage(ctx, w, h) {
   paintSky(ctx, w, h, '#5a8ab8', '#a8c8e0', '#e8dcc0');
   paintSun(ctx, w * 0.18, h * 0.2, 80, 'rgba(255,240,200,0.55)');
@@ -442,7 +442,7 @@ function paintVillage(ctx, w, h) {
   ctx.fillRect(0, h * 0.68, w, h * 0.32);
 }
 
-/** City Streets — neon canyon. */
+/** City Streets - neon canyon. */
 function paintStreets(ctx, w, h) {
   paintSky(ctx, w, h, '#1a2848', '#3a5070', '#687888');
   paintClouds(ctx, w, h, h * 0.14, 'rgba(180,190,200,0.28)', 3);
@@ -487,7 +487,7 @@ function paintStreets(ctx, w, h) {
   ctx.fillRect(0, h * 0.7, w, h * 0.3);
 }
 
-/** Volcano Interior / crater — jagged rock, magma glow, dark peaks. */
+/** Volcano Interior / crater - jagged rock, magma glow, dark peaks. */
 function paintVolcano(ctx, w, h) {
   paintSky(ctx, w, h, '#1a1028', '#2a1830', '#4a2018');
   paintClouds(ctx, w, h, h * 0.18, 'rgba(80,40,40,0.35)', 3);

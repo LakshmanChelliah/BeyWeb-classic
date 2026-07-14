@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { prepareTopModelHolder } from '../render/modelCache.js';
 
 const MODEL_URL = 'storm_pegasus.glb';
-/** Slow analysis spin — positive Y matches in-game Pegasus right-spin (spinSign +1). */
+/** Slow analysis spin - positive Y matches in-game Pegasus right-spin (spinSign +1). */
 const SPIN_RAD_PER_SEC = 0.55;
 const ICON_CSS_PX = 120;
 const RT_SIZE = 384;
@@ -40,7 +40,7 @@ function applyGreyAnalysisMaterials(root) {
         else if (lum > 0.75) color = GREY_BODY;
       }
 
-      // Low metalness — high metal without env map reads black on mobile GPUs.
+      // Low metalness - high metal without env map reads black on mobile GPUs.
       return new THREE.MeshStandardMaterial({
         color: color.clone(),
         metalness: 0.1,

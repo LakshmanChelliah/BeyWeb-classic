@@ -34,10 +34,10 @@ function easeOut(t) {
   return 1 - (1 - t) * (1 - t);
 }
 
-// Anchor — still a subtle green dig-in cue (power move only).
+// Anchor - still a subtle green dig-in cue (power move only).
 const ANCHOR_GREEN = 0x4ade80;
 
-// Gale Force Wall — dusty green wind (not neon / light-show).
+// Gale Force Wall - dusty green wind (not neon / light-show).
 const GALE_PALE = 0xb8c99a;
 const GALE_LIME = 0x7a9a45;
 const GALE_MID = 0x556b2f;
@@ -48,7 +48,7 @@ const DUST_DARK = 0x7a7268;
 const DEBRIS_TAN = 0x9a8b78;
 const DEBRIS_DARK = 0x5c5348;
 
-// Narrower vertical funnel — same height, tighter radii than the prior wide cone.
+// Narrower vertical funnel - same height, tighter radii than the prior wide cone.
 const TORNADO_HEIGHT = 7.2;
 const TORNADO_BASE_R = 0.78;
 const TORNADO_TOP_R = 2.05;
@@ -62,7 +62,7 @@ const DUST_COUNT = 64;
 const STREAK_COUNT = 40;
 
 /**
- * Dense swirling wind sheet — dusty green bands, not bright neon wash.
+ * Dense swirling wind sheet - dusty green bands, not bright neon wash.
  */
 function createGaleWindTexture() {
   const c = document.createElement('canvas');
@@ -71,7 +71,7 @@ function createGaleWindTexture() {
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, 256, 512);
 
-  // Soft dusty body — muted, translucent wind volume.
+  // Soft dusty body - muted, translucent wind volume.
   const body = ctx.createLinearGradient(0, 0, 0, 512);
   body.addColorStop(0, 'rgba(184,201,154,0)');
   body.addColorStop(0.1, 'rgba(154,171,120,0.22)');
@@ -101,7 +101,7 @@ function createGaleWindTexture() {
     ctx.restore();
   }
 
-  // Fine grit filaments — wind texture, not light beams.
+  // Fine grit filaments - wind texture, not light beams.
   for (let i = 0; i < 55; i++) {
     const x = rand(i + 50) * 256;
     const w = 0.5 + rand(i + 51) * 1.6;
@@ -270,7 +270,7 @@ export function createLeoneAbilityVfx(scene) {
   const funnelGroup = new THREE.Group();
   tornadoGroup.add(funnelGroup);
 
-  // Outer shell — dusty green wind wall (normal blend = solid volume, not glow).
+  // Outer shell - dusty green wind wall (normal blend = solid volume, not glow).
   const outerShell = new THREE.Mesh(
     buildFunnelGeometry(
       TORNADO_BASE_R * 1.08,
@@ -285,7 +285,7 @@ export function createLeoneAbilityVfx(scene) {
   outerShell.renderOrder = 5;
   funnelGroup.add(outerShell);
 
-  // Mid shell — denser swirling wind body.
+  // Mid shell - denser swirling wind body.
   const midShell = new THREE.Mesh(
     buildFunnelGeometry(
       TORNADO_BASE_R * 0.88,
@@ -300,7 +300,7 @@ export function createLeoneAbilityVfx(scene) {
   midShell.renderOrder = 6;
   funnelGroup.add(midShell);
 
-  // Inner eye wall — slight haze only (kept subtle).
+  // Inner eye wall - slight haze only (kept subtle).
   const innerShell = new THREE.Mesh(
     buildFunnelGeometry(
       TORNADO_BASE_R * 0.48,
@@ -315,7 +315,7 @@ export function createLeoneAbilityVfx(scene) {
   innerShell.renderOrder = 7;
   funnelGroup.add(innerShell);
 
-  // Helical wind ribbons — primary "tornado" read.
+  // Helical wind ribbons - primary "tornado" read.
   const ribbons = [];
   for (let i = 0; i < RIBBON_COUNT; i++) {
     const turns = 2.6 + (i % 3) * 0.4;
@@ -345,7 +345,7 @@ export function createLeoneAbilityVfx(scene) {
     });
   }
 
-  // Ground debris / suction ring — sized relative to funnel base.
+  // Ground debris / suction ring - sized relative to funnel base.
   const groundRing = new THREE.Mesh(
     new THREE.RingGeometry(TORNADO_BASE_R * 0.3, TORNADO_BASE_R * 1.25, 40),
     getMat(DUST_DARK)
@@ -364,7 +364,7 @@ export function createLeoneAbilityVfx(scene) {
   groundOuter.renderOrder = 3;
   tornadoGroup.add(groundOuter);
 
-  // Crown debris cloud — dusty, not glowing.
+  // Crown debris cloud - dusty, not glowing.
   const crownMist = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     makeMat(DUST_TAN, 0, { additive: false, map: mistTex })
@@ -500,7 +500,7 @@ export function createLeoneAbilityVfx(scene) {
     groundRing.visible = show;
     groundOuter.visible = show;
 
-    // Solid wind volume — higher normal-blend opacity, soft inner haze only.
+    // Solid wind volume - higher normal-blend opacity, soft inner haze only.
     outerShell.material.opacity = 0.62 * env;
     midShell.material.opacity = 0.55 * env;
     innerShell.material.opacity = 0.14 * env;

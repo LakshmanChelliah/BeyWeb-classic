@@ -80,7 +80,7 @@ function applyModelMaterials(model, url) {
   });
 }
 
-/** Pole-to-+Y correction for meshes authored with spin on -Z (not Meteo — that GLB is already Y-up). */
+/** Pole-to-+Y correction for meshes authored with spin on -Z (not Meteo - that GLB is already Y-up). */
 function needsPoleToYRotation(url) {
   if (/meteo_ldrago/i.test(url)) return false;
   return /leone|libra|bull|lightning_ldrago|eagle/i.test(url);

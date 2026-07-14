@@ -228,7 +228,7 @@ export function installCaptureApi(app) {
   async function startMatch() {
     const btn = document.getElementById('btn-start');
     if (!btn || btn.disabled) {
-      // Overlay may already be ready — try direct start
+      // Overlay may already be ready - try direct start
       if (gameRef?.startGame && !gameRef.state.gameRunning) {
         await gameRef.startGame();
       }
@@ -262,7 +262,7 @@ export function installCaptureApi(app) {
     if (forceAiBeyId) {
       const bey = getBeyById(forceAiBeyId);
       if (!bey) throw new Error(`Unknown forceAiBeyId: ${forceAiBeyId}`);
-      // Soft override for VFX QA — models may already be loaded for random rival.
+      // Soft override for VFX QA - models may already be loaded for random rival.
       gameRef.state.aiBey = bey;
       campaignCtrl?.updateHud?.();
     }

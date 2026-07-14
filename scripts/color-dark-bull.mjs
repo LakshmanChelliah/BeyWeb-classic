@@ -135,7 +135,7 @@ function buildTopTexture() {
       } else if (r >= 0.9) {
         rgb = COLORS.silverDark.map((c) => Math.round(c * 255));
       } else if (r >= RING_INNER && r < WHEEL_INNER) {
-        // Orange ring — vertex colors on the top cap reinforce this; keep texture warm.
+        // Orange ring - vertex colors on the top cap reinforce this; keep texture warm.
         const bump = 0.5 + 0.5 * Math.cos(ang * 4);
         rgb = [
           Math.round(mix(COLORS.orangeDeep[0], COLORS.orange[0], bump) * 255),

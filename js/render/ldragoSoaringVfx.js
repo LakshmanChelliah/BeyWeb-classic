@@ -1,10 +1,10 @@
 /**
- * Lightning L-Drago — Dragon Emperor, Soaring Destruction VFX.
+ * Lightning L-Drago - Dragon Emperor, Soaring Destruction VFX.
  * Fair-fight mirror of Star Blast: dash → wall → soar → dive → bounce,
  * themed dark purple/crimson with dragon silhouette apex.
  * Lightning bolts strike from the sky onto the opponent collision point
  * (ldragoLightningHitX/Z) while ldragoLightningImpactT > 0.
- * No flat impact rings — reach is sold by trails, dragon motif, and particle volume.
+ * No flat impact rings - reach is sold by trails, dragon motif, and particle volume.
  */
 import * as THREE from 'three';
 import { clamp01 } from '../utils/math.js';
@@ -300,7 +300,7 @@ export function createLdragoSoaringVfx(scene) {
   apexFlare.renderOrder = 7;
   root.add(apexFlare);
 
-  // Impact lightning bolts — only while ldragoLightningImpactT > 0 (opponent hit).
+  // Impact lightning bolts - only while ldragoLightningImpactT > 0 (opponent hit).
   const IMPACT_BOLT_COUNT = 12;
   const BRANCH_BOLT_COUNT = 10;
   const impactBolts = [];
@@ -320,7 +320,7 @@ export function createLdragoSoaringVfx(scene) {
     branchBolts.push(line);
   }
 
-  // Thick bolt ribbons — LineBasicMaterial is 1px on WebGL; planes sell mass.
+  // Thick bolt ribbons - LineBasicMaterial is 1px on WebGL; planes sell mass.
   const BOLT_RIBBON_COUNT = 6;
   const boltRibbons = [];
   for (let i = 0; i < BOLT_RIBBON_COUNT; i++) {
@@ -386,7 +386,7 @@ export function createLdragoSoaringVfx(scene) {
   groundFlashOuter.rotation.x = -Math.PI * 0.5;
   root.add(groundFlashOuter);
 
-  // Crossed vertical core — readable from stadium cam as the sky→floor strike column.
+  // Crossed vertical core - readable from stadium cam as the sky→floor strike column.
   const STRIKE_CORE_COUNT = 2;
   const strikeCores = [];
   for (let i = 0; i < STRIKE_CORE_COUNT; i++) {
@@ -706,7 +706,7 @@ export function createLdragoSoaringVfx(scene) {
           });
         }
 
-        // Floor arcs radiate from the strike — sell the collision landing from top-down.
+        // Floor arcs radiate from the strike - sell the collision landing from top-down.
         floorArcs.forEach((line, ai) => {
           const ang = (ai / FLOOR_ARC_COUNT) * Math.PI * 2 + boltRand(seed + ai * 3) * 0.4;
           const reach = 1.6 + (ai % 3) * 0.55 + Math.abs(boltRand(seed + ai)) * 0.5;
@@ -946,7 +946,7 @@ export function createLdragoSoaringVfx(scene) {
         diveTrail.stop();
       }
 
-      // Apex dragon silhouette — counterpart to Pegasus 4-ray star.
+      // Apex dragon silhouette - counterpart to Pegasus 4-ray star.
       const apexFrac = lift / 38;
       const showDragon =
         (phase === 'ascend' && apexFrac > 0.4) || (phase === 'dive' && apexFrac > 0.5);

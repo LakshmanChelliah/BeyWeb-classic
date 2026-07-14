@@ -17,7 +17,7 @@ import { getTournamentBlader } from '../game/campaign.js';
 import { playArenaTransition } from '../ui/arenaTransition.js?v=64';
 import { showConfirmDialog } from '../ui/confirmDialog.js?v=65';
 
-/** Capture API is optional QA tooling — never block boot if it fails to load. */
+/** Capture API is optional QA tooling - never block boot if it fails to load. */
 function installCaptureApiLazy(app) {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -143,7 +143,7 @@ export function createAppBootstrap({
     }
   }
 
-  /** Change Bey from game over — tournament requires an extra confirm (progress wipe). */
+  /** Change Bey from game over - tournament requires an extra confirm (progress wipe). */
   let changeBeyConfirmOpen = false;
   async function requestChangeBey() {
     if (changeBeyConfirmOpen) return;
@@ -154,7 +154,7 @@ export function createAppBootstrap({
         ok = await showConfirmDialog({
           title: 'Change Bey?',
           message:
-            'Leaving the tournament will erase all progress — stage, series score, and rivals cleared. This cannot be undone.',
+            'Leaving the tournament will erase all progress - stage, series score, and rivals cleared. This cannot be undone.',
           confirmLabel: 'Change Bey',
           cancelLabel: 'Keep Playing',
           danger: true,
@@ -210,7 +210,7 @@ export function createAppBootstrap({
   const playSetup = createPlaySetup(playSetupEl, {
     show2Player,
     onChange({ mode, difficulty: diff, arenaSkin }) {
-      // Skin-only changes (casual / 2P dropdown) — persist user preference.
+      // Skin-only changes (casual / 2P dropdown) - persist user preference.
       if (mode === gameMode && diff === difficulty) {
         if (arenaSkin && mode !== GAME_MODES.TOURNAMENT) {
           gameRef?.setArenaSkin?.(arenaSkin, { persist: true });

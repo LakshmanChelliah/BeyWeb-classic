@@ -1,6 +1,6 @@
 /**
  * Build Dark Bull UI logo from bulllogounedited.jpg.
- * Transparent PNG — flat blue bull art, no white outline.
+ * Transparent PNG - flat blue bull art, no white outline.
  * Used for carousel emblem + special-move flash overlay.
  * Output: darkbull_logo.png
  */

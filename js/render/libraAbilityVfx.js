@@ -40,7 +40,7 @@ function createMatCache() {
 }
 
 /**
- * Floor sand-pit disc — radial gradient stronger toward the center
+ * Floor sand-pit disc - radial gradient stronger toward the center
  * (old Sonic Buster sand circle: dense core, soft fade at the rim).
  */
 function createSandPitTexture() {
@@ -166,7 +166,7 @@ export function createLibraAbilityVfx(scene) {
   root.add(pillarGroup);
   root.add(pitGroup);
 
-  // Volumetric sonic dome — hemisphere shell (no flat reach ring).
+  // Volumetric sonic dome - hemisphere shell (no flat reach ring).
   const shieldDomeMesh = new THREE.Mesh(
     new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.52),
     makeMat(SHIELD_GREEN, 0, { additive: true, doubleSide: true })
@@ -214,7 +214,7 @@ export function createLibraAbilityVfx(scene) {
     colorA: new Vector4(0.9, 0.78, 0.45, 0.9),
     colorB: new Vector4(0.5, 0.38, 0.2, 0),
   });
-  // Piercing shriek — radial sonic pulse bursts (particles, not flat rings).
+  // Piercing shriek - radial sonic pulse bursts (particles, not flat rings).
   const shriekPulse = createImpactShockwave(scene, { tint: 'sand' });
   let lastShriekPulse = 0;
 
@@ -291,7 +291,7 @@ export function createLibraAbilityVfx(scene) {
     });
   }
 
-  // Floor sand circle — radial gradient denser toward center (old Sonic Buster pit).
+  // Floor sand circle - radial gradient denser toward center (old Sonic Buster pit).
   // This is the sand field itself, not an attack-range telegraph ring.
   const sandPitTex = createSandPitTexture();
   const pitSand = new THREE.Mesh(
@@ -347,7 +347,7 @@ export function createLibraAbilityVfx(scene) {
     });
   }
 
-  // Low sandstorm haze — readable field, not particle spam.
+  // Low sandstorm haze - readable field, not particle spam.
   const sandDust = [];
   for (let i = 0; i < SAND_DUST_COUNT; i++) {
     const s = i + 91;
@@ -474,7 +474,7 @@ export function createLibraAbilityVfx(scene) {
     pillarScroll += dt * 0.75;
     pillarStreakTex.offset.y = pillarScroll;
 
-    // Vibration wobble on the pillar — sells the sonic shriek without chaos.
+    // Vibration wobble on the pillar - sells the sonic shriek without chaos.
     const vib = Math.sin(pitT * 42) * 0.012 * env;
     pillarGroup.position.x += vib;
     pillarGroup.position.z += Math.sin(pitT * 37) * 0.01 * env;
@@ -562,7 +562,7 @@ export function createLibraAbilityVfx(scene) {
         const burst = body.userData.sonicShieldBurstT ?? 0;
         const pulse = 0.75 + 0.25 * Math.sin(shieldSpin * 2.0);
         const reach = body.userData.sonicShieldReach ?? R * 2.75;
-        // Dome radius matches physics reach — volume sells the shield, not a flat ring.
+        // Dome radius matches physics reach - volume sells the shield, not a flat ring.
         const domeR = reach * (0.92 + burst * 0.08 + pulse * 0.04);
 
         shieldDomeMesh.scale.set(domeR, domeR * 0.72, domeR);
@@ -617,7 +617,7 @@ export function createLibraAbilityVfx(scene) {
           sandBurst.setPosition(bx, floorY + 0.15, bz);
           sandBurst.burst(28);
         }
-        // Piercing shriek pulses — radial particle shockwaves (canon Sonic Buster).
+        // Piercing shriek pulses - radial particle shockwaves (canon Sonic Buster).
         if (sonicBuster && env > 0.2) {
           lastShriekPulse += dt;
           if (lastShriekPulse > 0.55) {

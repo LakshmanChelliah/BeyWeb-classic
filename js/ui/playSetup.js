@@ -8,7 +8,7 @@ import {
 
 /**
  * Mode + difficulty + arena skin controls rendered inside the bey-select overlay.
- * Arena skins are texture/material palettes only — stadium shape stays fixed.
+ * Arena skins are texture/material palettes only - stadium shape stays fixed.
  * Tournament hides the arena picker (each rival forces their own stadium).
  */
 export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
@@ -98,10 +98,10 @@ export function createPlaySetup(el, { show2Player = false, onChange } = {}) {
 
     if (hintEl) {
       if (mode === GAME_MODES.TOURNAMENT) {
-        hintEl.textContent = 'Seven bladers in order — each brings a pivotal anime venue.';
+        hintEl.textContent = 'Seven bladers in order - each brings a pivotal anime venue.';
         hintEl.classList.remove('hidden');
       } else if (isCasual) {
-        hintEl.textContent = 'Best of 3 vs a random rival — new rival after each series';
+        hintEl.textContent = 'Best of 3 vs a random rival - new rival after each series';
         hintEl.classList.remove('hidden');
       } else if (mode === GAME_MODES.TWO_PLAYER) {
         hintEl.textContent = 'Best of 5 local series';

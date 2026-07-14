@@ -2,7 +2,7 @@ import { getBeyById } from './beys.js';
 import { pickRandomRival } from './campaign.js';
 import { createSeriesTracker, SERIES_BEST_OF } from './seriesScore.js';
 
-/** Best-of-3 casual fights — CPU rival is rolled randomly each series. */
+/** Best-of-3 casual fights - CPU rival is rolled randomly each series. */
 export function createCasualMode() {
   const series = createSeriesTracker(SERIES_BEST_OF.THREE);
   let opponentId = null;

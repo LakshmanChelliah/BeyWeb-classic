@@ -30,7 +30,7 @@ let _scene = null;
 let _disabled = false;
 const _systems = new Set();
 
-/** Shared soft-circle textures — one GPU upload, reused by every emitter. */
+/** Shared soft-circle textures - one GPU upload, reused by every emitter. */
 let _softGlowTex = null;
 let _softDustTex = null;
 
@@ -93,7 +93,7 @@ export function ensureQuarksRuntime(scene) {
     scene.add(_renderer);
     return _renderer;
   } catch (err) {
-    console.warn('[quarks] BatchedRenderer init failed — particle VFX disabled', err);
+    console.warn('[quarks] BatchedRenderer init failed - particle VFX disabled', err);
     _disabled = true;
     _renderer = null;
     return null;

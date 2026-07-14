@@ -78,7 +78,7 @@ function arenaTopPositions(state) {
   return positions;
 }
 
-/** Horizontal span that should fit in frame — separation plus bey size padding. */
+/** Horizontal span that should fit in frame - separation plus bey size padding. */
 function framingSpan(positions, minSpan) {
   if (positions.length === 0) return minSpan;
   if (positions.length === 1) return minSpan;

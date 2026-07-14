@@ -1,5 +1,5 @@
 /**
- * Storm Pegasus — Speed Boost VFX.
+ * Storm Pegasus - Speed Boost VFX.
  * Dense blue trail particles; activation is a particle burst (no burst ring).
  */
 import * as THREE from 'three';

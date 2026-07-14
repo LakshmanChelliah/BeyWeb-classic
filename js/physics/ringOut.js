@@ -3,7 +3,7 @@ import { setBodyCollisions } from './top.js';
 
 /**
  * Starts the ring-out slide: preserve exit momentum, nudge outward if slow.
- * No upward pop — the bey should carry its line off the stadium.
+ * No upward pop - the bey should carry its line off the stadium.
  */
 export function beginRingOut(body) {
   if (!body || body.userData.ringOut) return;
