@@ -651,21 +651,31 @@ function createWedgeShape() {
   return shape;
 }
 
-/** Top rail material — same wall color, no colored emissive glow on the rim tops. */
+/** Desaturate wall color for top rails so rims never read red/orange. */
+function wallCapColor(wallHex) {
+  const r = (wallHex >> 16) & 255;
+  const g = (wallHex >> 8) & 255;
+  const b = wallHex & 255;
+  // Prefer green/blue contribution so warm walls lose red cast on overhead rails.
+  const l = Math.max(24, Math.min(200, Math.round(0.22 * r + 0.48 * g + 0.3 * b)));
+  return (l << 16) | (l << 8) | l;
+}
+
+/** Top rail material — neutral grey (no colored emissive glow on the rim tops). */
 function createWallCapMaterial(skin) {
   return new THREE.MeshStandardMaterial({
-    color: skin.wall,
+    color: wallCapColor(skin.wall),
     metalness: skin.wallMetalness ?? 0.35,
-    roughness: Math.min(1, (skin.wallRoughness ?? 0.4) + 0.12),
+    roughness: Math.min(1, (skin.wallRoughness ?? 0.4) + 0.18),
     emissive: 0x000000,
     emissiveIntensity: 0,
   });
 }
 
 function applyWallCapMaterialProps(mat, skin) {
-  mat.color.setHex(skin.wall);
+  mat.color.setHex(wallCapColor(skin.wall));
   mat.metalness = skin.wallMetalness ?? 0.35;
-  mat.roughness = Math.min(1, (skin.wallRoughness ?? 0.4) + 0.12);
+  mat.roughness = Math.min(1, (skin.wallRoughness ?? 0.4) + 0.18);
   mat.emissive.setHex(0x000000);
   mat.emissiveIntensity = 0;
   mat.needsUpdate = true;
