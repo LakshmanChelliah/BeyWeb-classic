@@ -1,6 +1,6 @@
 /**
- * Crop the Dark Bull facebolt (bull head + BULL text) from darkbull_referencelook.jpg.
- * Output: darkbull_facebolt.png
+ * Crop the Dark Bull facebolt from pipeline/references/darkbull_referencelook.jpg.
+ * Output: pipeline/debug/darkbull_facebolt.png
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -9,8 +9,8 @@ import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = resolve(ROOT, 'darkbull_referencelook.jpg');
-const OUT = resolve(ROOT, 'darkbull_facebolt.png');
+const REF = resolve(ROOT, 'pipeline/references/darkbull_referencelook.jpg');
+const OUT = resolve(ROOT, 'pipeline/debug/darkbull_facebolt.png');
 
 // Facebolt hex occupies roughly the inner 22% of the product photo radius.
 const CROP_FRAC = 0.44;

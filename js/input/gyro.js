@@ -1,3 +1,10 @@
+/**
+ * Device-orientation steering for mobile.
+ *
+ * Maps phone tilt to arena-plane forces via `applySteerForce`. iOS requires
+ * `requestPermission` inside a real user gesture - call that before any other
+ * await that would burn transient activation (including orientation.lock).
+ */
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { applySteerForce } from '../physics/steer.js';

@@ -24,13 +24,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare production site
+        run: |
+          mkdir -p _site
+          # Runtime site only — exclude pipeline references, tooling, and agent files.
+          rsync -a \
+            --exclude '_site' \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.cursor' \
+            --exclude 'node_modules' \
+            --exclude 'pipeline' \
+            --exclude 'scripts' \
+            --exclude 'docs' \
+            --exclude 'package.json' \
+            --exclude 'package-lock.json' \
+            --exclude '.dockerignore' \
+            --exclude '.gitignore' \
+            --exclude 'README.md' \
+            ./ _site/
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment

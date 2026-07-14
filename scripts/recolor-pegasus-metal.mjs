@@ -8,7 +8,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GLB = resolve(ROOT, 'storm_pegasus.glb');
+const GLB = resolve(ROOT, 'assets/models/storm_pegasus.glb');
 
 const METAL_GRAY = [0.40, 0.42, 0.46, 1];
 const METALNESS = 0.35;

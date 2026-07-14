@@ -2,9 +2,9 @@
  * Color Ray Striker / Ray Unicorno - same mesh layout as Storm Pegasus.
  * Preserves all 16 sub-meshes (no merge/decimate) so size and spin axis match pegasus.
  *
- * Input:  beystoadd/rayStriker.glb
- *         beystoadd/raystrikercolour.jpeg
- * Output: ray_striker.glb (+ ray_striker_texture.png)
+ * Input:  pipeline/beystoadd/rayStriker.glb
+ *         pipeline/beystoadd/raystrikercolour.jpeg
+ * Output: assets/models/ray_striker.glb (+ pipeline/debug textures)
  */
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -15,12 +15,12 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'beystoadd/rayStriker.glb');
-const REF_JPG = resolve(ROOT, 'beystoadd/raystrikercolour.jpeg');
-const OUTPUT = resolve(ROOT, 'ray_striker.glb');
-const TEX_DEBUG = resolve(ROOT, 'ray_striker_texture.png');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/rayStriker.glb');
+const REF_JPG = resolve(ROOT, 'pipeline/beystoadd/raystrikercolour.jpeg');
+const OUTPUT = resolve(ROOT, 'assets/models/ray_striker.glb');
+const TEX_DEBUG = resolve(ROOT, 'pipeline/debug/ray_striker_texture.png');
 const TEX_SIZE = 2048;
-const FACEBOLT_TEX_DEBUG = resolve(ROOT, 'ray_striker_facebolt.png');
+const FACEBOLT_TEX_DEBUG = resolve(ROOT, 'pipeline/debug/ray_striker_facebolt.png');
 const FACEBOLT_TEX_SIZE = 512;
 
 const COLORS = {

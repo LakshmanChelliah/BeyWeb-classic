@@ -1,7 +1,7 @@
 /**
  * Simplify, color, and texture Flame Libra for BeyWeb.
- * Input:  Flame_Libra.glb + flame_libralogo.png
- * Output: flame_libra.glb
+ * Input:  pipeline raw GLB + assets/logos/flame_libralogo.png
+ * Output: assets/models/flame_libra.glb
  */
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -13,9 +13,9 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const RAW_INPUT = resolve(ROOT, 'Flame_Libra_RAW.glb');
-const BAKED_OUTPUT = resolve(ROOT, 'flame_libra.glb');
-const FACE_PNG = resolve(ROOT, 'flame_libralogo.png');
+const RAW_INPUT = resolve(ROOT, 'pipeline/beystoadd/Flame_Libra_RAW.glb');
+const BAKED_OUTPUT = resolve(ROOT, 'assets/models/flame_libra.glb');
+const FACE_PNG = resolve(ROOT, 'assets/logos/flame_libralogo.png');
 const TEX_SIZE = 2048;
 
 // Sampled from flameLibraReferenceLook.png (product photo reference)
@@ -284,7 +284,7 @@ async function main() {
   const hasRaw = existsSync(RAW_INPUT) && statSync(RAW_INPUT).size > 5_000_000;
   const inputPath = hasRaw ? RAW_INPUT : BAKED_OUTPUT;
   if (!existsSync(inputPath)) {
-    console.error('Missing input - place Flame_Libra_RAW.glb or an existing flame_libra.glb in the repo root.');
+    console.error('Missing input - place Flame_Libra_RAW.glb in pipeline/beystoadd/ or an existing flame_libra.glb in assets/models/.');
     process.exit(1);
   }
 
@@ -387,7 +387,7 @@ async function main() {
 
   console.log('Building top texture...');
   const texBytes = buildTopTexture();
-  writeFileSync(resolve(ROOT, 'flame_libra_texture.png'), texBytes);
+  writeFileSync(resolve(ROOT, 'pipeline/debug/flame_libra_texture.png'), texBytes);
 
   const texture = doc.createTexture('libra-top')
     .setMimeType('image/png')
@@ -404,7 +404,7 @@ async function main() {
 
   await doc.transform(dedup(), quantize({ pattern: /^(POSITION|NORMAL|TEXCOORD_0)$/ }), prune());
 
-  const tempPath = resolve(ROOT, 'flame_libra.tmp.glb');
+  const tempPath = resolve(ROOT, 'assets/models/flame_libra.tmp.glb');
   console.log('Writing', tempPath);
   await io.write(tempPath, doc);
   if (existsSync(BAKED_OUTPUT)) unlinkSync(BAKED_OUTPUT);

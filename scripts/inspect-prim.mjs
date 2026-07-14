@@ -2,7 +2,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
-const doc = await io.read('Rock_Leone.glb');
+const doc = await io.read('assets/models/rock_leone.glb');
 const prim = doc.getRoot().listMeshes()[0].listPrimitives()[0];
 const pos = prim.getAttribute('POSITION');
 const idx = prim.getIndices();

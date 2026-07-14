@@ -1,7 +1,7 @@
 /**
  * Simplify, color, and texture Dark Bull for BeyWeb.
- * Input:  Dark_Bull.glb + darkbull_referencelook.jpg + darkbull_facebolt.png
- * Output: dark_bull.glb
+ * Input:  pipeline/beystoadd/Dark_Bull.glb + pipeline/references + assets/logos
+ * Output: assets/models/dark_bull.glb
  */
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -14,10 +14,10 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'Dark_Bull.glb');
-const REF_JPG = resolve(ROOT, 'darkbull_referencelook.jpg');
-const FACE_PNG = resolve(ROOT, 'darkbull_logo.png');
-const OUTPUT = resolve(ROOT, 'dark_bull.glb');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/Dark_Bull.glb');
+const REF_JPG = resolve(ROOT, 'pipeline/references/darkbull_referencelook.jpg');
+const FACE_PNG = resolve(ROOT, 'assets/logos/darkbull_logo.png');
+const OUTPUT = resolve(ROOT, 'assets/models/dark_bull.glb');
 const TEX_SIZE = 2048;
 
 // Sampled from darkbull_referencelook.jpg
@@ -345,7 +345,7 @@ async function main() {
 
   console.log('Building top texture...');
   const texBytes = buildTopTexture();
-  writeFileSync(resolve(ROOT, 'dark_bull_texture.png'), texBytes);
+  writeFileSync(resolve(ROOT, 'pipeline/debug/dark_bull_texture.png'), texBytes);
 
   const texture = doc.createTexture('bull-top')
     .setMimeType('image/png')

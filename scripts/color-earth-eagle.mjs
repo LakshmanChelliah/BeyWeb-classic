@@ -1,10 +1,10 @@
 /**
  * Simplify, color, and texture Earth Eagle / Earth Aquila for BeyWeb.
  *
- * Input:  beystoadd/Earth_Eagle.glb
- *         beystoadd/earth_eagle_topdownreference.jpg
- *         earth_eagle_logo.png (transparent logo from build-earth-eagle-logo.mjs)
- * Output: earth_eagle.glb (+ debug earth_eagle_texture.png)
+ * Input:  pipeline/beystoadd/Earth_Eagle.glb
+ *         pipeline/beystoadd/earth_eagle_topdownreference.jpg
+ *         assets/logos/earth_eagle_logo.png
+ * Output: assets/models/earth_eagle.glb (+ pipeline/debug texture)
  */
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -17,11 +17,11 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'beystoadd/Earth_Eagle.glb');
-const REF_JPG = resolve(ROOT, 'beystoadd/earth_eagle_topdownreference.jpg');
-const FACE_PNG = resolve(ROOT, 'earth_eagle_logo.png');
-const OUTPUT = resolve(ROOT, 'earth_eagle.glb');
-const TEX_DEBUG = resolve(ROOT, 'earth_eagle_texture.png');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/Earth_Eagle.glb');
+const REF_JPG = resolve(ROOT, 'pipeline/beystoadd/earth_eagle_topdownreference.jpg');
+const FACE_PNG = resolve(ROOT, 'assets/logos/earth_eagle_logo.png');
+const OUTPUT = resolve(ROOT, 'assets/models/earth_eagle.glb');
+const TEX_DEBUG = resolve(ROOT, 'pipeline/debug/earth_eagle_texture.png');
 const TEX_SIZE = 2048;
 
 const COLORS = {

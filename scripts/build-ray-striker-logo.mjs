@@ -1,8 +1,8 @@
 /**
  * Build Ray Striker / Ray Unicorno emblem from the top-down reference.
  * Keeps only the gold unicorn symbol from the purple facebolt (no hex background).
- * Input:  beystoadd/raystrikercolour.jpeg
- * Output: ray_striker_logo.png
+ * Input:  pipeline/beystoadd/raystrikercolour.jpeg
+ * Output: assets/logos/ray_striker_logo.png
  */
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
@@ -11,8 +11,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'beystoadd/raystrikercolour.jpeg');
-const OUTPUT = resolve(ROOT, 'ray_striker_logo.png');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/raystrikercolour.jpeg');
+const OUTPUT = resolve(ROOT, 'assets/logos/ray_striker_logo.png');
 const SIZE = 512;
 const PAD = 0.1;
 const SYMBOL_MAX_R = 0.13;

@@ -1,9 +1,20 @@
-import { createGame } from '../game/engine.js?v=69';
+/**
+ * Shared app bootstrap for mobile and PC.
+ *
+ * Owns the high-level flow: play-setup → bey selection → model preload →
+ * createGame → start overlay. Platform entrypoints inject input builders and
+ * HUD quirks; this module keeps campaign, arena skins, and mode wiring in one
+ * place so behavior stays aligned across devices.
+ *
+ * Invariant: gameRef exists before selection can start a match; capture API is
+ * optional and must never block boot.
+ */
+import { createGame } from '../game/engine.js?v=70';
 import { applyAISteering, tickAIAbilities, resetAIController } from '../input/ai.js';
 import { createBeySelection } from '../ui/selection.js';
-import { createPlaySetup } from '../ui/playSetup.js?v=69';
+import { createPlaySetup } from '../ui/playSetup.js?v=70';
 import { queryGameUi } from '../ui/domRefs.js';
-import { createCampaignController } from '../game/campaignController.js?v=69';
+import { createCampaignController } from '../game/campaignController.js?v=70';
 import { GAME_MODES, isVsCpu, modeBlurb } from '../game/modes.js';
 import { BEYS, isBeyPlayable } from '../game/beys.js';
 import { pickLoadingTip } from '../game/tips.js';
@@ -12,10 +23,10 @@ import { mountBeyIcon, preloadGreyPegasusIcon } from '../ui/beyIcon.js';
 import {
   getArenaSkinForBey,
   resolveArenaSkinId,
-} from '../render/arenaSkins.js?v=69';
+} from '../render/arenaSkins.js?v=70';
 import { getTournamentBlader } from '../game/campaign.js';
-import { playArenaTransition } from '../ui/arenaTransition.js?v=69';
-import { showConfirmDialog } from '../ui/confirmDialog.js?v=69';
+import { playArenaTransition } from '../ui/arenaTransition.js?v=70';
+import { showConfirmDialog } from '../ui/confirmDialog.js?v=70';
 
 /** Capture API is optional QA tooling - never block boot if it fails to load. */
 function installCaptureApiLazy(app) {

@@ -5,13 +5,13 @@ import { MeshoptSimplifier } from 'meshoptimizer';
 
 await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
-const doc = await io.read('Rock_Leone.glb');
+const doc = await io.read('assets/models/rock_leone.glb');
 const prim = doc.getRoot().listMeshes()[0].listPrimitives()[0];
 const pos = prim.getAttribute('POSITION');
 const idx = prim.getIndices();
 console.log('before verts', pos.getCount(), 'indices', idx?.getCount?.() ?? 'none', 'mode', prim.getMode());
 
-let doc2 = await io.read('Rock_Leone.glb');
+let doc2 = await io.read('assets/models/rock_leone.glb');
 const pos0 = doc2.getRoot().listMeshes()[0].listPrimitives()[0].getAttribute('POSITION').getArray();
 let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
 for (let i=0;i<pos0.length;i+=3){

@@ -1,7 +1,7 @@
 /**
  * Simplify, color, and texture Rock Leone for BeyWeb.
- * Input:  Rock_Leone.glb + rockleonelogandFacebolt.png
- * Output: rock_leone.glb
+ * Input:  pipeline/beystoadd/Rock_Leone.glb + assets/logos/rockleonelogandFacebolt.png
+ * Output: assets/models/rock_leone.glb
  */
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -13,9 +13,9 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'Rock_Leone.glb');
-const FACE_PNG = resolve(ROOT, 'rockleonelogandFacebolt.png');
-const OUTPUT = resolve(ROOT, 'rock_leone.glb'); // do NOT delete before write - Windows paths are case-insensitive
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/Rock_Leone.glb');
+const FACE_PNG = resolve(ROOT, 'assets/logos/rockleonelogandFacebolt.png');
+const OUTPUT = resolve(ROOT, 'assets/models/rock_leone.glb'); // do NOT delete before write - Windows paths are case-insensitive
 const TEX_SIZE = 2048;
 
 const COLORS = {
@@ -291,7 +291,7 @@ async function main() {
 
   console.log('Building top texture...');
   const texBytes = buildTopTexture();
-  writeFileSync(resolve(ROOT, 'rock_leone_texture.png'), texBytes);
+  writeFileSync(resolve(ROOT, 'pipeline/debug/rock_leone_texture.png'), texBytes);
 
   const texture = doc.createTexture('leone-top')
     .setMimeType('image/png')

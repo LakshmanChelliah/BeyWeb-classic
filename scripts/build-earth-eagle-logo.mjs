@@ -1,7 +1,7 @@
 /**
  * Build a transparent Earth Eagle/Aquila facebolt logo from the provided JPG.
- * Input:  beystoadd/earth_eagle_logo_with_background.jpg
- * Output: earth_eagle_logo.png
+ * Input:  pipeline/beystoadd/earth_eagle_logo_with_background.jpg
+ * Output: assets/logos/earth_eagle_logo.png
  */
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
@@ -10,8 +10,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INPUT = resolve(ROOT, 'beystoadd/earth_eagle_logo_with_background.jpg');
-const OUTPUT = resolve(ROOT, 'earth_eagle_logo.png');
+const INPUT = resolve(ROOT, 'pipeline/beystoadd/earth_eagle_logo_with_background.jpg');
+const OUTPUT = resolve(ROOT, 'assets/logos/earth_eagle_logo.png');
 const PADDING = 22;
 
 function clamp01(v) {

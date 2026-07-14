@@ -21,7 +21,10 @@
  *   entry and reference its ID here.
  *
  * logo - optional PNG used for the cinematic special-move flash overlay.
+ * model / logo paths come from js/assets.js (assets/models, assets/logos).
  */
+import { logoUrl, modelUrl } from '../assets.js';
+
 export const BEYS = Object.freeze([
   {
     id: 'pegasus',
@@ -36,8 +39,8 @@ export const BEYS = Object.freeze([
     def: 28,
     sta: 22,
     color: '#3b82f6',
-    model: 'storm_pegasus.glb',
-    logo: 'pegasusLogo.png',
+    model: modelUrl('storm_pegasus.glb'),
+    logo: logoUrl('pegasusLogo.png'),
     gimmicks: {
       power: 'pegasus_speed_boost',
       special: 'pegasus_star_blast',
@@ -59,8 +62,8 @@ export const BEYS = Object.freeze([
     def: 28,
     sta: 28,
     color: '#5B21D9',
-    model: 'lightning_ldrago.glb',
-    logo: 'ldrago_logo.png',
+    model: modelUrl('lightning_ldrago.glb'),
+    logo: logoUrl('ldrago_logo.png'),
     gimmicks: {
       power: 'ldrago_upper_mode',
       special: 'ldrago_soaring_destruction',
@@ -82,8 +85,8 @@ export const BEYS = Object.freeze([
     def: 32,
     sta: 52,
     color: '#ef4444',
-    model: 'meteo_ldrago.glb',
-    logo: 'updatedLdragoLogo.png',
+    model: modelUrl('meteo_ldrago.glb'),
+    logo: logoUrl('updatedLdragoLogo.png'),
     gimmicks: {
       power: 'ldrago_spin_steal',
       special: 'ldrago_absorb_break',
@@ -104,8 +107,8 @@ export const BEYS = Object.freeze([
     def: 91,
     sta: 46,
     color: '#22c55e',
-    model: 'rock_leone.glb',
-    logo: 'rockleonelogandFacebolt.png',
+    model: modelUrl('rock_leone.glb'),
+    logo: logoUrl('rockleonelogandFacebolt.png'),
     gimmicks: {
       power: 'leone_wide_ball',
       special: 'leone_lion_wall',
@@ -125,8 +128,8 @@ export const BEYS = Object.freeze([
     def: 28,
     sta: 88,
     color: '#84cc16',
-    model: 'flame_libra.glb',
-    logo: 'flame_libralogo.png',
+    model: modelUrl('flame_libra.glb'),
+    logo: logoUrl('flame_libralogo.png'),
     gimmicks: {
       power: 'libra_sonic_shield',
       special: 'libra_sonic_buster',
@@ -143,7 +146,7 @@ export const BEYS = Object.freeze([
     def: null,
     sta: null,
     color: '#4b5563',
-    model: 'flame_sagittario.glb',
+    model: modelUrl('flame_sagittario.glb'),
     available: false,
   },
   {
@@ -159,8 +162,8 @@ export const BEYS = Object.freeze([
     def: 72,
     sta: 78,
     color: '#6d28d9',
-    model: 'earth_eagle.glb',
-    logo: 'earth_eagle_logo.png',
+    model: modelUrl('earth_eagle.glb'),
+    logo: logoUrl('earth_eagle_logo.png'),
     gimmicks: {
       power: 'eagle_counter_stance',
       special: 'eagle_diving_crush',
@@ -181,8 +184,8 @@ export const BEYS = Object.freeze([
     def: 26,
     sta: 30,
     color: '#14b8a6',
-    model: 'ray_striker.glb',
-    logo: 'ray_striker_logo.png',
+    model: modelUrl('ray_striker.glb'),
+    logo: logoUrl('ray_striker_logo.png'),
     gimmicks: {
       power: 'striker_blitz_charge',
       special: 'striker_lightning_flash',
@@ -202,8 +205,8 @@ export const BEYS = Object.freeze([
     def: 38,
     sta: 34,
     color: '#dc2626',
-    model: 'dark_bull.glb',
-    logo: 'darkbull_logo.png',
+    model: modelUrl('dark_bull.glb'),
+    logo: logoUrl('darkbull_logo.png'),
     gimmicks: {
       power: 'bull_maximum_stampede',
       special: 'bull_red_horn_uppercut',
