@@ -6,8 +6,8 @@
  * `beyColorHex()`. `model` points at an optional GLB asset (the renderer falls
  * back to a procedural top mesh tinted with `color` when the file is missing).
  *
- * packagingStars - Metal Fusion box/card ratings (1–5) for the select UI
- * (Energy Ring + Fusion Wheel + Spin Track + Performance Tip), normalized to 0–100.
+ * packagingStars - Metal Fusion box/card ratings (1-5) for the select UI
+ * (Energy Ring + Fusion Wheel + Spin Track + Performance Tip), normalized to 0-100.
  *
  * atk - scales knockback dealt on impact
  * move - optional steer-force stat (defaults to atk when omitted)
@@ -29,7 +29,7 @@ export const BEYS = Object.freeze([
     type: 'Attack',
     desc: 'A relentless tornado assault. Rubber-flat tip makes it the fastest, most aggressive bey on the field.',
     // Storm wheel (ATK ****), Pegasus ring (ATK ****), RF rubber-flat tip (ATK ******)
-    // Hasbro / Takara Tomy Metal Fusion card stars (1–5)
+    // Hasbro / Takara Tomy Metal Fusion card stars (1-5)
     packagingStars: { atk: 5, def: 1, sta: 1 },
     atk: 83,
     move: 92,

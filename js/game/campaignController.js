@@ -20,7 +20,7 @@ import { createCasualMode } from './casualMode.js';
 import { createLocalSeriesMode } from './localSeriesMode.js';
 import { dualSeriesDotsHtml, seriesDotsHtml, SERIES_BEST_OF } from './seriesScore.js';
 import { preloadTopModel } from '../render/modelCache.js';
-import { getArenaSkinForBey } from '../render/arenaSkins.js?v=64';
+import { getArenaSkinForBey } from '../render/arenaSkins.js?v=66';
 
 /**
  * Wires tournament + casual progression to DOM and game callbacks (PC and mobile).
@@ -229,7 +229,7 @@ export function createCampaignController({
     if (!isDraw) casual.recordMatch(result.winner);
 
     const { player, cpu } = casual.getSeriesScore();
-    const scoreLine = `Series: ${player}–${cpu}`;
+    const scoreLine = `Series: ${player}-${cpu}`;
     const seriesStatus = casual.getSeriesStatus();
     const winsNeeded = casual.getWinsNeeded();
 
@@ -272,7 +272,7 @@ export function createCampaignController({
     if (!isDraw) tournament.recordMatch(result.winner);
 
     const { player, cpu } = tournament.getSeriesScore();
-    const scoreLine = `Series: ${player}–${cpu}`;
+    const scoreLine = `Series: ${player}-${cpu}`;
     const seriesStatus = tournament.getSeriesStatus();
     const opp = tournament.getCurrentOpponent();
     const blader = getTournamentBlader(opp?.id);
@@ -329,7 +329,7 @@ export function createCampaignController({
     if (!isDraw) localSeries.recordMatch(result.winner);
 
     const { p1, p2 } = localSeries.getSeriesScore();
-    const scoreLine = `Series: P1 ${p1}–${p2} P2`;
+    const scoreLine = `Series: P1 ${p1}-${p2} P2`;
     const seriesStatus = localSeries.getSeriesStatus();
     const winsNeeded = localSeries.getWinsNeeded();
 

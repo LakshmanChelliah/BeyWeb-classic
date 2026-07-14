@@ -1,17 +1,17 @@
 /**
- * Pure helpers that convert 0–100 bey stats into physics multipliers.
+ * Pure helpers that convert 0-100 bey stats into physics multipliers.
  * Falls back to a neutral value of 50 when a stat is not yet defined.
  *
  * Two separate ATK multipliers serve different purposes:
  *
- *   moveSpeedMult - steer force (wide range 0.20–1.80 so speed feels distinct)
+ *   moveSpeedMult - steer force (wide range 0.20-1.80 so speed feels distinct)
  *   atkSpeedMult  - alias of moveSpeedMult (legacy name)
- *   atkCombatMult - knockback & spin drain (symmetric with defMult, range 0.50–1.50
+ *   atkCombatMult - knockback & spin drain (symmetric with defMult, range 0.50-1.50
  *                   so an ATK=100 bey exactly cancels a DEF=100 bey at parity)
  *
- *   defMult      - absorbs knockback on impact (0.50 – 1.50)
+ *   defMult      - absorbs knockback on impact (0.50 - 1.50)
  *   spinDefMult  - extra spin-loss reduction on clash; ramps faster with DEF
- *   staMult      - spin-decay rate; lower = slower decay (1.50 – 0.50)
+ *   staMult      - spin-decay rate; lower = slower decay (1.50 - 0.50)
  */
 
 /** Steer-force multiplier - wide range so Pegasus feels noticeably faster. */

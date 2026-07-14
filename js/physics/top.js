@@ -37,7 +37,7 @@ function lerpAngle(a, b, t) {
   return a + d * clamp01(t);
 }
 
-/** Spinning-top orientation: precession → tilt → spin (Y–X–Y). */
+/** Spinning-top orientation: precession → tilt → spin (Y-X-Y). */
 function applyTopOrientation(group, spinYaw, precessionDir, tiltRad) {
   _spinQuatA.setFromAxisAngle(_axisY, precessionDir);
   _spinQuatB.setFromAxisAngle(_axisX, tiltRad);
@@ -88,7 +88,7 @@ export function resetTopWobble(body) {
 }
 
 /**
- * Decays spin each frame. Higher stamina (0–100) slows the decay rate.
+ * Decays spin each frame. Higher stamina (0-100) slows the decay rate.
  * See staMult in stats.js: sta=100 → 0.5×, sta=0 → 1.5×.
  */
 export function decaySpin(spin, dt, sta = 50, slowRate = 1) {
@@ -483,7 +483,7 @@ export function createTopPhysicsBody(world, topMaterial, x, z, collisionGroup, p
  * fighting player/AI steering - it just makes the bey want to arc rather than
  * charge dead-straight. Direction follows spinSign so the curve is consistent.
  *
- * Beys opt in by setting `beyStats.orbitDrift` (0–1). Eagle uses ~0.35.
+ * Beys opt in by setting `beyStats.orbitDrift` (0-1). Eagle uses ~0.35.
  */
 export function applyOrbitDrift(body, spin) {
   if (!body || spin < CONFIG.SLEEP_THRESHOLD) return;

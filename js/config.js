@@ -64,7 +64,7 @@ export const CONFIG = Object.freeze({
   MIN_SPIN_LOSS: 0.003,
   MAX_SPIN_LOSS: 0.11,
   IMPACT_COOLDOWN: 0.08,
-  /** Spin lost when a bey hits the rim wall (3–7% scaled by impact speed). */
+  /** Spin lost when a bey hits the rim wall (3-7% scaled by impact speed). */
   WALL_SPIN_LOSS_MIN: 0.03,
   WALL_SPIN_LOSS_MAX: 0.07,
   WALL_IMPACT_SOFT: 3.0,

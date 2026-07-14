@@ -1,4 +1,4 @@
-/** Metal Fusion–style packaging star rows (Attack / Defense / Stamina). */
+/** Metal Fusion-style packaging star rows (Attack / Defense / Stamina). */
 
 const MAX_STARS = 5;
 
