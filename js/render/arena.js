@@ -4,8 +4,8 @@ import {
   DEFAULT_ARENA_SKIN_ID,
   getArenaSkin,
   resolveArenaSkinId,
-} from './arenaSkins.js?v=68';
-import { createBackdropTexture } from './arenaBackdrop.js?v=68';
+} from './arenaSkins.js?v=69';
+import { createBackdropTexture } from './arenaBackdrop.js?v=69';
 import { setArenaCameraCeiling } from './scene.js';
 
 /**
@@ -1072,9 +1072,19 @@ function tintCityForSkin(city, skin) {
     if (!obj.isMesh || !obj.material) return;
     const mat = obj.material;
     if (obj.userData.cityPart === 'building') {
-      mat.color.setHex(night ? 0x0e0a18 : 0x5a6878);
-      mat.emissive?.setHex?.(night ? 0x3a1870 : 0x000000);
-      mat.emissiveIntensity = night ? 0.18 : 0;
+      // Facade textures carry their own look — keep color white so maps read.
+      if (mat.map) {
+        mat.color.setHex(0xffffff);
+        mat.emissiveIntensity = night ? 0.22 : 0.04;
+      } else {
+        mat.color.setHex(night ? 0x0e0a18 : 0x5a6878);
+        mat.emissive?.setHex?.(night ? 0x3a1870 : 0x000000);
+        mat.emissiveIntensity = night ? 0.18 : 0;
+      }
+    } else if (obj.userData.cityPart === 'roof') {
+      mat.color.setHex(night ? 0x1a1430 : 0x3a4450);
+      mat.emissive?.setHex?.(night ? 0x2a1860 : 0x000000);
+      mat.emissiveIntensity = night ? 0.1 : 0;
     } else if (obj.userData.cityPart === 'window') {
       mat.color.setHex(night ? 0x67e8f9 : 0xc8dce8);
       mat.emissive?.setHex?.(night ? 0x22d3ee : 0x88aacc);
@@ -1085,7 +1095,7 @@ function tintCityForSkin(city, skin) {
       mat.emissiveIntensity = night ? 0.12 : 0;
       mat.metalness = night ? 0.75 : 0.65;
     } else if (obj.userData.cityPart === 'street') {
-      mat.color.setHex(night ? 0x1a1028 : 0x4a5560);
+      if (!mat.map) mat.color.setHex(night ? 0x1a1028 : 0x4a5560);
       mat.emissive?.setHex?.(night ? 0x2a1848 : 0x000000);
       mat.emissiveIntensity = night ? 0.08 : 0;
     } else if (obj.userData.cityPart === 'mist') {
@@ -1197,6 +1207,105 @@ function createRooftopSupports(skin) {
   return group;
 }
 
+/** Canvas facade: window grid + ledges so towers read as real buildings, not grey boxes. */
+function createBuildingFacadeTexture(night, variant = 0) {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  const palettes = night
+    ? [
+        { wall: '#14101e', ledge: '#1e1630', winOn: '#67e8f9', winOff: '#1a2840', accent: '#a855f7' },
+        { wall: '#100c1a', ledge: '#1a1230', winOn: '#c084fc', winOff: '#181028', accent: '#22d3ee' },
+        { wall: '#18122a', ledge: '#241838', winOn: '#7dd3fc', winOff: '#12101c', accent: '#818cf8' },
+      ]
+    : [
+        { wall: '#6a7888', ledge: '#4a5868', winOn: '#d8ecf8', winOff: '#3a4858', accent: '#94a3b8' },
+        { wall: '#5a6a78', ledge: '#3a4858', winOn: '#c8e0f0', winOff: '#2a3848', accent: '#7a8a98' },
+        { wall: '#788898', ledge: '#586878', winOn: '#e8f4fc', winOff: '#4a5868', accent: '#a8b8c8' },
+      ];
+  const p = palettes[variant % palettes.length];
+
+  ctx.fillStyle = p.wall;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.fillStyle = p.ledge;
+  const cols = 4 + (variant % 3);
+  const rows = 8 + (variant % 4);
+  const marginX = 10;
+  const marginY = 8;
+  const cellW = (size - marginX * 2) / cols;
+  const cellH = (size - marginY * 2) / rows;
+
+  for (let c = 0; c <= cols; c++) {
+    const x = marginX + c * cellW;
+    ctx.fillRect(x - 1.5, marginY, 3, size - marginY * 2);
+  }
+  for (let r = 0; r <= rows; r++) {
+    const y = marginY + r * cellH;
+    ctx.fillRect(marginX, y - 1.5, size - marginX * 2, 3);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lit = night
+        ? ((r * 7 + c * 13 + variant * 3) % 5) !== 0
+        : ((r * 5 + c * 11 + variant) % 7) > 1;
+      const pad = 3;
+      const x = marginX + c * cellW + pad;
+      const y = marginY + r * cellH + pad;
+      const ww = cellW - pad * 2;
+      const wh = cellH - pad * 2;
+      if (ww < 2 || wh < 2) continue;
+      ctx.fillStyle = lit ? p.winOn : p.winOff;
+      ctx.globalAlpha = night ? (lit ? 0.95 : 0.55) : lit ? 0.85 : 0.5;
+      ctx.fillRect(x, y, ww, wh);
+      if (lit && !night) {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fillRect(x, y, ww * 0.35, wh * 0.4);
+      }
+      if (lit && night && ((r + c + variant) % 4 === 0)) {
+        ctx.fillStyle = p.accent;
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(x, y, ww, wh);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = p.accent;
+  ctx.globalAlpha = night ? 0.45 : 0.25;
+  ctx.fillRect(0, 4, size, 6);
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function makeFacadeMaterial(facadeMap, night, variant = 0) {
+  const repeatY = 3 + (variant % 3);
+  const map = facadeMap.clone();
+  map.needsUpdate = true;
+  map.repeat.set(1, repeatY);
+  const emissiveMap = facadeMap.clone();
+  emissiveMap.needsUpdate = true;
+  emissiveMap.repeat.set(1, repeatY);
+  return new THREE.MeshStandardMaterial({
+    map,
+    color: 0xffffff,
+    roughness: night ? 0.55 : 0.62,
+    metalness: night ? 0.35 : 0.28,
+    emissiveMap: night ? emissiveMap : null,
+    emissive: night ? new THREE.Color(0xffffff) : new THREE.Color(0x000000),
+    emissiveIntensity: night ? 0.55 : 0.05,
+  });
+}
+
 /**
  * 3D city around an elevated rooftop — dense skyscraper rings that rise above
  * the deck and plunge far below so no empty sky shows under the platform.
@@ -1206,31 +1315,95 @@ function createRooftopCity(skin) {
   group.userData.arenaPart = 'city';
   const night = skin.backdrop?.style === 'dn_rooftop_night';
 
-  const buildingMat = new THREE.MeshStandardMaterial({
-    color: night ? 0x12101c : 0x5a6878,
-    roughness: 0.72,
-    metalness: 0.25,
-    emissive: night ? 0x4a2080 : 0x000000,
+  const facadeMaps = [
+    createBuildingFacadeTexture(night, 0),
+    createBuildingFacadeTexture(night, 1),
+    createBuildingFacadeTexture(night, 2),
+  ];
+  const roofMat = new THREE.MeshStandardMaterial({
+    color: night ? 0x1a1430 : 0x3a4450,
+    roughness: 0.75,
+    metalness: 0.35,
+    emissive: night ? 0x2a1860 : 0x000000,
     emissiveIntensity: night ? 0.12 : 0,
   });
-  const buildingMatB = new THREE.MeshStandardMaterial({
-    color: night ? 0x0e0a18 : 0x4a5868,
-    roughness: 0.78,
-    metalness: 0.2,
-    emissive: night ? 0x2a1050 : 0x000000,
-    emissiveIntensity: night ? 0.1 : 0,
-  });
-  const windowMat = new THREE.MeshStandardMaterial({
-    color: night ? 0xc084fc : 0xc8dce8,
-    roughness: 0.35,
-    metalness: 0.4,
-    emissive: night ? 0xa855f7 : 0x88aacc,
-    emissiveIntensity: night ? 0.5 : 0.18,
+  const antennaMat = new THREE.MeshStandardMaterial({
+    color: night ? 0x67e8f9 : 0x94a3b8,
+    metalness: 0.7,
+    roughness: 0.3,
+    emissive: night ? 0x22d3ee : 0x000000,
+    emissiveIntensity: night ? 0.6 : 0,
   });
 
-  // How far towers extend below the deck (fills the blue void under the platform).
+  function addTower(s, variant, yBaseOffset) {
+    const facade = makeFacadeMaterial(facadeMaps[variant % facadeMaps.length], night, variant);
+    const building = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), facade);
+    building.userData.cityPart = 'building';
+    const y = s.h * 0.5 - yBaseOffset;
+    building.position.set(Math.cos(s.a) * s.r, y, Math.sin(s.a) * s.r);
+    building.castShadow = true;
+    building.receiveShadow = true;
+    group.add(building);
+
+    const capH = Math.min(0.55, s.h * 0.02);
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(s.w * 1.06, capH, s.d * 1.06),
+      roofMat.clone()
+    );
+    cap.userData.cityPart = 'roof';
+    cap.position.set(Math.cos(s.a) * s.r, y + s.h * 0.5 + capH * 0.5, Math.sin(s.a) * s.r);
+    group.add(cap);
+
+    if (s.h > 70 && variant % 2 === 0) {
+      const mech = new THREE.Mesh(
+        new THREE.BoxGeometry(s.w * 0.45, Math.min(2.2, s.h * 0.03), s.d * 0.45),
+        roofMat.clone()
+      );
+      mech.userData.cityPart = 'roof';
+      mech.position.set(
+        Math.cos(s.a) * s.r,
+        y + s.h * 0.5 + capH + 1.0,
+        Math.sin(s.a) * s.r
+      );
+      group.add(mech);
+    }
+    if (s.h > 90 && variant % 3 === 0) {
+      const antH = 3 + (variant % 4);
+      const ant = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.12, antH, 6),
+        antennaMat.clone()
+      );
+      ant.userData.cityPart = 'window';
+      ant.position.set(
+        Math.cos(s.a) * s.r,
+        y + s.h * 0.5 + capH + antH * 0.5 + 0.4,
+        Math.sin(s.a) * s.r
+      );
+      group.add(ant);
+    }
+  }
+
+  function addLowrise(a, r, w, d, h, streetY, variant) {
+    const facade = makeFacadeMaterial(facadeMaps[variant % facadeMaps.length], night, variant);
+    if (facade.map) facade.map.repeat.set(1, 1.5 + (variant % 2) * 0.5);
+    if (facade.emissiveMap) facade.emissiveMap.repeat.set(1, 1.5 + (variant % 2) * 0.5);
+    const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), facade);
+    block.userData.cityPart = 'building';
+    block.position.set(Math.cos(a) * r, streetY + h * 0.5, Math.sin(a) * r);
+    block.castShadow = true;
+    block.receiveShadow = true;
+    group.add(block);
+
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(w * 1.05, 0.35, d * 1.05),
+      roofMat.clone()
+    );
+    cap.userData.cityPart = 'roof';
+    cap.position.set(Math.cos(a) * r, streetY + h + 0.15, Math.sin(a) * r);
+    group.add(cap);
+  }
+
   const yOff = night ? 52 : 44;
-  // Keep a clear fight-cam corridor on +Z (camera approaches from ~a = π/2).
   const camGapA0 = Math.PI / 2 - 0.55;
   const camGapA1 = Math.PI / 2 + 0.55;
   const inCamGap = (a) => {
@@ -1240,14 +1413,11 @@ function createRooftopCity(skin) {
     return x > camGapA0 && x < camGapA1;
   };
 
-  // Rings sit outside the deck (PLATFORM_OUTER ≈ 18) — dense, but not camera-blocking.
   const specs = [
-    // Near ring (just outside deck)
     { a: 0.05, r: 30, w: 5, d: 5, h: 78 },
     { a: 0.4, r: 32, w: 4, d: 6, h: 70 },
     { a: 0.85, r: 31, w: 6, d: 4, h: 88 },
     { a: 1.35, r: 33, w: 5, d: 5, h: 74 },
-    // skip cam corridor (~1.57)
     { a: 2.15, r: 31, w: 4, d: 7, h: 82 },
     { a: 2.55, r: 34, w: 7, d: 4, h: 68 },
     { a: 2.95, r: 30, w: 5, d: 5, h: 92 },
@@ -1258,7 +1428,6 @@ function createRooftopCity(skin) {
     { a: 5.15, r: 33, w: 6, d: 4, h: 95 },
     { a: 5.55, r: 30, w: 5, d: 5, h: 74 },
     { a: 5.95, r: 32, w: 4, d: 4, h: 70 },
-    // Mid ring
     { a: 0.2, r: 42, w: 6, d: 6, h: 105 },
     { a: 0.65, r: 44, w: 5, d: 7, h: 95 },
     { a: 1.15, r: 41, w: 7, d: 5, h: 115 },
@@ -1271,7 +1440,6 @@ function createRooftopCity(skin) {
     { a: 5.05, r: 43, w: 5, d: 7, h: 110 },
     { a: 5.55, r: 45, w: 6, d: 5, h: 118 },
     { a: 5.95, r: 48, w: 5, d: 5, h: 94 },
-    // Far ring — fills horizon / under-deck gaps
     { a: 0.0, r: 56, w: 8, d: 7, h: 130 },
     { a: 0.45, r: 60, w: 6, d: 8, h: 120 },
     { a: 0.95, r: 58, w: 9, d: 6, h: 140 },
@@ -1284,7 +1452,6 @@ function createRooftopCity(skin) {
     { a: 4.65, r: 60, w: 6, d: 9, h: 128 },
     { a: 5.2, r: 64, w: 9, d: 7, h: 150 },
     { a: 5.7, r: 57, w: 7, d: 7, h: 122 },
-    // Low fillers under the deck rim (shorter tops, still deep bottoms)
     { a: 0.55, r: 26, w: 3.5, d: 3.5, h: 55 },
     { a: 1.15, r: 27, w: 3.5, d: 4, h: 50 },
     { a: 2.25, r: 26, w: 4, d: 3.5, h: 58 },
@@ -1296,43 +1463,14 @@ function createRooftopCity(skin) {
   ].filter((s) => !inCamGap(s.a));
 
   for (let i = 0; i < specs.length; i++) {
-    const s = specs[i];
-    const mat = i % 3 === 0 ? buildingMatB.clone() : buildingMat.clone();
-    const building = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), mat);
-    building.userData.cityPart = 'building';
-    // Top sits above deck; bottom plunges well under so sky never peeks through.
-    building.position.set(
-      Math.cos(s.a) * s.r,
-      s.h * 0.5 - yOff,
-      Math.sin(s.a) * s.r
-    );
-    building.castShadow = true;
-    building.receiveShadow = true;
-    group.add(building);
-
-    // Slim window band (not a giant blue slab)
-    const win = new THREE.Mesh(
-      new THREE.BoxGeometry(s.w * 0.55, s.h * 0.55, 0.12),
-      windowMat.clone()
-    );
-    win.userData.cityPart = 'window';
-    const inward = Math.atan2(-Math.sin(s.a), -Math.cos(s.a));
-    win.position.set(
-      Math.cos(s.a) * (s.r - s.d * 0.52),
-      s.h * 0.35 - yOff,
-      Math.sin(s.a) * (s.r - s.d * 0.52)
-    );
-    win.rotation.y = inward;
-    group.add(win);
+    addTower(specs[i], i % 3, yOff);
   }
 
-  // Street / lower-city plate — opaque city mass under the deck (kills blue void).
   const streetCanvas = document.createElement('canvas');
   streetCanvas.width = streetCanvas.height = 512;
   const sctx = streetCanvas.getContext('2d');
   sctx.fillStyle = night ? '#1a1028' : '#4a5560';
   sctx.fillRect(0, 0, 512, 512);
-  // Blocky rooftop / street grid
   sctx.strokeStyle = night ? 'rgba(80,40,120,0.5)' : 'rgba(30,40,50,0.45)';
   sctx.lineWidth = 3;
   for (let i = 0; i < 16; i++) {
@@ -1346,7 +1484,6 @@ function createRooftopCity(skin) {
     sctx.lineTo(512, p);
     sctx.stroke();
   }
-  // Tiny building-top blocks
   for (let i = 0; i < 80; i++) {
     const x = ((i * 97) % 480) + 8;
     const y = ((i * 53) % 480) + 8;
@@ -1370,7 +1507,6 @@ function createRooftopCity(skin) {
   streetMap.wrapS = streetMap.wrapT = THREE.RepeatWrapping;
   streetMap.repeat.set(4, 4);
 
-  // Raise street plate so it's visible just under the deck rim from fight cam.
   const streetY = night ? -10 : -8;
   const street = new THREE.Mesh(
     new THREE.RingGeometry(PLATFORM_OUTER_RADIUS + 0.3, 95, 72),
@@ -1389,38 +1525,24 @@ function createRooftopCity(skin) {
   street.receiveShadow = true;
   group.add(street);
 
-  // Dense low-rise ring just outside the deck — fills the under-rim void.
-  // Keep these in the camera corridor too (short enough not to block the fight view).
-  const lowriseMat = buildingMatB.clone();
   for (let i = 0; i < 36; i++) {
     const a = (i / 36) * Math.PI * 2 + 0.04;
     const r = PLATFORM_OUTER_RADIUS + 1.8 + (i % 4) * 1.2;
     const w = 2.0 + (i % 4) * 0.55;
     const d = 1.8 + (i % 3) * 0.5;
     const h = 8 + (i % 5) * 2.5;
-    const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lowriseMat.clone());
-    block.userData.cityPart = 'building';
-    block.position.set(Math.cos(a) * r, streetY + h * 0.5, Math.sin(a) * r);
-    block.castShadow = true;
-    block.receiveShadow = true;
-    group.add(block);
+    addLowrise(a, r, w, d, h, streetY, i % 3);
   }
 
-  // Second low-rise band a bit farther out (also fills cam corridor).
   for (let i = 0; i < 32; i++) {
     const a = (i / 32) * Math.PI * 2 + 0.1;
     const r = PLATFORM_OUTER_RADIUS + 6.5 + (i % 4) * 1.6;
     const w = 2.6 + (i % 3) * 0.7;
     const d = 2.2 + (i % 3) * 0.55;
     const h = 12 + (i % 6) * 3.5;
-    const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat.clone());
-    block.userData.cityPart = 'building';
-    block.position.set(Math.cos(a) * r, streetY + h * 0.5, Math.sin(a) * r);
-    block.castShadow = true;
-    group.add(block);
+    addLowrise(a, r, w, d, h, streetY, (i + 1) % 3);
   }
 
-  // Inner under-deck city disk
   const underDeck = new THREE.Mesh(
     new THREE.CircleGeometry(PLATFORM_OUTER_RADIUS + 0.8, 48),
     new THREE.MeshStandardMaterial({
@@ -1435,7 +1557,6 @@ function createRooftopCity(skin) {
   underDeck.position.y = streetY - 0.8;
   group.add(underDeck);
 
-  // Soft outer haze — city color, not sky blue.
   const haze = new THREE.Mesh(
     new THREE.CircleGeometry(110, 48),
     new THREE.MeshBasicMaterial({
@@ -1453,11 +1574,10 @@ function createRooftopCity(skin) {
   haze.renderOrder = -3;
   group.add(haze);
 
-  // Night signature towers — spiral HQ + orb tower taller than the stadium
   if (night) {
     const hq = new THREE.Mesh(
       new THREE.CylinderGeometry(2.5, 6, 72, 8),
-      buildingMat.clone()
+      makeFacadeMaterial(facadeMaps[1], night, 1)
     );
     hq.userData.cityPart = 'building';
     hq.position.set(-34, 8, -30);
@@ -1465,7 +1585,7 @@ function createRooftopCity(skin) {
 
     const orbPillarL = new THREE.Mesh(
       new THREE.BoxGeometry(1.2, 52, 1.2),
-      buildingMat.clone()
+      makeFacadeMaterial(facadeMaps[2], night, 2)
     );
     orbPillarL.userData.cityPart = 'building';
     orbPillarL.position.set(36, 2, 22);
