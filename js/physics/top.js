@@ -422,6 +422,32 @@ export function pinTopToFloor(body) {
   }
 }
 
+const _discSample = new THREE.Vector3();
+
+/**
+ * Horizontal disc radius from mesh verts (XZ distance from the model origin).
+ * Uses a high percentile so sparse blade/wing tips and bbox padding do not
+ * inflate the bey-vs-bey hitbox past the solid metal wheel.
+ */
+export function measureDiscRadius(modelHolder, percentile = CONFIG.COLLIDER_DISC_PERCENTILE) {
+  const radii = [];
+  modelHolder.updateMatrixWorld(true);
+  modelHolder.traverse((child) => {
+    if (!child.isMesh || !child.geometry) return;
+    const pos = child.geometry.attributes?.position;
+    if (!pos) return;
+    for (let i = 0; i < pos.count; i++) {
+      _discSample.fromBufferAttribute(pos, i).applyMatrix4(child.matrixWorld);
+      radii.push(Math.hypot(_discSample.x, _discSample.z));
+    }
+  });
+  if (radii.length === 0) return 0;
+  radii.sort((a, b) => a - b);
+  const t = Math.min(1, Math.max(0, percentile));
+  const idx = Math.min(radii.length - 1, Math.floor(t * (radii.length - 1)));
+  return radii[idx];
+}
+
 /**
  * Refits the physics shape to a sphere matching the model's outer disc radius.
  * Sphere-based collision is the most stable narrow-phase in cannon-es.
@@ -433,14 +459,20 @@ export function pinTopToFloor(body) {
 export function fitColliderToModel(body, modelHolder) {
   const box = new THREE.Box3().setFromObject(modelHolder);
   const size = box.getSize(new THREE.Vector3());
-  const outerRadius = Math.max(size.x, size.z) * 0.5 * CONFIG.COLLIDER_INSET;
+  const aabbR = Math.max(size.x, size.z) * 0.5;
+  const discR = measureDiscRadius(modelHolder);
+  // Prefer the tighter of AABB and measured disc so padded boxes (e.g. Meteo)
+  // cannot push contact out past the metal wheel.
+  const baseR = discR > 0.05 ? Math.min(aabbR, discR) : aabbR;
+  const outerRadius = baseR * CONFIG.COLLIDER_INSET;
 
   while (body.shapes.length > 0) {
     body.removeShape(body.shapes[0], body.shapeOffsets[0], body.shapeOrientations[0]);
   }
 
   body.addShape(new CANNON.Sphere(outerRadius));
-  body.userData.visualOuterRadius = Math.max(size.x, size.z) * 0.5;
+  // Wall clamp uses the full visual extent so blade tips do not clip the rim.
+  body.userData.visualOuterRadius = Math.max(aabbR, discR || 0);
   body.userData.outerRadius = outerRadius;
   // Shift visual down so its bottom sits at floor level while XZ matches the sphere.
   body.userData.visualYOffset = size.y * 0.5 - outerRadius;

@@ -19,10 +19,14 @@ export const CONFIG = Object.freeze({
   TOP_HEIGHT: 0.9,
   TOP_MASS: 2.5,
   DEFAULT_OUTER_RADIUS: 1.05,
-  // Collider radius = model bounding-box half-width * this. The GLB box is
-  // looser than the visible metal wheel, so < 1 pulls the collision edge in to
-  // where the discs actually meet. Toggle the KeyC debug ring to recalibrate.
-  COLLIDER_INSET: 0.9,
+  // Collider radius = measured disc radius * this. The GLB bounding box (and
+  // thin blade tips) sit outside the solid metal wheel, so < 1 pulls contact
+  // in until the discs actually meet. Toggle the KeyC debug ring to recalibrate.
+  COLLIDER_INSET: 0.8,
+  // Horizontal-radius percentile used when fitting the bey-vs-bey disc. High
+  // enough to keep the solid wheel, low enough to ignore sparse wing/tip verts
+  // and AABB padding that made slow clashes fire with a visible gap.
+  COLLIDER_DISC_PERCENTILE: 0.97,
 
   MAX_SPIN: 82,
   SPIN_DECAY: 0.038,
