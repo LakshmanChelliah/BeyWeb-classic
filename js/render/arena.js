@@ -15,15 +15,15 @@ import { setArenaCameraCeiling } from './scene.js';
  * decks over city sky (like the classic elevated stadium look).
  */
 
-const DISH_RADIUS = CONFIG.WALL_RADIUS + 0.15;
+const DISH_RADIUS = CONFIG.DISH_RADIUS;
 const PLATFORM_OUTER_RADIUS = CONFIG.PLATFORM_OUTER_RADIUS;
 /** Out-of-bounds ground flush with the stadium rim (ground venues only). */
 const GROUND_RADIUS = 78;
 const SKY_RADIUS = 95;
 /** How far the dish rim sits below the surrounding floor. */
-const DISH_RECESS = 0.04;
+const DISH_RECESS = CONFIG.DISH_RECESS;
 /** Visual bowl depth (center below rim) - shallow so tops don’t float. */
-const DISH_BOWL_DEPTH = 0.62;
+const DISH_BOWL_DEPTH = CONFIG.DISH_BOWL_DEPTH;
 
 /**
  * Shallow concave dish (lathed parabola). Same outer radius as the old flat circle;

@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { createPhysicsWorld } from '../physics/world.js';
-import { createArenaPhysics } from '../physics/arena.js';
+import { createArenaPhysics, dishSurfaceY } from '../physics/arena.js';
 import { setupContactHandlers } from '../physics/contact.js';
 import {
   createTopPhysicsBody,
@@ -190,8 +190,14 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
     const r = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
     const yOff = body.userData.visualYOffset ?? 0;
     const flightLift = body.userData.flightLift ?? 0;
+    // Match syncTopVisual dish follow so the ring sits on the metal wheel.
+    const dishLift = dishSurfaceY(body.position.x, body.position.z) - CONFIG.FLOOR_Y;
     ring.visible = true;
-    ring.position.set(body.position.x, body.position.y + yOff + flightLift, body.position.z);
+    ring.position.set(
+      body.position.x,
+      body.position.y + yOff + flightLift + dishLift,
+      body.position.z
+    );
     ring.scale.set(r, r, r);
   }
   window.addEventListener('keydown', (e) => {
@@ -608,6 +614,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
       move: playerBey.move ?? playerBey.atk ?? 50,
       def: playerBey.def ?? 50,
       sta: playerBey.sta ?? 50,
+      colliderInset: playerBey.colliderInset,
+      visualFloorBias: playerBey.visualFloorBias,
     };
     state.playerBody.userData.beyColor = beyColorHex(playerBey.color);
     // Left-spin beys (canon: Lightning / Meteo L-Drago) flip the spin sign.
@@ -620,6 +628,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
       def: Math.min(100, (aiBey.def ?? 50) + (aiBey.tournamentBuffs?.defBonus ?? 0)),
       sta: Math.min(100, (aiBey.sta ?? 50) + (aiBey.tournamentBuffs?.staBonus ?? 0)),
       orbitDrift: aiBey.orbitDrift,
+      colliderInset: aiBey.colliderInset,
+      visualFloorBias: aiBey.visualFloorBias,
     };
     state.aiBody.userData.beyColor = beyColorHex(aiBey.color);
     state.aiBody.userData.spinSign = aiBey.leftSpin ? -0.95 : 0.95;

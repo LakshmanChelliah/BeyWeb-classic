@@ -17,8 +17,17 @@ function nextLoadToken(parentGroup) {
 
 function attachTemplate(parentGroup, template, physicsBody, onReady) {
   parentGroup.clear();
+  // Fit against an identity parent so leftover fight pose/scale cannot inflate
+  // Box3 / disc measurements (flight squash was leaving Libra/Leone mis-seated).
+  parentGroup.position.set(0, 0, 0);
+  parentGroup.quaternion.identity();
+  parentGroup.scale.set(1, 1, 1);
+  // position/scale alone leave a stale matrixWorld until the next render tick —
+  // force-update so disc/bottom samples are not taken in the previous fight pose.
+  parentGroup.updateMatrixWorld(true);
   const instance = cloneTopModel(template);
   parentGroup.add(instance);
+  parentGroup.updateMatrixWorld(true);
 
   if (physicsBody) {
     const radius = fitColliderToModel(physicsBody, instance);

@@ -109,6 +109,8 @@ export const BEYS = Object.freeze([
     color: '#22c55e',
     model: modelUrl('rock_leone.glb'),
     logo: logoUrl('rockleonelogandFacebolt.png'),
+    // Claw tips sit outside the solid rock wheel — pull contact in further.
+    colliderInset: 0.68,
     gimmicks: {
       power: 'leone_wide_ball',
       special: 'leone_lion_wall',
@@ -130,6 +132,9 @@ export const BEYS = Object.freeze([
     color: '#84cc16',
     model: modelUrl('flame_libra.glb'),
     logo: logoUrl('flame_libralogo.png'),
+    // Seat the metal wheel, not the sparse ES tip point — tip clips the dish
+    // a bit so Libra doesn't read as hovering over the stadium.
+    visualFloorBias: 0.48,
     gimmicks: {
       power: 'libra_sonic_shield',
       special: 'libra_sonic_buster',

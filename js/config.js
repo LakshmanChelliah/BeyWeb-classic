@@ -8,6 +8,12 @@
 export const CONFIG = Object.freeze({
   ARENA_RADIUS: 14.0,
   WALL_RADIUS: 13.55,
+  /** Visual dish rim radius (render/arena.js). Slightly outside wall. */
+  DISH_RADIUS: 13.7,
+  /** Dish rim drop below FLOOR_Y. */
+  DISH_RECESS: 0.04,
+  /** Parabolic bowl depth at center (visual only; physics stays on FLOOR_Y). */
+  DISH_BOWL_DEPTH: 0.62,
   /** Marble platform + white barrier ring (see render/arena.js). */
   PLATFORM_OUTER_RADIUS: 18.0,
   POCKET_EXIT_RADIUS: 14.05,
@@ -22,11 +28,15 @@ export const CONFIG = Object.freeze({
   // Collider radius = measured disc radius * this. The GLB bounding box (and
   // thin blade tips) sit outside the solid metal wheel, so < 1 pulls contact
   // in until the discs actually meet. Toggle the KeyC debug ring to recalibrate.
+  // Per-bey overrides live on BEYS[].colliderInset (e.g. Rock Leone claws).
   COLLIDER_INSET: 0.8,
   // Horizontal-radius percentile used when fitting the bey-vs-bey disc. High
   // enough to keep the solid wheel, low enough to ignore sparse wing/tip verts
   // and AABB padding that made slow clashes fire with a visible gap.
   COLLIDER_DISC_PERCENTILE: 0.97,
+  // Lowest-Y percentile for seating the model on the floor. Ignores degenerate
+  // tip outlier verts (Flame Libra’s AABB extends below the visible ES tip).
+  COLLIDER_BOTTOM_PERCENTILE: 0.015,
 
   MAX_SPIN: 82,
   SPIN_DECAY: 0.038,
