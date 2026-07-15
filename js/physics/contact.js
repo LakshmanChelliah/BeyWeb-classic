@@ -93,22 +93,65 @@ function computeClashFrame(bodyA, bodyB, dx, dz, dist2) {
   return { nx, nz, dist, closingSpeed };
 }
 
-function separateTops(bodyA, bodyB, nx, nz, overlap) {
+function syncBodyXZ(body) {
+  body.previousPosition.x = body.position.x;
+  body.previousPosition.z = body.position.z;
+}
+
+/** Cancel the closing component of relative velocity so overlap does not re-form. */
+function cancelClosingVelocity(bodyA, bodyB, nx, nz) {
+  const relVx = bodyA.velocity.x - bodyB.velocity.x;
+  const relVz = bodyA.velocity.z - bodyB.velocity.z;
+  const closing = -(relVx * nx + relVz * nz);
+  if (closing <= 0) return;
+
   if (bodyA.userData.anchoring && !bodyB.userData.anchoring) {
-    bodyB.position.x -= nx * overlap;
-    bodyB.position.z -= nz * overlap;
+    bodyB.velocity.x -= nx * closing;
+    bodyB.velocity.z -= nz * closing;
     return;
   }
   if (bodyB.userData.anchoring && !bodyA.userData.anchoring) {
-    bodyA.position.x += nx * overlap;
-    bodyA.position.z += nz * overlap;
+    bodyA.velocity.x += nx * closing;
+    bodyA.velocity.z += nz * closing;
     return;
   }
-  const push = overlap * 0.5;
+
+  const invA = 1 / Math.max(bodyA.mass, 1e-6);
+  const invB = 1 / Math.max(bodyB.mass, 1e-6);
+  const shareA = invA / (invA + invB);
+  const shareB = invB / (invA + invB);
+  bodyA.velocity.x += nx * closing * shareA;
+  bodyA.velocity.z += nz * closing * shareA;
+  bodyB.velocity.x -= nx * closing * shareB;
+  bodyB.velocity.z -= nz * closing * shareB;
+}
+
+function separateTops(bodyA, bodyB, nx, nz, overlap) {
+  // Cap so a coincident-center frame (overlap ≈ diameter) cannot teleport a bey.
+  const capped = Math.min(Math.max(0, overlap), CONFIG.MAX_CLASH_SEPARATION);
+
+  if (bodyA.userData.anchoring && !bodyB.userData.anchoring) {
+    bodyB.position.x -= nx * capped;
+    bodyB.position.z -= nz * capped;
+    syncBodyXZ(bodyB);
+    cancelClosingVelocity(bodyA, bodyB, nx, nz);
+    return;
+  }
+  if (bodyB.userData.anchoring && !bodyA.userData.anchoring) {
+    bodyA.position.x += nx * capped;
+    bodyA.position.z += nz * capped;
+    syncBodyXZ(bodyA);
+    cancelClosingVelocity(bodyA, bodyB, nx, nz);
+    return;
+  }
+  const push = capped * 0.5;
   bodyA.position.x += nx * push;
   bodyA.position.z += nz * push;
   bodyB.position.x -= nx * push;
   bodyB.position.z -= nz * push;
+  syncBodyXZ(bodyA);
+  syncBodyXZ(bodyB);
+  cancelClosingVelocity(bodyA, bodyB, nx, nz);
 }
 
 function applySpinDelta(state, side, delta, body) {

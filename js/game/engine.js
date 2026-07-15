@@ -20,6 +20,7 @@ import {
   resetTopWobble,
   syncTopVisual,
   clampLaunchSpeed,
+  clampTopSpeed,
   pinTopToFloor,
   settleSleepingTop,
   updateTopCollisions,
@@ -788,6 +789,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
 
     if (state.playerBody) {
       clampLaunchSpeed(state.playerBody, state.launchGrace);
+      clampTopSpeed(state.playerBody);
       stabilizeTop(state.playerBody, state.playerSpin, state.playerBody.userData.spinSign ?? 1, state.launchGrace);
       pinTopToFloor(state.playerBody);
       if (!state.playerBody.userData.ringOut) {
@@ -796,6 +798,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
     }
     if (state.aiBody) {
       clampLaunchSpeed(state.aiBody, state.launchGrace);
+      clampTopSpeed(state.aiBody);
       stabilizeTop(state.aiBody, state.aiSpin, state.aiBody.userData.spinSign ?? -0.95, state.launchGrace);
       pinTopToFloor(state.aiBody);
       if (!state.aiBody.userData.ringOut) {
