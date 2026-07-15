@@ -307,6 +307,24 @@ export function clampLaunchSpeed(body, launchGrace) {
   }
 }
 
+/**
+ * Caps horizontal speed for dynamic tops. Skips kinematic / airborne / ring-out
+ * bodies so ability cinematics can still script fast dashes.
+ */
+export function clampTopSpeed(body) {
+  if (!body || body.userData.ringOut || body.userData.launching) return;
+  if (body.userData.airborne || body.userData.collisionsDisabled) return;
+  if (body.type === CANNON.Body.KINEMATIC) return;
+
+  const vx = body.velocity.x;
+  const vz = body.velocity.z;
+  const speed = Math.hypot(vx, vz);
+  if (speed <= CONFIG.MAX_XZ_SPEED) return;
+  const scale = CONFIG.MAX_XZ_SPEED / speed;
+  body.velocity.x = vx * scale;
+  body.velocity.z = vz * scale;
+}
+
 function syncBodyY(body, y) {
   body.position.y = y;
   body.previousPosition.y = y;
@@ -471,7 +489,8 @@ export function fitColliderToModel(body, modelHolder) {
   }
 
   body.addShape(new CANNON.Sphere(outerRadius));
-  // Wall clamp uses the full visual extent so blade tips do not clip the rim.
+  // Visual disc extent (debug rings / tip-over). Wall clamp uses outerRadius
+  // so it stays aligned with Cannon's sphere↔wall contact.
   body.userData.visualOuterRadius = Math.max(aabbR, discR || 0);
   body.userData.outerRadius = outerRadius;
   // Shift visual down so its bottom sits at floor level while XZ matches the sphere.
@@ -635,8 +654,12 @@ function killOutwardRadial(body, nx, nz, emitWallImpact) {
 }
 
 /**
- * Snaps a bey inside the solid-wall circle and blocks outward velocity that would
+ * Keeps a bey inside the solid-wall circle and blocks outward velocity that would
  * tunnel through the rim on the next physics step. KO pocket gaps are exempt.
+ *
+ * Large overshoots (true tunnels between wall segments) still snap fully so the
+ * bey cannot rest outside the stadium. Small overshoots are eased in so a clash
+ * near the rim cannot ping-pong against the clamp every frame.
  */
 export function clampSolidWallBody(body, emitWallImpact) {
   if (!body || body.userData.collisionsDisabled || body.userData.ringOut || body.userData.launching) {
@@ -659,7 +682,13 @@ export function clampSolidWallBody(body, emitWallImpact) {
   );
 
   if (dist > maxR) {
-    const scale = maxR / dist;
+    const overshoot = dist - maxR;
+    // Ease shallow penetrations; hard-correct deep tunnels in one step.
+    const pull = overshoot > CONFIG.MAX_CLASH_SEPARATION * 2
+      ? overshoot
+      : Math.min(overshoot, CONFIG.MAX_CLASH_SEPARATION);
+    const targetR = dist - pull;
+    const scale = targetR / dist;
     body.position.x = x * scale;
     body.position.z = z * scale;
     body.previousPosition.x = body.position.x;
