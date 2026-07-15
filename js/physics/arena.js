@@ -41,9 +41,12 @@ export function playableCenterRadius(outerR, mode = 'collision') {
 }
 
 export function wallClampRadius(body) {
+  // Use the physics collider radius so this matches Cannon's sphere↔wall
+  // contact. Clamping with visualOuterRadius (larger after COLLIDER_INSET)
+  // left a dead zone where Cannon rested outside the clamp circle and the
+  // every-step radial snap read as a teleport / rim jitter.
   const colliderR = body.userData.outerRadius ?? CONFIG.DEFAULT_OUTER_RADIUS;
-  const visualR = body.userData.visualOuterRadius ?? colliderR / CONFIG.COLLIDER_INSET;
-  return playableCenterRadius(visualR, 'collision');
+  return playableCenterRadius(colliderR, 'collision');
 }
 
 function addWallSegment(world, wallMaterial, angle, radius) {
