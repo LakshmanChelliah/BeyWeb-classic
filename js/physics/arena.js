@@ -49,6 +49,17 @@ export function wallClampRadius(body) {
   return playableCenterRadius(colliderR, 'collision');
 }
 
+/**
+ * Visual dish surface Y at (x,z). Physics stays on FLOOR_Y; tops are drawn on
+ * this parabola so they don't appear to hover over the bowl.
+ */
+export function dishSurfaceY(x, z) {
+  const radius = CONFIG.DISH_RADIUS || CONFIG.WALL_RADIUS + 0.15;
+  const dist = Math.hypot(x, z);
+  const t = radius > 0.001 ? Math.min(1, dist / radius) : 1;
+  return CONFIG.FLOOR_Y - CONFIG.DISH_RECESS - CONFIG.DISH_BOWL_DEPTH * (1 - t * t);
+}
+
 function addWallSegment(world, wallMaterial, angle, radius) {
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius;

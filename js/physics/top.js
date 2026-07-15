@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { staMult } from '../game/stats.js';
-import { isAtPocketAngle, wallClampRadius } from './arena.js';
+import { dishSurfaceY, isAtPocketAngle, wallClampRadius } from './arena.js';
 import { clamp01 } from '../utils/math.js';
 
 const _spinQuatA = new THREE.Quaternion();
@@ -150,10 +150,14 @@ export function syncTopVisual(group, body, spinPct, visualYaw, dt, spinSign = 1)
   const flightRoll = body.userData.flightRoll ?? 0;
   const flightOffsetX = body.userData.flightOffsetX ?? 0;
   const flightOffsetZ = body.userData.flightOffsetZ ?? 0;
+  const x = body.position.x + flightOffsetX;
+  const z = body.position.z + flightOffsetZ;
+  // Ride the visual dish: physics is planar, but the mesh bowl dips at center.
+  const dishLift = dishSurfaceY(x, z) - CONFIG.FLOOR_Y;
   group.position.set(
-    body.position.x + flightOffsetX,
-    body.position.y + yOff + flightLift,
-    body.position.z + flightOffsetZ
+    x,
+    body.position.y + yOff + flightLift + dishLift,
+    z
   );
 
   const vanish = body.userData.topVanish ?? 0;
@@ -442,28 +446,41 @@ export function pinTopToFloor(body) {
 
 const _discSample = new THREE.Vector3();
 
+function percentileOf(sorted, percentile) {
+  if (!sorted.length) return 0;
+  const t = Math.min(1, Math.max(0, percentile));
+  const idx = Math.min(sorted.length - 1, Math.floor(t * (sorted.length - 1)));
+  return sorted[idx];
+}
+
 /**
- * Horizontal disc radius from mesh verts (XZ distance from the model origin).
- * Uses a high percentile so sparse blade/wing tips and bbox padding do not
- * inflate the bey-vs-bey hitbox past the solid metal wheel.
+ * Sample verts with the holder detached from the fight group so parent pose /
+ * scale cannot inflate radii or tip Y (wall-clamp uses visual radius).
  */
-export function measureDiscRadius(modelHolder, percentile = CONFIG.COLLIDER_DISC_PERCENTILE) {
-  const radii = [];
+function sampleIsolatedHolderVerts(modelHolder) {
+  const parent = modelHolder.parent;
+  if (parent) parent.remove(modelHolder);
   modelHolder.updateMatrixWorld(true);
+
+  const radii = [];
+  const ys = [];
   modelHolder.traverse((child) => {
     if (!child.isMesh || !child.geometry) return;
     const pos = child.geometry.attributes?.position;
     if (!pos) return;
     for (let i = 0; i < pos.count; i++) {
       _discSample.fromBufferAttribute(pos, i).applyMatrix4(child.matrixWorld);
+      if (!Number.isFinite(_discSample.x) || !Number.isFinite(_discSample.y) || !Number.isFinite(_discSample.z)) {
+        continue;
+      }
       radii.push(Math.hypot(_discSample.x, _discSample.z));
+      ys.push(_discSample.y);
     }
   });
-  if (radii.length === 0) return 0;
-  radii.sort((a, b) => a - b);
-  const t = Math.min(1, Math.max(0, percentile));
-  const idx = Math.min(radii.length - 1, Math.floor(t * (radii.length - 1)));
-  return radii[idx];
+
+  if (parent) parent.add(modelHolder);
+  parent?.updateMatrixWorld(true);
+  return { radii, ys };
 }
 
 /**
@@ -475,14 +492,22 @@ export function measureDiscRadius(modelHolder, percentile = CONFIG.COLLIDER_DISC
  * when the visible disc circumferences meet.
  */
 export function fitColliderToModel(body, modelHolder) {
+  const { radii, ys } = sampleIsolatedHolderVerts(modelHolder);
   const box = new THREE.Box3().setFromObject(modelHolder);
   const size = box.getSize(new THREE.Vector3());
   const aabbR = Math.max(size.x, size.z) * 0.5;
-  const discR = measureDiscRadius(modelHolder);
+
+  let discR = 0;
+  if (radii.length) {
+    radii.sort((a, b) => a - b);
+    discR = percentileOf(radii, CONFIG.COLLIDER_DISC_PERCENTILE);
+  }
   // Prefer the tighter of AABB and measured disc so padded boxes (e.g. Meteo)
-  // cannot push contact out past the metal wheel.
-  const baseR = discR > 0.05 ? Math.min(aabbR, discR) : aabbR;
-  const outerRadius = baseR * CONFIG.COLLIDER_INSET;
+  // cannot push contact out past the metal wheel. Reject absurd disc reads.
+  const saneDisc = discR > 0.05 && discR < aabbR * 1.35 ? discR : 0;
+  const baseR = saneDisc > 0 ? Math.min(aabbR, saneDisc) : aabbR;
+  const inset = body.userData?.beyStats?.colliderInset ?? CONFIG.COLLIDER_INSET;
+  const outerRadius = baseR * inset;
 
   while (body.shapes.length > 0) {
     body.removeShape(body.shapes[0], body.shapeOffsets[0], body.shapeOrientations[0]);
@@ -491,10 +516,21 @@ export function fitColliderToModel(body, modelHolder) {
   body.addShape(new CANNON.Sphere(outerRadius));
   // Visual disc extent (debug rings / tip-over). Wall clamp uses outerRadius
   // so it stays aligned with Cannon's sphere↔wall contact.
-  body.userData.visualOuterRadius = Math.max(aabbR, discR || 0);
+  body.userData.visualOuterRadius = aabbR;
   body.userData.outerRadius = outerRadius;
-  // Shift visual down so its bottom sits at floor level while XZ matches the sphere.
-  body.userData.visualYOffset = size.y * 0.5 - outerRadius;
+
+  // Seat on the robust tip bottom (not absolute AABB min) so outlier tip verts
+  // cannot leave the visible model floating above the dish.
+  let bottomY = box.min.y;
+  if (ys.length) {
+    ys.sort((a, b) => a - b);
+    const sampled = percentileOf(ys, CONFIG.COLLIDER_BOTTOM_PERCENTILE);
+    if (Number.isFinite(sampled)) {
+      bottomY = Math.min(box.max.y, Math.max(box.min.y, sampled));
+    }
+  }
+  const floorBias = body.userData?.beyStats?.visualFloorBias ?? 0;
+  body.userData.visualYOffset = -outerRadius - bottomY - floorBias;
   const floorY = CONFIG.FLOOR_Y + outerRadius + CONFIG.FLOOR_EPSILON;
   if (body.userData.launching) {
     body.userData.launchFloorY = floorY;
