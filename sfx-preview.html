@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bey Web · SFX Preview</title>
+  <style>
+    :root {
+      --bg0: #070b16;
+      --bg1: #121c38;
+      --ink: #e8eefc;
+      --muted: #9aabc8;
+      --accent: #ffb020;
+      --accent2: #3ec7ff;
+      --line: rgba(200, 214, 240, 0.14);
+      --card: rgba(14, 22, 44, 0.72);
+      --ok: #5dffb0;
+      --display: "Trebuchet MS", "Segoe UI", sans-serif;
+      --body: "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 80% 55% at 50% -10%, #243566 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 100% 80%, rgba(255, 176, 32, 0.12) 0%, transparent 50%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg0) 70%);
+      min-height: 100vh;
+    }
+    .hero {
+      position: relative;
+      padding: 48px 24px 28px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -20% -10% auto;
+      height: 70%;
+      background:
+        radial-gradient(circle at 30% 40%, rgba(62, 199, 255, 0.18), transparent 40%),
+        radial-gradient(circle at 70% 50%, rgba(255, 176, 32, 0.16), transparent 42%);
+      pointer-events: none;
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+    @keyframes drift {
+      from { transform: translateY(0) scale(1); }
+      to { transform: translateY(12px) scale(1.04); }
+    }
+    .brand {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(2.2rem, 6vw, 3.6rem);
+      letter-spacing: 0.06em;
+      margin: 0;
+      text-transform: uppercase;
+      background: linear-gradient(180deg, #fff 10%, #c8d8ff 55%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      position: relative;
+    }
+    .tag {
+      margin: 10px auto 0;
+      max-width: 34rem;
+      color: var(--muted);
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      position: relative;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 22px;
+      position: relative;
+    }
+    button {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(62, 199, 255, 0.18), rgba(14, 22, 44, 0.5));
+      color: var(--ink);
+      padding: 12px 18px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    button:hover {
+      border-color: rgba(62, 199, 255, 0.55);
+      transform: translateY(-1px);
+    }
+    button:active { transform: translateY(1px); }
+    button.primary {
+      background: linear-gradient(180deg, rgba(255, 176, 32, 0.35), rgba(120, 70, 10, 0.45));
+      border-color: rgba(255, 176, 32, 0.55);
+    }
+    button.playing {
+      border-color: var(--ok);
+      box-shadow: 0 0 0 1px rgba(93, 255, 176, 0.25) inset;
+      color: var(--ok);
+    }
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 0 auto 48px;
+      display: grid;
+      gap: 28px;
+    }
+    section h2 {
+      font-family: var(--display);
+      font-size: 0.85rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin: 0 0 12px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .row.active {
+      border-color: rgba(255, 176, 32, 0.55);
+      background: rgba(30, 40, 72, 0.85);
+    }
+    .meta { min-width: 0; }
+    .meta strong {
+      display: block;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .meta span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 2px;
+    }
+    .meta code {
+      color: #7fd4ff;
+      font-size: 0.8rem;
+    }
+    .row button { min-width: 96px; }
+    .note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin: -8px 0 0;
+    }
+    @media (max-width: 560px) {
+      .row { grid-template-columns: 1fr; }
+      .row button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <h1 class="brand">Bey Web</h1>
+    <p class="tag">Core fight SFX preview — arcade metallic pack. Tap each effect, or play the full sequence.</p>
+    <div class="toolbar">
+      <button class="primary" id="btn-play-all" type="button">Play all</button>
+      <button id="btn-stop" type="button">Stop</button>
+    </div>
+  </header>
+
+  <p class="note">Not wired into the game yet — approve / request remixes, then we’ll hook them in.</p>
+
+  <main id="catalog"></main>
+
+  <script>
+    const GROUPS = [
+      {
+        title: "Launch",
+        items: [
+          { id: "launch_countdown_tick", label: "Countdown tick", desc: "3 / 2 / 1 / LET / IT beat" },
+          { id: "launch_rip_window", label: "RIP window", desc: "Meter opens — tense whoosh" },
+          { id: "launch_rip", label: "RIP", desc: "Player rip input" },
+          { id: "launch_grade_miss", label: "Grade · Miss", desc: "Dull miss stinger" },
+          { id: "launch_grade_weak", label: "Grade · Weak", desc: "Low grade" },
+          { id: "launch_grade_good", label: "Grade · Good", desc: "Mid grade" },
+          { id: "launch_grade_great", label: "Grade · Great", desc: "Strong grade" },
+          { id: "launch_grade_perfect", label: "Grade · Perfect", desc: "Bright perfect stinger" },
+          { id: "launch_drop", label: "Stadium drop", desc: "Tops hit the stadium + spin-up" },
+        ],
+      },
+      {
+        title: "Combat",
+        items: [
+          { id: "clash_light", label: "Clash · Light", desc: "Quick bey↔bey hit" },
+          { id: "clash_heavy", label: "Clash · Heavy", desc: "Hard closing-speed impact" },
+          { id: "wall_hit", label: "Wall hit", desc: "Stadium wall clack + scrape" },
+        ],
+      },
+      {
+        title: "Outcomes",
+        items: [
+          { id: "ring_out", label: "Ring-out", desc: "KO slide / fly-out whoosh" },
+          { id: "sleep_out", label: "Sleep-out", desc: "Spin slows + tip-over" },
+          { id: "result_win", label: "Result · Win", desc: "Victory stinger" },
+          { id: "result_lose", label: "Result · Lose", desc: "Defeat stinger" },
+          { id: "result_draw", label: "Result · Draw", desc: "Neutral draw stinger" },
+        ],
+      },
+    ];
+
+    const catalog = document.getElementById("catalog");
+    const audioCache = new Map();
+    let current = null;
+    let playAllToken = 0;
+
+    function srcFor(id) {
+      return `assets/sfx/${id}.ogg`;
+    }
+
+    function getAudio(id) {
+      let a = audioCache.get(id);
+      if (!a) {
+        a = new Audio(srcFor(id));
+        a.preload = "auto";
+        audioCache.set(id, a);
+      }
+      return a;
+    }
+
+    function setActive(id) {
+      document.querySelectorAll(".row").forEach((el) => {
+        el.classList.toggle("active", el.dataset.id === id);
+      });
+      document.querySelectorAll(".row button").forEach((btn) => {
+        const on = btn.dataset.id === id && current && !current.paused;
+        btn.classList.toggle("playing", on);
+        btn.textContent = on ? "Playing" : "Play";
+      });
+    }
+
+    function stopAll() {
+      playAllToken += 1;
+      if (current) {
+        current.pause();
+        current.currentTime = 0;
+      }
+      current = null;
+      setActive(null);
+    }
+
+    function playOne(id) {
+      return new Promise((resolve) => {
+        const a = getAudio(id);
+        if (current && current !== a) {
+          current.pause();
+          current.currentTime = 0;
+        }
+        current = a;
+        a.currentTime = 0;
+        setActive(id);
+        const done = () => {
+          a.removeEventListener("ended", done);
+          a.removeEventListener("error", done);
+          if (current === a) current = null;
+          setActive(null);
+          resolve();
+        };
+        a.addEventListener("ended", done, { once: true });
+        a.addEventListener("error", done, { once: true });
+        a.play().catch(done);
+      });
+    }
+
+    async function playAll() {
+      const token = ++playAllToken;
+      const ids = GROUPS.flatMap((g) => g.items.map((i) => i.id));
+      for (const id of ids) {
+        if (token !== playAllToken) return;
+        await playOne(id);
+        if (token !== playAllToken) return;
+        await new Promise((r) => setTimeout(r, 220));
+      }
+    }
+
+    for (const group of GROUPS) {
+      const section = document.createElement("section");
+      const h2 = document.createElement("h2");
+      h2.textContent = group.title;
+      const list = document.createElement("div");
+      list.className = "list";
+      for (const item of group.items) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.dataset.id = item.id;
+        row.innerHTML = `
+          <div class="meta">
+            <strong>${item.label}</strong>
+            <span>${item.desc} · <code>${item.id}.ogg</code></span>
+          </div>
+        `;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.id = item.id;
+        btn.textContent = "Play";
+        btn.addEventListener("click", () => {
+          playAllToken += 1;
+          playOne(item.id);
+        });
+        row.appendChild(btn);
+        list.appendChild(row);
+      }
+      section.appendChild(h2);
+      section.appendChild(list);
+      catalog.appendChild(section);
+    }
+
+    document.getElementById("btn-play-all").addEventListener("click", () => {
+      stopAll();
+      playAll();
+    });
+    document.getElementById("btn-stop").addEventListener("click", stopAll);
+
+    // Warm preload
+    for (const g of GROUPS) {
+      for (const item of g.items) getAudio(item.id);
+    }
+  </script>
+</body>
+</html>
