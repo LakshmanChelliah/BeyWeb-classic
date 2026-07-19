@@ -6,9 +6,10 @@
  */
 import { createKeyboardInput } from './input/keyboard.js';
 import { applyAISteering, tickAIAbilities } from './input/ai.js';
-import { createAppBootstrap } from './app/bootstrap.js?v=70';
+import { createAppBootstrap } from './app/bootstrap.js?v=71';
 import { GAME_MODES, isVsCpu, modeBlurb } from './game/modes.js';
 import { preloadGreyPegasusIcon } from './ui/beyIcon.js';
+import { unlockSfx } from './audio/sfx.js';
 
 // Kick off the boot icon GLB before the rest of app bootstrap work.
 preloadGreyPegasusIcon();
@@ -65,6 +66,7 @@ createAppBootstrap({
       () => {
         if (!getBeysChosen()) return;
         if (startOverlay.classList.contains('hidden')) return;
+        unlockSfx();
         void (async () => {
           resetAIController();
           await campaignCtrl.revealArenaForCurrentOpponent?.();

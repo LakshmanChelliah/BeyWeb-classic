@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
+import { playLaunchDrop, playSleepOut } from '../audio/sfx.js';
 import { staMult } from '../game/stats.js';
 import { dishSurfaceY, isAtPocketAngle, wallClampRadius } from './arena.js';
 import { clamp01 } from '../utils/math.js';
@@ -227,6 +228,7 @@ export function syncTopVisual(group, body, spinPct, visualYaw, dt, spinSign = 1)
       if (body.userData.precessionAngle == null) {
         body.userData.precessionAngle = body.userData.tipAngle;
       }
+      playSleepOut();
     }
     body.userData.deathAnimT += dt;
 
@@ -345,6 +347,8 @@ export function finishLaunchDrop(body) {
   delete body.userData.launching;
   delete body.userData.launchFloorY;
   delete body.userData.launchDropProgress;
+  // Shared cooldown so both tops landing don't double-fire.
+  playLaunchDrop();
 }
 
 function topFloorY(body) {

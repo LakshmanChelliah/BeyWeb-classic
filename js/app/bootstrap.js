@@ -9,7 +9,8 @@
  * Invariant: gameRef exists before selection can start a match; capture API is
  * optional and must never block boot.
  */
-import { createGame } from '../game/engine.js?v=70';
+import { createGame } from '../game/engine.js?v=71';
+import { preloadSfx } from '../audio/sfx.js';
 import { applyAISteering, tickAIAbilities, resetAIController } from '../input/ai.js';
 import { createBeySelection } from '../ui/selection.js';
 import { createPlaySetup } from '../ui/playSetup.js?v=70';
@@ -298,6 +299,7 @@ export function createAppBootstrap({
       ui: queryGameUi(queryUiOptions),
       input,
     });
+    void preloadSfx();
   } catch (err) {
     console.error('[boot] createGame failed', err);
     clearTimeout(earlyBootSafety);

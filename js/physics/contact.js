@@ -7,6 +7,7 @@
  */
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
+import { playClash, playWallHit } from '../audio/sfx.js';
 import { atkCombatMult, defMult, spinDefMult } from '../game/stats.js';
 import {
   resolveContactAbilities,
@@ -253,6 +254,7 @@ export function setupContactHandlers(world, getState, spawnImpact) {
       wallCooldown[side] = CONFIG.WALL_IMPACT_COOLDOWN;
       sparks.wall(body, impactSpeed, nx, nz, false);
       wallSparkTimer[side] = sustainInterval();
+      playWallHit();
       return;
     }
 
@@ -260,6 +262,7 @@ export function setupContactHandlers(world, getState, spawnImpact) {
       wallCooldown[side] = CONFIG.WALL_IMPACT_COOLDOWN;
       sparks.wall(body, impactSpeed, nx, nz, false);
       wallSparkTimer[side] = sustainInterval();
+      playWallHit();
     }
   }
 
@@ -364,6 +367,7 @@ export function setupContactHandlers(world, getState, spawnImpact) {
     applySpinDelta(state, impact.sideB, impact.spinDeltaB, impact.bodyB);
     sparks.clash(bodyA, bodyB, nx, nz, closingSpeed, specialActive, false);
     clashSparkTimer = sustainInterval();
+    playClash(closingSpeed);
   }
 
   return {
