@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
-"""Synthesize per-bey power/special ability SFX + special logo flash.
+"""Synthesize per-bey ability SFX tuned to Metal Saga anime move character.
 
-Reuses helpers from generate-sfx.py. Writes WAV/OGG/MP3 into assets/sfx/.
-Preview-only until wired into the game.
+References (anime/wiki characterizations):
+- Starblast Attack: soar skyward, nose-dive crash
+- Sonic Buster: ultra-fast vibration → piercing shriek + sand
+- Lion Gale Force Wall: tornado wall / gale
+- Dragon Emperor Soaring Destruction: dark vortex, slam from above
+- Diving Crush: soar on wind, crushing dive
+- Lightning Sword Flash: focus energy as purple lightning, pierce strike
+- Red Horn Uppercut / Maximum Stampede: heavy charge / upward horn smash
+- Meteo Absorb / Spin Steal: drain then explosive break
+
+Writes WAV/OGG/MP3 into assets/sfx/. Preview-only until wired.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -30,256 +40,368 @@ whoosh = g.whoosh
 noise = g.noise
 soft_clip = g.soft_clip
 env_exp = g.env_exp
+env_ad = g.env_ad
 write_wav = g.write_wav
 SR = g.SR
 
 
 def delay(samples: list[float], sec: float) -> list[float]:
-    return [0.0] * int(SR * sec) + samples
+    return [0.0] * max(0, int(SR * sec)) + samples
 
 
-def buzz(freq: float, dur: float, *, amp: float = 0.35, seed: int = 1) -> list[float]:
-    """Harsh saw-ish buzz via summed harmonics + noise."""
+def wind(
+    dur: float,
+    *,
+    amp: float = 0.4,
+    f0: float = 400.0,
+    f1: float = 200.0,
+    seed: int = 1,
+    swirl: float = 8.0,
+) -> list[float]:
+    """Broad-band wind with slow amplitude swirl (tornado / soar feel)."""
     n = int(SR * dur)
     out = []
     phase = 0.0
     for i in range(n):
         t = i / SR
-        e = env_exp(t, dur * 0.55) * (1.0 if t < dur else 0.0)
-        # soft envelope attack
-        if t < 0.01:
-            e *= t / 0.01
-        phase += 2 * 3.141592653589793 * freq / SR
-        s = (
-            soft_clip(phase % (2 * 3.141592653589793) / 3.141592653589793 - 1.0, 1.2) * amp * 0.55
-            + __import__("math").sin(phase * 2) * amp * 0.25
-            + noise(i, seed) * amp * 0.2
-        ) * e
-        out.append(s)
+        u = t / dur if dur > 0 else 1.0
+        e = math.sin(math.pi * u) ** 1.15
+        swirl_e = 0.65 + 0.35 * math.sin(2 * math.pi * swirl * t)
+        freq = f0 + (f1 - f0) * u
+        phase += 2 * math.pi * freq / SR
+        s = noise(i, seed) * e * amp * swirl_e
+        s += math.sin(phase) * e * amp * 0.22 * swirl_e
+        # high air hiss
+        s += noise(i, seed + 9) * e * amp * 0.18 * (0.4 + 0.6 * u)
+        out.append(soft_clip(s))
     return out
 
 
-def pulse_train(freqs: list[float], dur: float, *, amp: float = 0.4, gap: float = 0.08) -> list[float]:
+def shriek(dur: float = 0.55, *, amp: float = 0.45, seed: int = 1) -> list[float]:
+    """Piercing Libra-style scream: dissonant highs + vibrato."""
+    n = int(SR * dur)
+    out = []
+    p1 = p2 = p3 = 0.0
+    for i in range(n):
+        t = i / SR
+        u = t / dur
+        # swell then cut
+        e = (u / 0.15 if u < 0.15 else 1.0) * (1.0 if u < 0.7 else (1 - (u - 0.7) / 0.3))
+        vib = 1.0 + 0.04 * math.sin(2 * math.pi * 28 * t)
+        f1 = 1800 * vib
+        f2 = 2400 * vib
+        f3 = 3100 * vib
+        p1 += 2 * math.pi * f1 / SR
+        p2 += 2 * math.pi * f2 / SR
+        p3 += 2 * math.pi * f3 / SR
+        s = (
+            math.sin(p1) * 0.45
+            + math.sin(p2) * 0.35
+            + math.sin(p3) * 0.25
+            + noise(i, seed) * 0.12
+        ) * e * amp
+        out.append(soft_clip(s, 1.8))
+    return out
+
+
+def dark_drone(dur: float, *, amp: float = 0.4, f0: float = 55.0, seed: int = 1) -> list[float]:
+    """L-Drago dark power bed."""
+    n = int(SR * dur)
+    out = []
+    phase = 0.0
+    for i in range(n):
+        t = i / SR
+        e = env_ad(t, 0.04, dur - 0.04)
+        # slight pitch wobble
+        freq = f0 * (1.0 + 0.03 * math.sin(2 * math.pi * 3.5 * t))
+        phase += 2 * math.pi * freq / SR
+        s = math.sin(phase) * amp * e
+        s += math.sin(phase * 1.5) * amp * 0.35 * e
+        s += noise(i, seed) * amp * 0.18 * e
+        out.append(soft_clip(s))
+    return out
+
+
+def lightning_crack(dur: float = 0.2, *, amp: float = 0.55, seed: int = 1) -> list[float]:
+    """Purple-lightning crackle for Striker."""
+    n = int(SR * dur)
+    out = []
+    phase = 0.0
+    for i in range(n):
+        t = i / SR
+        e = env_exp(t, 0.04) * amp
+        freq = 2200 * math.exp(-t * 12)
+        phase += 2 * math.pi * freq / SR
+        crackle = 1.0 if abs(noise(i, seed)) > 0.4 else 0.2
+        s = noise(i, seed) * e * crackle + math.sin(phase) * e * 0.4
+        out.append(soft_clip(s, 2.0))
+    return out
+
+
+def stampede_hits(count: int = 4, *, spacing: float = 0.09, seed: int = 1) -> list[float]:
     layers = []
-    t = 0.0
-    for i, f in enumerate(freqs):
-        layers.append(delay(tone(f, 0.12, amp=amp * (0.95 - i * 0.08), attack=0.003), t))
-        t += gap
-    return pad(mix(*layers, gain=0.95), dur)
+    for i in range(count):
+        hit = metal_hit(
+            dur=0.18,
+            base=70 + i * 8,
+            bright=450,
+            amp=0.55 + i * 0.05,
+            scrape=0.35,
+            seed=seed + i,
+        )
+        layers.append(delay(hit, i * spacing))
+    return mix(*layers, gain=0.95)
+
+
+def anime_announce() -> list[float]:
+    """Special-move callout / logo flash: bright rising Metal Fight sting."""
+    rise = pitch_sweep(420, 1260, 0.22, amp=0.4, attack=0.008, noise_amt=0.04, seed=501)
+    chord = mix(
+        tone(523.25, 0.35, amp=0.32, attack=0.01, decay=0.3),
+        delay(tone(659.25, 0.32, amp=0.28, attack=0.01, decay=0.28), 0.04),
+        delay(tone(783.99, 0.3, amp=0.24, attack=0.01, decay=0.26), 0.08),
+        gain=0.95,
+    )
+    flash = pitch_sweep(1600, 3200, 0.12, amp=0.22, attack=0.002, seed=502)
+    hit = metal_hit(dur=0.12, base=700, bright=2800, amp=0.28, scrape=0.08, seed=503)
+    return pad(mix(rise, delay(chord, 0.05), delay(flash, 0.1), delay(hit, 0.08), gain=0.95), 0.48)
 
 
 # --- shared ---
 
 def special_logo_flash() -> list[float]:
-    """Bright UI sting for the special logo flash overlay."""
-    a = pitch_sweep(900, 1800, 0.12, amp=0.35, attack=0.002, noise_amt=0.05, seed=201)
-    b = tone(660, 0.28, amp=0.4, attack=0.004, decay=0.25)
-    c = delay(tone(990, 0.22, amp=0.28, attack=0.004), 0.06)
-    spark = metal_hit(dur=0.15, base=800, bright=3200, amp=0.25, scrape=0.1, seed=202)
-    return pad(mix(a, b, c, spark, gain=0.95), 0.4)
+    return anime_announce()
 
 
-# --- Pegasus ---
+# --- Pegasus (heroic wind + shooting-star dive) ---
 
 def pegasus_speed_boost() -> list[float]:
-    w = whoosh(0.35, amp=0.45, f0=500, f1=1400, seed=301)
-    t = pitch_sweep(440, 880, 0.3, amp=0.28, attack=0.01, seed=302)
-    return pad(mix(w, t, gain=0.95), 0.4)
+    # Bright wind rush — Gingka acceleration aura
+    w = wind(0.4, amp=0.48, f0=700, f1=1400, seed=601, swirl=12)
+    spark = pitch_sweep(900, 1600, 0.25, amp=0.28, attack=0.005, seed=602)
+    return pad(mix(w, spark, gain=0.95), 0.45)
 
 
 def pegasus_star_blast() -> list[float]:
-    rise = pitch_sweep(220, 900, 0.35, amp=0.4, attack=0.02, noise_amt=0.08, seed=311)
-    sparkle = pulse_train([880, 1175, 1568], 0.45, amp=0.35, gap=0.07)
-    return pad(mix(rise, sparkle, gain=0.95), 0.5)
+    # Soar into the sky (Shooting Star Attack windup)
+    ascend = wind(0.55, amp=0.5, f0=350, f1=1100, seed=611, swirl=6)
+    stars = mix(
+        delay(tone(1175, 0.12, amp=0.22, attack=0.002), 0.15),
+        delay(tone(1568, 0.12, amp=0.2, attack=0.002), 0.28),
+        delay(tone(2093, 0.12, amp=0.18, attack=0.002), 0.4),
+        gain=0.9,
+    )
+    return pad(mix(ascend, stars, gain=0.95), 0.7)
 
 
 def pegasus_star_blast_hit() -> list[float]:
-    hit = metal_hit(dur=0.35, base=180, bright=2400, amp=0.8, scrape=0.35, seed=312)
-    boom = tone(80, 0.28, amp=0.4, attack=0.002, decay=0.25)
-    star = pitch_sweep(2000, 600, 0.2, amp=0.25, attack=0.002, seed=313)
-    return pad(mix(hit, boom, star, gain=1.0), 0.42)
+    # Nose-dive crash from the heavens
+    dive = wind(0.28, amp=0.55, f0=1600, f1=200, seed=612, swirl=2)
+    smash = metal_hit(dur=0.4, base=140, bright=2200, amp=0.9, scrape=0.4, seed=613)
+    boom = tone(65, 0.35, amp=0.45, attack=0.002, decay=0.32)
+    debris = whoosh(0.25, amp=0.3, f0=500, f1=120, seed=614)
+    return pad(mix(dive, delay(smash, 0.12), delay(boom, 0.12), delay(debris, 0.15), gain=1.0), 0.55)
 
 
-# --- Lightning L-Drago ---
+# --- Lightning L-Drago (dark power / dragon vortex) ---
 
 def ldrago_upper_mode() -> list[float]:
-    growl = pitch_sweep(120, 90, 0.4, amp=0.4, attack=0.02, noise_amt=0.15, seed=321)
-    snarl = buzz(90, 0.35, amp=0.35, seed=322)
-    return pad(mix(growl, snarl, gain=0.95), 0.45)
+    # Mode shift: dark metal scrape + low growl
+    scrape = metal_hit(dur=0.28, base=90, bright=700, amp=0.5, scrape=0.55, seed=621)
+    drone = dark_drone(0.45, amp=0.42, f0=48, seed=622)
+    snarl = pitch_sweep(160, 90, 0.35, amp=0.3, attack=0.02, noise_amt=0.2, seed=623)
+    return pad(mix(scrape, drone, snarl, gain=0.95), 0.5)
 
 
 def ldrago_soaring_destruction() -> list[float]:
-    rise = pitch_sweep(160, 700, 0.4, amp=0.42, attack=0.025, noise_amt=0.12, seed=331)
-    dark = buzz(70, 0.4, amp=0.3, seed=332)
-    return pad(mix(rise, dark, gain=0.95), 0.5)
+    # Dark vortex gather → spiraling energy blast charge
+    vortex = wind(0.7, amp=0.5, f0=180, f1=520, seed=631, swirl=14)
+    dark = dark_drone(0.7, amp=0.45, f0=42, seed=632)
+    charge = pitch_sweep(90, 380, 0.55, amp=0.35, attack=0.05, noise_amt=0.15, seed=633)
+    return pad(mix(vortex, dark, charge, gain=0.95), 0.8)
 
 
 def ldrago_soaring_hit() -> list[float]:
-    hit = metal_hit(dur=0.4, base=100, bright=1200, amp=0.85, scrape=0.4, seed=333)
-    crack = pitch_sweep(1800, 200, 0.22, amp=0.3, attack=0.002, noise_amt=0.1, seed=334)
-    return pad(mix(hit, crack, gain=1.0), 0.45)
+    # Smash into opponent, launch skyward, slam to floor
+    blast = metal_hit(dur=0.45, base=85, bright=900, amp=0.95, scrape=0.5, seed=634)
+    dark_boom = tone(40, 0.45, amp=0.5, attack=0.002, decay=0.4)
+    crush = wind(0.35, amp=0.4, f0=600, f1=80, seed=635, swirl=3)
+    return pad(mix(blast, dark_boom, crush, gain=1.05), 0.55)
 
 
-# --- Meteo L-Drago ---
+# --- Meteo L-Drago (absorb / drain / break) ---
 
 def ldrago_spin_steal() -> list[float]:
-    suck = pitch_sweep(700, 180, 0.45, amp=0.4, attack=0.02, noise_amt=0.12, seed=341)
-    pulse = tone(220, 0.35, amp=0.25, attack=0.01, decay=0.3)
-    return pad(mix(suck, pulse, gain=0.95), 0.5)
+    # Vampire drain pull
+    suck = pitch_sweep(900, 140, 0.55, amp=0.42, attack=0.03, noise_amt=0.18, seed=641)
+    pulse = dark_drone(0.5, amp=0.3, f0=70, seed=642)
+    siphon = wind(0.45, amp=0.3, f0=500, f1=150, seed=643, swirl=10)
+    return pad(mix(suck, pulse, siphon, gain=0.95), 0.6)
 
 
 def ldrago_absorb_break() -> list[float]:
-    coil = pitch_sweep(300, 500, 0.3, amp=0.35, attack=0.02, noise_amt=0.1, seed=351)
-    rush = whoosh(0.3, amp=0.45, f0=200, f1=900, seed=352)
-    return pad(mix(coil, delay(rush, 0.12), gain=0.95), 0.55)
+    # Coil / absorb then rush release
+    absorb = pitch_sweep(500, 220, 0.4, amp=0.38, attack=0.04, noise_amt=0.15, seed=651)
+    coil = dark_drone(0.5, amp=0.38, f0=55, seed=652)
+    rush = wind(0.35, amp=0.5, f0=200, f1=900, seed=653, swirl=5)
+    return pad(mix(absorb, coil, delay(rush, 0.28), gain=0.95), 0.75)
 
 
 def ldrago_absorb_hit() -> list[float]:
-    impact = metal_hit(dur=0.38, base=140, bright=900, amp=0.85, scrape=0.45, seed=353)
-    devour = pitch_sweep(400, 80, 0.35, amp=0.35, attack=0.005, noise_amt=0.15, seed=354)
-    return pad(mix(impact, devour, gain=1.0), 0.45)
+    impact = metal_hit(dur=0.4, base=120, bright=1000, amp=0.9, scrape=0.45, seed=654)
+    devour = pitch_sweep(350, 60, 0.4, amp=0.4, attack=0.005, noise_amt=0.2, seed=655)
+    shatter = lightning_crack(0.18, amp=0.35, seed=656)
+    return pad(mix(impact, devour, delay(shatter, 0.05), gain=1.0), 0.5)
 
 
-# --- Leone ---
+# --- Leone (earth dig + gale tornado wall) ---
 
 def leone_wide_ball() -> list[float]:
-    dig = metal_hit(dur=0.25, base=70, bright=400, amp=0.55, scrape=0.35, seed=361)
-    rumble = tone(55, 0.4, amp=0.4, attack=0.02, decay=0.35)
-    grit = whoosh(0.3, amp=0.25, f0=180, f1=80, seed=362)
-    return pad(mix(dig, rumble, grit, gain=0.95), 0.45)
+    # Dig into stadium / rock grind anchor
+    dig = metal_hit(dur=0.3, base=60, bright=350, amp=0.65, scrape=0.55, seed=661)
+    grit = wind(0.4, amp=0.35, f0=160, f1=70, seed=662, swirl=4)
+    stone = tone(48, 0.45, amp=0.4, attack=0.02, decay=0.4)
+    return pad(mix(dig, grit, stone, gain=0.95), 0.5)
 
 
 def leone_lion_wall() -> list[float]:
-    gale = whoosh(0.5, amp=0.5, f0=250, f1=700, seed=371)
-    roar = buzz(85, 0.45, amp=0.32, seed=372)
-    return pad(mix(gale, roar, gain=0.95), 0.55)
+    # Lion Gale Force Wall — roaring tornado
+    tornado = wind(0.85, amp=0.58, f0=220, f1=650, seed=671, swirl=18)
+    roar = dark_drone(0.7, amp=0.28, f0=85, seed=672)  # lion body in the gale
+    howl = pitch_sweep(180, 420, 0.6, amp=0.28, attack=0.05, noise_amt=0.12, seed=673)
+    return pad(mix(tornado, roar, howl, gain=0.95), 0.95)
 
 
 def leone_lion_wall_pulse() -> list[float]:
-    p = whoosh(0.28, amp=0.4, f0=400, f1=150, seed=373)
-    thump = metal_hit(dur=0.2, base=90, bright=600, amp=0.45, scrape=0.2, seed=374)
-    return pad(mix(p, thump, gain=0.95), 0.32)
+    burst = wind(0.32, amp=0.5, f0=700, f1=180, seed=674, swirl=8)
+    thump = metal_hit(dur=0.2, base=85, bright=550, amp=0.5, scrape=0.25, seed=675)
+    return pad(mix(burst, thump, gain=0.95), 0.38)
 
 
-# --- Libra ---
+# --- Libra (vibration + canon piercing shriek + sand) ---
 
 def libra_sonic_shield() -> list[float]:
-    dome = tone(520, 0.35, amp=0.35, attack=0.01, decay=0.3)
-    ring = tone(780, 0.3, amp=0.25, attack=0.008, decay=0.25)
-    shimmer = pitch_sweep(1000, 1600, 0.25, amp=0.2, attack=0.005, seed=381)
-    return pad(mix(dome, ring, shimmer, gain=0.95), 0.42)
+    # Vibrating defensive dome
+    hum = tone(440, 0.4, amp=0.32, attack=0.02, decay=0.35)
+    vib = pitch_sweep(440, 520, 0.35, amp=0.22, attack=0.01, noise_amt=0.08, seed=681)
+    shimmer = tone(880, 0.3, amp=0.2, attack=0.01, decay=0.25)
+    return pad(mix(hum, vib, shimmer, gain=0.95), 0.45)
 
 
 def libra_sonic_buster() -> list[float]:
-    charge = pitch_sweep(200, 900, 0.55, amp=0.4, attack=0.03, noise_amt=0.1, seed=391)
-    shriek = buzz(420, 0.4, amp=0.28, seed=392)
-    return pad(mix(charge, delay(shriek, 0.15), gain=0.95), 0.65)
+    # Fast vibration → terrible piercing shriek (wiki: Sonic Buster / Sonic Wave)
+    vib = wind(0.35, amp=0.35, f0=300, f1=900, seed=691, swirl=20)
+    sand = whoosh(0.4, amp=0.3, f0=400, f1=150, seed=692)
+    scream = shriek(0.6, amp=0.5, seed=693)
+    return pad(mix(vib, sand, delay(scream, 0.2), gain=0.95), 0.9)
 
 
 def libra_sonic_buster_pulse() -> list[float]:
-    pulse = tone(180, 0.2, amp=0.4, attack=0.005, decay=0.18)
-    sand = whoosh(0.25, amp=0.35, f0=500, f1=120, seed=393)
-    hi = pitch_sweep(1400, 400, 0.18, amp=0.22, attack=0.002, seed=394)
-    return pad(mix(pulse, sand, hi, gain=0.95), 0.3)
+    pulse = shriek(0.28, amp=0.4, seed=694)
+    sand = wind(0.28, amp=0.4, f0=550, f1=120, seed=695, swirl=6)
+    thump = tone(160, 0.18, amp=0.35, attack=0.004, decay=0.15)
+    return pad(mix(pulse, sand, thump, gain=0.95), 0.35)
 
 
-# --- Eagle ---
+# --- Eagle (wind soar + crushing dive) ---
 
 def eagle_counter_stance() -> list[float]:
-    wing = whoosh(0.32, amp=0.4, f0=600, f1=300, seed=401)
-    stance = tone(370, 0.28, amp=0.32, attack=0.01, decay=0.24)
-    click = metal_hit(dur=0.12, base=500, bright=2000, amp=0.3, scrape=0.1, seed=402)
-    return pad(mix(wing, stance, click, gain=0.95), 0.38)
+    wing = wind(0.3, amp=0.42, f0=800, f1=350, seed=701, swirl=5)
+    snap = metal_hit(dur=0.12, base=550, bright=2200, amp=0.35, scrape=0.12, seed=702)
+    ready = tone(392, 0.25, amp=0.28, attack=0.008, decay=0.2)
+    return pad(mix(wing, snap, ready, gain=0.95), 0.4)
 
 
 def eagle_diving_crush() -> list[float]:
-    ascend = pitch_sweep(300, 900, 0.35, amp=0.38, attack=0.02, seed=411)
-    dive = whoosh(0.35, amp=0.5, f0=1000, f1=180, seed=412)
-    return pad(mix(ascend, delay(dive, 0.2), gain=0.95), 0.6)
+    # Glide / soar gathering air resistance, then dive
+    soar = wind(0.55, amp=0.48, f0=400, f1=1000, seed=711, swirl=7)
+    cry = pitch_sweep(900, 1400, 0.25, amp=0.22, attack=0.01, seed=712)  # high eagle-ish call
+    dive = wind(0.35, amp=0.55, f0=1200, f1=220, seed=713, swirl=2)
+    return pad(mix(soar, cry, delay(dive, 0.35), gain=0.95), 0.8)
 
 
 def eagle_diving_hit() -> list[float]:
-    hit = metal_hit(dur=0.35, base=160, bright=1800, amp=0.8, scrape=0.3, seed=413)
-    crush = tone(70, 0.3, amp=0.4, attack=0.002, decay=0.28)
-    return pad(mix(hit, crush, gain=1.0), 0.4)
+    crush = metal_hit(dur=0.38, base=150, bright=1700, amp=0.85, scrape=0.35, seed=714)
+    boom = tone(70, 0.32, amp=0.42, attack=0.002, decay=0.28)
+    air = wind(0.25, amp=0.35, f0=500, f1=100, seed=715, swirl=2)
+    return pad(mix(crush, boom, air, gain=1.0), 0.45)
 
 
-# --- Striker ---
+# --- Striker (purple lightning sword) ---
 
 def striker_blitz_charge() -> list[float]:
-    zap = pitch_sweep(800, 1600, 0.18, amp=0.35, attack=0.002, noise_amt=0.12, seed=421)
-    charge = buzz(200, 0.3, amp=0.3, seed=422)
-    trail = whoosh(0.28, amp=0.35, f0=700, f1=400, seed=423)
-    return pad(mix(zap, charge, trail, gain=0.95), 0.4)
+    zap = lightning_crack(0.22, amp=0.5, seed=721)
+    rush = wind(0.35, amp=0.4, f0=900, f1=500, seed=722, swirl=9)
+    charge = pitch_sweep(400, 1200, 0.3, amp=0.3, attack=0.01, noise_amt=0.1, seed=723)
+    return pad(mix(zap, rush, charge, gain=0.95), 0.45)
 
 
 def striker_lightning_flash() -> list[float]:
-    vanish = pitch_sweep(1200, 200, 0.2, amp=0.35, attack=0.002, noise_amt=0.1, seed=431)
-    flash = metal_hit(dur=0.15, base=900, bright=3500, amp=0.45, scrape=0.15, seed=432)
-    slash = whoosh(0.28, amp=0.45, f0=1400, f1=300, seed=433)
-    return pad(mix(vanish, delay(flash, 0.12), delay(slash, 0.14), gain=0.95), 0.48)
+    # Vanish zip → purple lightning focus → sword slash
+    vanish = pitch_sweep(1800, 300, 0.18, amp=0.35, attack=0.001, noise_amt=0.12, seed=731)
+    focus = lightning_crack(0.25, amp=0.55, seed=732)
+    slash = wind(0.28, amp=0.5, f0=1600, f1=280, seed=733, swirl=1)
+    ring = tone(1240, 0.2, amp=0.2, attack=0.002, decay=0.18)
+    return pad(mix(vanish, delay(focus, 0.1), delay(slash, 0.16), delay(ring, 0.18), gain=0.95), 0.55)
 
 
 def striker_lightning_hit() -> list[float]:
-    zap = pitch_sweep(2200, 400, 0.18, amp=0.4, attack=0.001, noise_amt=0.15, seed=434)
-    hit = metal_hit(dur=0.28, base=220, bright=2800, amp=0.75, scrape=0.25, seed=435)
-    return pad(mix(zap, hit, gain=1.0), 0.35)
+    # Single-point pierce that "breaks through almost anything"
+    zap = lightning_crack(0.2, amp=0.6, seed=734)
+    pierce = pitch_sweep(2400, 500, 0.2, amp=0.4, attack=0.001, noise_amt=0.1, seed=735)
+    hit = metal_hit(dur=0.28, base=200, bright=3000, amp=0.75, scrape=0.2, seed=736)
+    return pad(mix(zap, pierce, hit, gain=1.0), 0.4)
 
 
-# --- Bull ---
+# --- Bull (stampede charge + horn uppercut) ---
 
 def bull_maximum_stampede() -> list[float]:
-    stomp = metal_hit(dur=0.22, base=80, bright=500, amp=0.7, scrape=0.3, seed=441)
-    charge = whoosh(0.4, amp=0.45, f0=200, f1=500, seed=442)
-    rumble = tone(60, 0.4, amp=0.4, attack=0.015, decay=0.35)
-    return pad(mix(stomp, charge, rumble, gain=0.95), 0.48)
+    # Charging herd / heavy stomps accelerating
+    stomps = stampede_hits(5, spacing=0.08, seed=741)
+    rumble = dark_drone(0.55, amp=0.35, f0=50, seed=742)
+    charge = wind(0.5, amp=0.45, f0=180, f1=420, seed=743, swirl=4)
+    return pad(mix(stomps, rumble, charge, gain=0.95), 0.6)
 
 
 def bull_red_horn_uppercut() -> list[float]:
-    wind = pitch_sweep(150, 400, 0.28, amp=0.35, attack=0.02, noise_amt=0.1, seed=451)
-    snort = buzz(100, 0.25, amp=0.3, seed=452)
-    rush = whoosh(0.3, amp=0.45, f0=300, f1=700, seed=453)
-    return pad(mix(wind, snort, delay(rush, 0.1), gain=0.95), 0.5)
+    # Horn lower / scrape, then upward charge
+    scrape = metal_hit(dur=0.25, base=100, bright=700, amp=0.55, scrape=0.5, seed=751)
+    snort = pitch_sweep(120, 200, 0.25, amp=0.3, attack=0.02, noise_amt=0.15, seed=752)
+    rush = wind(0.35, amp=0.5, f0=250, f1=650, seed=753, swirl=3)
+    return pad(mix(scrape, snort, delay(rush, 0.15), gain=0.95), 0.55)
 
 
 def bull_red_horn_hit() -> list[float]:
-    horn = metal_hit(dur=0.4, base=110, bright=900, amp=0.9, scrape=0.4, seed=454)
-    upper = pitch_sweep(180, 90, 0.3, amp=0.35, attack=0.002, seed=455)
-    boom = tone(55, 0.35, amp=0.45, attack=0.002, decay=0.3)
-    return pad(mix(horn, upper, boom, gain=1.05), 0.45)
+    # Uppercut launch smash
+    horn = metal_hit(dur=0.42, base=95, bright=850, amp=0.95, scrape=0.45, seed=754)
+    lift = pitch_sweep(160, 420, 0.28, amp=0.35, attack=0.002, seed=755)
+    boom = tone(50, 0.4, amp=0.5, attack=0.002, decay=0.35)
+    return pad(mix(horn, lift, boom, gain=1.05), 0.5)
 
 
 ABILITY_SFX = {
     "special_logo_flash": special_logo_flash,
-    # Pegasus
     "pegasus_speed_boost": pegasus_speed_boost,
     "pegasus_star_blast": pegasus_star_blast,
     "pegasus_star_blast_hit": pegasus_star_blast_hit,
-    # Lightning L-Drago
     "ldrago_upper_mode": ldrago_upper_mode,
     "ldrago_soaring_destruction": ldrago_soaring_destruction,
     "ldrago_soaring_hit": ldrago_soaring_hit,
-    # Meteo L-Drago
     "ldrago_spin_steal": ldrago_spin_steal,
     "ldrago_absorb_break": ldrago_absorb_break,
     "ldrago_absorb_hit": ldrago_absorb_hit,
-    # Leone
     "leone_wide_ball": leone_wide_ball,
     "leone_lion_wall": leone_lion_wall,
     "leone_lion_wall_pulse": leone_lion_wall_pulse,
-    # Libra
     "libra_sonic_shield": libra_sonic_shield,
     "libra_sonic_buster": libra_sonic_buster,
     "libra_sonic_buster_pulse": libra_sonic_buster_pulse,
-    # Eagle
     "eagle_counter_stance": eagle_counter_stance,
     "eagle_diving_crush": eagle_diving_crush,
     "eagle_diving_hit": eagle_diving_hit,
-    # Striker
     "striker_blitz_charge": striker_blitz_charge,
     "striker_lightning_flash": striker_lightning_flash,
     "striker_lightning_hit": striker_lightning_hit,
-    # Bull
     "bull_maximum_stampede": bull_maximum_stampede,
     "bull_red_horn_uppercut": bull_red_horn_uppercut,
     "bull_red_horn_hit": bull_red_horn_hit,
@@ -318,7 +440,7 @@ def main() -> int:
         except (FileNotFoundError, subprocess.CalledProcessError) as e:
             print(f"warn: convert failed for {name}: {e}", file=sys.stderr)
         print(f"wrote {name}")
-    print(f"done → {OUT_DIR} ({len(ABILITY_SFX)} ability clips)")
+    print(f"done → {OUT_DIR} ({len(ABILITY_SFX)} anime-tuned clips)")
     return 0
 
 
