@@ -175,21 +175,101 @@
 <body>
   <header class="hero">
     <h1 class="brand">Bey Web</h1>
-    <p class="tag">Core fight SFX preview — arcade metallic pack. Tap each effect, or play the full sequence.</p>
+    <p class="tag">SFX preview — core fight (in-game) plus new bey ability / logo-flash pack (review only).</p>
     <div class="toolbar">
       <button class="primary" id="btn-play-all" type="button">Play all</button>
+      <button id="btn-play-abilities" type="button">Play abilities only</button>
       <button id="btn-stop" type="button">Stop</button>
     </div>
   </header>
 
-  <p class="note">Core fight pack — also wired into Casual / Tournament matches after Start.</p>
+  <p class="note">Ability clips are <strong>not wired yet</strong> — approve / remix, then we’ll hook them to powers, specials, and the logo flash.</p>
 
   <main id="catalog"></main>
 
   <script>
     const GROUPS = [
       {
-        title: "Launch",
+        title: "Special logo flash",
+        ability: true,
+        items: [
+          { id: "special_logo_flash", label: "Logo flash", desc: "Plays with the special move logo overlay" },
+        ],
+      },
+      {
+        title: "Storm Pegasus",
+        ability: true,
+        items: [
+          { id: "pegasus_speed_boost", label: "Power · Speed Boost", desc: "On activate" },
+          { id: "pegasus_star_blast", label: "Special · Star Blast", desc: "Windup / launch" },
+          { id: "pegasus_star_blast_hit", label: "Special · Star Blast hit", desc: "Dive / impact" },
+        ],
+      },
+      {
+        title: "Lightning L-Drago",
+        ability: true,
+        items: [
+          { id: "ldrago_upper_mode", label: "Power · Upper Mode", desc: "On activate" },
+          { id: "ldrago_soaring_destruction", label: "Special · Soaring Destruction", desc: "Windup / soar" },
+          { id: "ldrago_soaring_hit", label: "Special · Soaring hit", desc: "Dive impact" },
+        ],
+      },
+      {
+        title: "Meteo L-Drago",
+        ability: true,
+        items: [
+          { id: "ldrago_spin_steal", label: "Power · Spin Steal", desc: "On activate" },
+          { id: "ldrago_absorb_break", label: "Special · Absorb Break", desc: "Windup / rush" },
+          { id: "ldrago_absorb_hit", label: "Special · Absorb hit", desc: "Impact / pierce" },
+        ],
+      },
+      {
+        title: "Rock Leone",
+        ability: true,
+        items: [
+          { id: "leone_wide_ball", label: "Power · Wide Ball Anchor", desc: "Dig / anchor" },
+          { id: "leone_lion_wall", label: "Special · Lion Gale Force Wall", desc: "Gale rise" },
+          { id: "leone_lion_wall_pulse", label: "Special · Lion Wall pulse", desc: "Tornado pulse" },
+        ],
+      },
+      {
+        title: "Flame Libra",
+        ability: true,
+        items: [
+          { id: "libra_sonic_shield", label: "Power · Sonic Shield", desc: "Dome up" },
+          { id: "libra_sonic_buster", label: "Special · Sonic Buster", desc: "Charge / shriek" },
+          { id: "libra_sonic_buster_pulse", label: "Special · Sonic Buster pulse", desc: "Sand / pulse" },
+        ],
+      },
+      {
+        title: "Earth Eagle",
+        ability: true,
+        items: [
+          { id: "eagle_counter_stance", label: "Power · Counter Stance", desc: "On activate" },
+          { id: "eagle_diving_crush", label: "Special · Diving Crush", desc: "Ascend / dive" },
+          { id: "eagle_diving_hit", label: "Special · Diving hit", desc: "Crush impact" },
+        ],
+      },
+      {
+        title: "Ray Striker",
+        ability: true,
+        items: [
+          { id: "striker_blitz_charge", label: "Power · Blitz Charge", desc: "On activate" },
+          { id: "striker_lightning_flash", label: "Special · Lightning Sword Flash", desc: "Vanish / slash" },
+          { id: "striker_lightning_hit", label: "Special · Lightning hit", desc: "Pierce impact" },
+        ],
+      },
+      {
+        title: "Dark Bull",
+        ability: true,
+        items: [
+          { id: "bull_maximum_stampede", label: "Power · Maximum Stampede", desc: "On activate" },
+          { id: "bull_red_horn_uppercut", label: "Special · Red Horn Uppercut", desc: "Windup / charge" },
+          { id: "bull_red_horn_hit", label: "Special · Red Horn hit", desc: "Uppercut impact" },
+        ],
+      },
+      {
+        title: "Core · Launch (in-game)",
         items: [
           { id: "launch_countdown_tick", label: "Countdown tick", desc: "3 / 2 / 1 / LET / IT beat" },
           { id: "launch_rip_window", label: "RIP window", desc: "Meter opens — tense whoosh" },
@@ -203,7 +283,7 @@
         ],
       },
       {
-        title: "Combat",
+        title: "Core · Combat (in-game)",
         items: [
           { id: "clash_light", label: "Clash · Light", desc: "Quick bey↔bey hit" },
           { id: "clash_heavy", label: "Clash · Heavy", desc: "Hard closing-speed impact" },
@@ -211,7 +291,7 @@
         ],
       },
       {
-        title: "Outcomes",
+        title: "Core · Outcomes (in-game)",
         items: [
           { id: "ring_out", label: "Ring-out", desc: "KO slide / fly-out whoosh" },
           { id: "sleep_out", label: "Sleep-out", desc: "Spin slows + tip-over" },
@@ -292,15 +372,24 @@
       });
     }
 
-    async function playAll() {
+    async function playSequence(ids) {
       const token = ++playAllToken;
-      const ids = GROUPS.flatMap((g) => g.items.map((i) => i.id));
       for (const id of ids) {
         if (token !== playAllToken) return;
         await playOne(id);
         if (token !== playAllToken) return;
         await new Promise((r) => setTimeout(r, 220));
       }
+    }
+
+    function playAll() {
+      return playSequence(GROUPS.flatMap((g) => g.items.map((i) => i.id)));
+    }
+
+    function playAbilitiesOnly() {
+      return playSequence(
+        GROUPS.filter((g) => g.ability).flatMap((g) => g.items.map((i) => i.id))
+      );
     }
 
     for (const group of GROUPS) {
@@ -338,6 +427,10 @@
     document.getElementById("btn-play-all").addEventListener("click", () => {
       stopAll();
       playAll();
+    });
+    document.getElementById("btn-play-abilities").addEventListener("click", () => {
+      stopAll();
+      playAbilitiesOnly();
     });
     document.getElementById("btn-stop").addEventListener("click", stopAll);
 
