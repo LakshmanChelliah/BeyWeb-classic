@@ -228,14 +228,21 @@
     let playAllToken = 0;
 
     function srcFor(id) {
-      return `assets/sfx/${id}.ogg`;
+      // MP3 first for iOS / Cursor mobile browsers; OGG as fallback.
+      return [`assets/sfx/${id}.mp3`, `assets/sfx/${id}.ogg`];
     }
 
     function getAudio(id) {
       let a = audioCache.get(id);
       if (!a) {
-        a = new Audio(srcFor(id));
+        a = document.createElement("audio");
         a.preload = "auto";
+        for (const src of srcFor(id)) {
+          const s = document.createElement("source");
+          s.src = src;
+          s.type = src.endsWith(".mp3") ? "audio/mpeg" : "audio/ogg";
+          a.appendChild(s);
+        }
         audioCache.set(id, a);
       }
       return a;
@@ -309,7 +316,7 @@
         row.innerHTML = `
           <div class="meta">
             <strong>${item.label}</strong>
-            <span>${item.desc} · <code>${item.id}.ogg</code></span>
+            <span>${item.desc} · <code>${item.id}.mp3</code></span>
           </div>
         `;
         const btn = document.createElement("button");
