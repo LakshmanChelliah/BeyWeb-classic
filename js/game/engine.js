@@ -10,6 +10,11 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
+import {
+  playMatchResult,
+  playRingOut,
+  unlockSfx,
+} from '../audio/sfx.js';
 import { createPhysicsWorld } from '../physics/world.js';
 import { createArenaPhysics, dishSurfaceY } from '../physics/arena.js';
 import { setupContactHandlers } from '../physics/contact.js';
@@ -565,6 +570,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
 
     const endMode = mode === 'pc' && isVsCpu?.() ? 'pc-cpu' : mode;
     const copy = formatEndGame(result, endMode);
+    playMatchResult({ titleClass: copy.titleClass, outcome: result?.outcome });
     dom.gameoverTitle.textContent = copy.title;
     dom.gameoverTitle.className = copy.titleClass;
     dom.gameoverMsg.textContent = copy.message;
@@ -880,6 +886,7 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
           const loserBody = result.loser === 1 ? state.playerBody : state.aiBody;
           clearAbilityFlags(loserBody);
           beginRingOut(loserBody);
+          playRingOut();
         }
       } else if (result) {
         endGame(result);
@@ -949,6 +956,8 @@ export function createGame({ mode, canvas, ui, input, isVsCpu, getDifficulty }) 
   }
 
   dom.btnStart.addEventListener('click', () => {
+    // Unlock synchronously in the gesture before any await in onStartClick.
+    unlockSfx();
     const handled = input.onStartClick?.(startGame);
     if (handled == null) startGame();
   });

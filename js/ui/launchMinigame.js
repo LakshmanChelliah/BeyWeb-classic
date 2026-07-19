@@ -4,6 +4,13 @@
  * Launch quality sets starting spin from bad (~70%) to perfect (120%).
  */
 import { CONFIG, RUNTIME_FLAGS } from '../config.js';
+import {
+  playLaunchCountdownTick,
+  playLaunchGrade,
+  playLaunchRip,
+  playLaunchRipWindow,
+  unlockSfx,
+} from '../audio/sfx.js';
 
 const BEAT_MS = 520;
 /** One-way needle sweep; full bounce is out + back. */
@@ -273,6 +280,8 @@ export async function runLaunchMinigame(opts = {}) {
     slot.atMs = atMs;
     slot.power = clamp(power, 0, 1);
     slot.needlePos = inputState.needlePos;
+    unlockSfx();
+    playLaunchRip();
   }
 
   function onKeyDown(e) {
@@ -348,6 +357,7 @@ export async function runLaunchMinigame(opts = {}) {
       countEl.classList.add('is-pop');
     }
     el.classList.add('is-hold');
+    playLaunchCountdownTick();
     await sleep(BEAT_MS);
   }
 
@@ -370,6 +380,7 @@ export async function runLaunchMinigame(opts = {}) {
         : 'Now! Space or click!';
   }
 
+  playLaunchRipWindow();
   inputState.windowOpen = true;
   inputState.windowStart = performance.now();
   inputState.windowEnd = inputState.windowStart + METER_TOTAL_MS;
@@ -435,6 +446,7 @@ export async function runLaunchMinigame(opts = {}) {
 
   el.classList.remove('is-rip');
   el.classList.add('is-result');
+  playLaunchGrade(p1.grade);
   if (countEl) {
     countEl.classList.remove('is-rip-text');
     countEl.textContent = GRADE_LABEL[p1.grade] || 'MISS';
