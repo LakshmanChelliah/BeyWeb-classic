@@ -175,7 +175,7 @@
 <body>
   <header class="hero">
     <h1 class="brand">Bey Web</h1>
-    <p class="tag">SFX preview — core fight (in-game) plus anime-tuned ability / logo-flash pack (review only).</p>
+    <p class="tag">SFX preview — core fight (in-game) plus full-duration anime ability pack (review only).</p>
     <div class="toolbar">
       <button class="primary" id="btn-play-all" type="button">Play all</button>
       <button id="btn-play-abilities" type="button">Play abilities only</button>
@@ -183,7 +183,7 @@
     </div>
   </header>
 
-  <p class="note">Ability clips remixed from Metal Fusion / Masters move descriptions — <strong>not wired yet</strong>. Approve or request more changes.</p>
+  <p class="note">Ability powers/specials now last the full in-game effect (incl. special windup). Hit/pulse stay short. <strong>Not wired yet.</strong></p>
 
   <main id="catalog"></main>
 
@@ -193,79 +193,79 @@
         title: "Special logo flash",
         ability: true,
         items: [
-          { id: "special_logo_flash", label: "Logo flash / special callout", desc: "Metal Fight–style announce sting" },
+          { id: "special_logo_flash", label: "Logo flash / special callout", desc: "~0.8s Metal Fight announce" },
         ],
       },
       {
         title: "Storm Pegasus",
         ability: true,
         items: [
-          { id: "pegasus_speed_boost", label: "Power · Speed Boost", desc: "Heroic wind rush" },
-          { id: "pegasus_star_blast", label: "Special · Starblast Attack", desc: "Soar skyward (Shooting Star)" },
-          { id: "pegasus_star_blast_hit", label: "Special · Starblast dive", desc: "Nose-dive crash from above" },
+          { id: "pegasus_speed_boost", label: "Power · Speed Boost", desc: "Full 3.0s boost bed" },
+          { id: "pegasus_star_blast", label: "Special · Starblast Attack", desc: "Windup + 6s (~6.75s)" },
+          { id: "pegasus_star_blast_hit", label: "Special · Starblast dive hit", desc: "Short impact accent" },
         ],
       },
       {
         title: "Lightning L-Drago",
         ability: true,
         items: [
-          { id: "ldrago_upper_mode", label: "Power · Upper Mode", desc: "Dark mode scrape / growl" },
-          { id: "ldrago_soaring_destruction", label: "Special · Soaring Destruction", desc: "Dark vortex charge" },
-          { id: "ldrago_soaring_hit", label: "Special · Soaring slam", desc: "Smash + floor crush" },
+          { id: "ldrago_upper_mode", label: "Power · Upper Mode", desc: "Full 3.5s dark bed" },
+          { id: "ldrago_soaring_destruction", label: "Special · Soaring Destruction", desc: "Windup + 6s (~6.75s)" },
+          { id: "ldrago_soaring_hit", label: "Special · Soaring slam hit", desc: "Short impact accent" },
         ],
       },
       {
         title: "Meteo L-Drago",
         ability: true,
         items: [
-          { id: "ldrago_spin_steal", label: "Power · Spin Steal", desc: "Energy drain pull" },
-          { id: "ldrago_absorb_break", label: "Special · Absorb Break", desc: "Absorb coil → rush" },
-          { id: "ldrago_absorb_hit", label: "Special · Absorb hit", desc: "Devour / break impact" },
+          { id: "ldrago_spin_steal", label: "Power · Spin Steal", desc: "Full 4.0s drain" },
+          { id: "ldrago_absorb_break", label: "Special · Absorb Break", desc: "Windup + 4s (~5.17s)" },
+          { id: "ldrago_absorb_hit", label: "Special · Absorb hit", desc: "Short impact accent" },
         ],
       },
       {
         title: "Rock Leone",
         ability: true,
         items: [
-          { id: "leone_wide_ball", label: "Power · Wide Ball Anchor", desc: "Rock dig / grit" },
-          { id: "leone_lion_wall", label: "Special · Lion Gale Force Wall", desc: "Roaring tornado wall" },
-          { id: "leone_lion_wall_pulse", label: "Special · Gale pulse", desc: "Tornado burst" },
+          { id: "leone_wide_ball", label: "Power · Wide Ball Anchor", desc: "Full 2.6s dig" },
+          { id: "leone_lion_wall", label: "Special · Lion Gale Force Wall", desc: "Windup + 5.55s (~6.2s)" },
+          { id: "leone_lion_wall_pulse", label: "Special · Gale pulse", desc: "Short pulse accent" },
         ],
       },
       {
         title: "Flame Libra",
         ability: true,
         items: [
-          { id: "libra_sonic_shield", label: "Power · Sonic Shield", desc: "Vibrating dome hum" },
-          { id: "libra_sonic_buster", label: "Special · Sonic Buster", desc: "Vibration + piercing shriek" },
-          { id: "libra_sonic_buster_pulse", label: "Special · Sonic pulse", desc: "Shriek + sand spray" },
+          { id: "libra_sonic_shield", label: "Power · Sonic Shield", desc: "Full 3.4s hum" },
+          { id: "libra_sonic_buster", label: "Special · Sonic Buster", desc: "Windup + 4.8s (~7.1s)" },
+          { id: "libra_sonic_buster_pulse", label: "Special · Sonic pulse", desc: "Short pulse accent" },
         ],
       },
       {
         title: "Earth Eagle",
         ability: true,
         items: [
-          { id: "eagle_counter_stance", label: "Power · Counter Stance", desc: "Wing snap / ready" },
-          { id: "eagle_diving_crush", label: "Special · Diving Crush", desc: "Soar on wind → dive" },
-          { id: "eagle_diving_hit", label: "Special · Diving crush hit", desc: "Crushing impact" },
+          { id: "eagle_counter_stance", label: "Power · Counter Stance", desc: "Full 3.2s" },
+          { id: "eagle_diving_crush", label: "Special · Diving Crush", desc: "Windup + 3.1s (~3.9s)" },
+          { id: "eagle_diving_hit", label: "Special · Diving crush hit", desc: "Short impact accent" },
         ],
       },
       {
         title: "Ray Striker",
         ability: true,
         items: [
-          { id: "striker_blitz_charge", label: "Power · Blitz Charge", desc: "Electric speed charge" },
-          { id: "striker_lightning_flash", label: "Special · Lightning Sword Flash", desc: "Vanish → purple lightning slash" },
-          { id: "striker_lightning_hit", label: "Special · Lightning pierce", desc: "Single-point breakthrough" },
+          { id: "striker_blitz_charge", label: "Power · Blitz Charge", desc: "Full 3.0s crackle" },
+          { id: "striker_lightning_flash", label: "Special · Lightning Sword Flash", desc: "Windup + 3.4s (~3.9s)" },
+          { id: "striker_lightning_hit", label: "Special · Lightning pierce hit", desc: "Short impact accent" },
         ],
       },
       {
         title: "Dark Bull",
         ability: true,
         items: [
-          { id: "bull_maximum_stampede", label: "Power · Maximum Stampede", desc: "Accelerating stomp charge" },
-          { id: "bull_red_horn_uppercut", label: "Special · Red Horn Uppercut", desc: "Horn scrape → upward rush" },
-          { id: "bull_red_horn_hit", label: "Special · Horn uppercut hit", desc: "Launch smash" },
+          { id: "bull_maximum_stampede", label: "Power · Maximum Stampede", desc: "Full 3.0s stomps" },
+          { id: "bull_red_horn_uppercut", label: "Special · Red Horn Uppercut", desc: "Windup + 9s (~9.6s)" },
+          { id: "bull_red_horn_hit", label: "Special · Horn uppercut hit", desc: "Short impact accent" },
         ],
       },
       {
