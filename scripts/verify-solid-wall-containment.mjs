@@ -10,10 +10,14 @@
 import { chromium } from 'playwright';
 
 const URL = process.argv[2] || 'http://127.0.0.1:8000/pc.html?capture=1';
-const SAMPLE_MS = 900;
-const OVERSHOOT_EPS = 0.35;
-// Solid arcs beside the left-far (240°) pocket + mid-arc control (π/3).
-const ANGLES_DEG = [60, 200, 220, 260, 280];
+const SAMPLE_MS = 1200;
+// Wall radius — tunneling means the center clears the rim on a solid arc.
+const WALL_RADIUS = 13.55;
+// Brief clamp-ease overshoot (~MAX_CLASH_SEPARATION) is OK; escaping the rim is not.
+const ESCAPE_R = WALL_RADIUS;
+// Solid arcs beside the left-far (240° ± 24° → 216–264) pocket + mid-arc control.
+// Stay ≥6° clear of pocket mouths so ring-out gaps are not mistaken for tunnels.
+const ANGLES_DEG = [60, 200, 210, 270, 280];
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -30,6 +34,7 @@ await page.evaluate(async () => {
 });
 
 const leaks = [];
+const peaks = [];
 
 for (const deg of ANGLES_DEG) {
   const ang = (deg * Math.PI) / 180;
@@ -62,7 +67,9 @@ for (const deg of ANGLES_DEG) {
   }, { ang });
 
   const start = Date.now();
-  let worst = null;
+  let maxDist = 0;
+  let endDist = 0;
+  let ringOut = false;
   while (Date.now() - start < SAMPLE_MS) {
     const sample = await page.evaluate(() => {
       const api = window.__beyCapture;
@@ -74,28 +81,21 @@ for (const deg of ANGLES_DEG) {
       st.playerSpin = Math.max(st.playerSpin, 0.85);
       const x = body.position.x;
       const z = body.position.z;
-      const dist = Math.hypot(x, z);
-      const colliderR = body.userData.outerRadius ?? 1.05;
-      const maxR = 13.55 - 0.32 - colliderR - 0.02;
-      const angle = Math.atan2(z, x);
       return {
-        dist,
-        maxR,
-        overshoot: dist - maxR,
-        angle,
+        dist: Math.hypot(x, z),
         ringOut: Boolean(body.userData.ringOut),
-        x,
-        z,
+        angle: Math.atan2(z, x),
       };
     });
     if (sample) {
-      if (!worst || sample.overshoot > worst.overshoot) worst = sample;
-      if (sample.overshoot > OVERSHOOT_EPS || sample.ringOut) {
+      maxDist = Math.max(maxDist, sample.dist);
+      endDist = sample.dist;
+      ringOut = ringOut || sample.ringOut;
+      if (sample.dist > ESCAPE_R || sample.ringOut) {
         leaks.push({
           deg,
-          overshoot: Number(sample.overshoot.toFixed(3)),
           dist: Number(sample.dist.toFixed(3)),
-          maxR: Number(sample.maxR.toFixed(3)),
+          maxDist: Number(maxDist.toFixed(3)),
           ringOut: sample.ringOut,
           angleDeg: Number(((sample.angle * 180) / Math.PI).toFixed(1)),
         });
@@ -105,18 +105,95 @@ for (const deg of ANGLES_DEG) {
     await new Promise((r) => setTimeout(r, 16));
   }
 
-  if (!leaks.some((l) => l.deg === deg) && worst) {
-    // Record peak overshoot for the report even on pass.
-    worst._deg = deg;
+  peaks.push({
+    deg,
+    maxDist: Number(maxDist.toFixed(3)),
+    endDist: Number(endDist.toFixed(3)),
+    ringOut,
+  });
+}
+
+// Clash knockback against a left-far solid arc (210°) — original tunnel vector.
+{
+  const deg = 210;
+  const ang = (deg * Math.PI) / 180;
+  await page.evaluate(({ ang }) => {
+    const g = window.__beyCapture.getGameRef();
+    const st = g.state;
+    const body = st.playerBody;
+    const ai = st.aiBody;
+    const R = 11.8;
+    const nx = Math.cos(ang);
+    const nz = Math.sin(ang);
+    const tx = -nz;
+    const tz = nx;
+    for (const b of [body, ai]) {
+      b.userData.ringOut = false;
+      b.userData.collisionsDisabled = false;
+      b.userData.launching = false;
+      b.userData.airborne = false;
+    }
+    body.position.set(nx * R, body.position.y, nz * R);
+    ai.position.set(nx * (R - 1.6), ai.position.y, nz * (R - 1.6));
+    body.previousPosition.copy(body.position);
+    ai.previousPosition.copy(ai.position);
+    body.velocity.set(nx * 12 + tx * 6, 0, nz * 12 + tz * 6);
+    ai.velocity.set(-nx * 14 + tx * 4, 0, -nz * 14 + tz * 4);
+    st.pendingKo = null;
+    st.playerSpin = 1;
+    st.aiSpin = 1;
+    st.launchGrace = 0;
+  }, { ang });
+
+  const start = Date.now();
+  let maxDist = 0;
+  let endDist = 0;
+  let ringOut = false;
+  while (Date.now() - start < SAMPLE_MS) {
+    const sample = await page.evaluate(() => {
+      const st = window.__beyCapture.getGameRef().state;
+      st.pendingKo = null;
+      st.playerSpin = Math.max(st.playerSpin, 0.85);
+      st.aiSpin = Math.max(st.aiSpin, 0.85);
+      let maxD = 0;
+      let anyRing = false;
+      for (const b of [st.playerBody, st.aiBody]) {
+        maxD = Math.max(maxD, Math.hypot(b.position.x, b.position.z));
+        anyRing = anyRing || Boolean(b.userData.ringOut);
+      }
+      return { dist: maxD, ringOut: anyRing };
+    });
+    if (sample) {
+      maxDist = Math.max(maxDist, sample.dist);
+      endDist = sample.dist;
+      ringOut = ringOut || sample.ringOut;
+      if (sample.dist > ESCAPE_R || sample.ringOut) {
+        leaks.push({
+          deg: `${deg}-clash`,
+          dist: Number(sample.dist.toFixed(3)),
+          maxDist: Number(maxDist.toFixed(3)),
+          ringOut: sample.ringOut,
+        });
+        break;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 16));
   }
+  peaks.push({
+    deg: `${deg}-clash`,
+    maxDist: Number(maxDist.toFixed(3)),
+    endDist: Number(endDist.toFixed(3)),
+    ringOut,
+  });
 }
 
 const report = {
   url: URL,
   anglesDeg: ANGLES_DEG,
-  overshootEps: OVERSHOOT_EPS,
+  escapeR: ESCAPE_R,
   leakCount: leaks.length,
   leaks: leaks.slice(0, 12),
+  peaks,
   pageErrors: errors,
 };
 
