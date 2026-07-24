@@ -64,12 +64,14 @@ function addWallSegment(world, wallMaterial, angle, radius) {
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius;
   const wall = new CANNON.Body({ mass: 0, material: wallMaterial });
+  const tangential =
+    CONFIG.PHYSICS_WALL_SEGMENT_TANGENTIAL ?? CONFIG.WALL_SEGMENT_THICKNESS;
   wall.addShape(
     new CANNON.Box(
       new CANNON.Vec3(
         CONFIG.WALL_SEGMENT_THICKNESS,
         CONFIG.WALL_HEIGHT * 0.5,
-        CONFIG.WALL_SEGMENT_THICKNESS
+        tangential
       )
     )
   );
@@ -89,6 +91,10 @@ export function createArenaPhysics(world, bowlMaterial, wallMaterial) {
   floorBody.collisionFilterGroup = CONFIG.COLLISION_BOWL;
   world.addBody(floorBody);
 
+  // Dense physics-only packing — visual rim still uses WALL_SEGMENTS_PER_ARC.
+  const segmentsPerArc =
+    CONFIG.PHYSICS_WALL_SEGMENTS_PER_ARC ?? CONFIG.WALL_SEGMENTS_PER_ARC;
+
   const wallBodies = [];
   for (let i = 0; i < CONFIG.POCKET_ANGLES.length; i++) {
     const pocketStart = CONFIG.POCKET_ANGLES[i];
@@ -98,8 +104,8 @@ export function createArenaPhysics(world, bowlMaterial, wallMaterial) {
     if (wallEnd < wallStart) wallEnd += Math.PI * 2;
 
     const span = wallEnd - wallStart;
-    for (let j = 0; j <= CONFIG.WALL_SEGMENTS_PER_ARC; j++) {
-      const t = j / CONFIG.WALL_SEGMENTS_PER_ARC;
+    for (let j = 0; j <= segmentsPerArc; j++) {
+      const t = j / segmentsPerArc;
       const angle = wallStart + span * t;
       wallBodies.push(addWallSegment(world, wallMaterial, angle, CONFIG.WALL_RADIUS));
     }

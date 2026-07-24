@@ -119,8 +119,22 @@ export const CONFIG = Object.freeze({
   FIXED_DT: 1 / 60,
   FLOOR_Y: 0,
   WALL_HEIGHT: 1.85,
+  /** Radial half-extent of each Cannon wall box (also used by wallClampRadius). */
   WALL_SEGMENT_THICKNESS: 0.32,
+  /**
+   * Visual wall density only (render/arena.js). Physics uses
+   * PHYSICS_WALL_SEGMENTS_PER_ARC so collider coverage can densify without
+   * changing the visible rim mesh.
+   */
   WALL_SEGMENTS_PER_ARC: 7,
+  /**
+   * Physics-only solid-arc density. With WALL_SEGMENT_THICKNESS / tangential
+   * half-extent 0.32, 28 steps per 72° arc yields slight box overlap so beys
+   * cannot slip between sparse segments on hard knockbacks.
+   */
+  PHYSICS_WALL_SEGMENTS_PER_ARC: 28,
+  /** Tangential half-extent of each Cannon wall box (physics only). */
+  PHYSICS_WALL_SEGMENT_TANGENTIAL: 0.4,
 
   GRAVITY: 14,
   FLOOR_EPSILON: 0.02,
